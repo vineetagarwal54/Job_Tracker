@@ -1,4 +1,4 @@
-export const RESUME_VERSIONS = ["Mobile", "AI/ML", "General/Full-stack", "Academic"];
+export const RESUME_VERSIONS = ["Mobile", "AI/ML", "General/Full-stack", "Frontend", "Academic", "Custom"];
 export const WORK_TYPES = ["Remote", "Hybrid", "Onsite"];
 export const SOURCES = ["LinkedIn", "Indeed", "Company Site", "Referral", "Handshake", "Other"];
 export const PRIORITIES = ["High", "Medium", "Low"];
