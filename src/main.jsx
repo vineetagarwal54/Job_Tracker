@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import JobTracker from "../tracker.jsx";
+import JobTracker from "./JobTracker";
 
 // Stub window.storage so the app works without a native storage API
 if (!window.storage) {

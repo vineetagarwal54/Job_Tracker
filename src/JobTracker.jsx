@@ -1,55 +1,11 @@
 import { useState, useEffect } from "react";
-
-const RESUME_VERSIONS = ["Mobile", "AI/ML", "General/Full-stack", "Academic"];
-const WORK_TYPES = ["Remote", "Hybrid", "Onsite"];
-const SOURCES = ["LinkedIn", "Indeed", "Company Site", "Referral", "Handshake", "Other"];
-const PRIORITIES = ["High", "Medium", "Low"];
-
-const STATUS_CONFIG = {
-  "Wishlist":    { color: "#94a3b8", bg: "#1e293b", dot: "#94a3b8" },
-  "Applied":     { color: "#60a5fa", bg: "#1e3a5f", dot: "#60a5fa" },
-  "OA / Screen": { color: "#fbbf24", bg: "#3d2e0a", dot: "#fbbf24" },
-  "Interview":   { color: "#c084fc", bg: "#2e1a47", dot: "#c084fc" },
-  "Offer":       { color: "#4ade80", bg: "#0f2e1a", dot: "#4ade80" },
-  "Rejected":    { color: "#f87171", bg: "#2d1010", dot: "#f87171" },
-  "Withdrawn":   { color: "#9ca3af", bg: "#1a1a1a", dot: "#9ca3af" },
-};
-
-const PRIORITY_CONFIG = {
-  "High":   { color: "#f87171", bg: "#2d1010" },
-  "Medium": { color: "#fbbf24", bg: "#3d2e0a" },
-  "Low":    { color: "#94a3b8", bg: "#1e293b" },
-};
-
-const STATUSES = Object.keys(STATUS_CONFIG);
-
-const EMPTY_FORM = {
-  company: "", role: "", date: "", deadline: "",
-  resume: "General/Full-stack", status: "Applied",
-  link: "", notes: "", jd: "",
-  salary: "", location: "", workType: "Remote",
-  source: "LinkedIn", priority: "Medium",
-  recruiter: "", recruiterEmail: "",
-};
-
-const sampleJobs = [
-  {
-    id: 1, company: "SharkNinja", role: "Mobile App Developer Intern",
-    date: "2026-03-01", deadline: "", resume: "Mobile", status: "Interview",
-    link: "", notes: "React Native focus, SLAM/IoT discussed",
-    jd: "Build cross-platform mobile apps using React Native. Work on IoT integrations for smart home devices.",
-    salary: "$40/hr", location: "Needham, MA", workType: "Hybrid",
-    source: "LinkedIn", priority: "High", recruiter: "Jane Smith", recruiterEmail: "jane@sharkninja.com",
-  },
-  {
-    id: 2, company: "fusionSpan", role: "Software Engineer Intern",
-    date: "2026-03-05", deadline: "2026-04-01", resume: "General/Full-stack", status: "OA / Screen",
-    link: "", notes: "Java/APEX video screen",
-    jd: "Work on Salesforce APEX and Java-based enterprise applications.",
-    salary: "$35/hr", location: "Remote", workType: "Remote",
-    source: "Handshake", priority: "Medium", recruiter: "", recruiterEmail: "",
-  },
-];
+import {
+  RESUME_VERSIONS, WORK_TYPES, SOURCES, PRIORITIES,
+  STATUS_CONFIG, PRIORITY_CONFIG, STATUSES, EMPTY_FORM, sampleJobs,
+} from "./constants";
+import { globalStyles } from "./styles";
+import { isDeadlineSoon, isDeadlinePast } from "./utils";
+import { InfoBlock, FormField } from "./InfoBlock";
 
 export default function JobTracker() {
   const [jobs, setJobs] = useState([]);
@@ -61,9 +17,10 @@ export default function JobTracker() {
   const [filterPriority, setFilterPriority] = useState("All");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("custom");
   const [expandedId, setExpandedId] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
+  const [dragId, setDragId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -110,19 +67,6 @@ export default function JobTracker() {
     setActiveTab("details");
   };
 
-  const isDeadlineSoon = (deadline) => {
-    if (!deadline) return false;
-    const d = new Date(deadline);
-    const now = new Date();
-    const diff = (d - now) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 7;
-  };
-
-  const isDeadlinePast = (deadline) => {
-    if (!deadline) return false;
-    return new Date(deadline) < new Date();
-  };
-
   const hasActiveFilters = filterStatus !== "All" || filterPriority !== "All" || filterResume !== "All" || search;
 
   const clearFilters = () => {
@@ -130,6 +74,31 @@ export default function JobTracker() {
     setFilterPriority("All");
     setFilterResume("All");
     setSearch("");
+  };
+
+  const canDrag = sortBy === "custom" && !hasActiveFilters;
+
+  const handleDragStart = (e, id) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (dragId === null || dragId === targetId) { setDragId(null); return; }
+    const fromIdx = jobs.findIndex(j => j.id === dragId);
+    const toIdx = jobs.findIndex(j => j.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) { setDragId(null); return; }
+    const updated = [...jobs];
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
+    save(updated);
+    setDragId(null);
   };
 
   const filtered = jobs
@@ -142,6 +111,7 @@ export default function JobTracker() {
       (j.location || "").toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
+      if (sortBy === "custom") return 0;
       if (sortBy === "date") return new Date(b.date) - new Date(a.date);
       if (sortBy === "deadline") {
         if (!a.deadline) return 1;
@@ -156,65 +126,9 @@ export default function JobTracker() {
 
   const statusCounts = STATUSES.reduce((acc, s) => ({ ...acc, [s]: jobs.filter(j => j.status === s).length }), {});
 
-  const F = (label, children, col = "1/-1") => (
-    <div style={{ gridColumn: col }}>
-      <label style={{ fontSize: "12px", color: "#8892a4", letterSpacing: "0.06em", fontWeight: 500 }}>{label}</label>
-      <div style={{ marginTop: "5px" }}>{children}</div>
-    </div>
-  );
-
   return (
     <div style={{ minHeight: "100vh", background: "#0b0b12", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: "#e2e8f0" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        input, select, textarea { outline: none; font-family: inherit; }
-        .btn { cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
-        .btn:active { transform: scale(0.97); }
-        .job-row { transition: background 0.15s; cursor: pointer; border-radius: 8px; }
-        .job-row:hover { background: #14141f !important; }
-        .tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 12px; letter-spacing: 0.03em; font-weight: 600; }
-        .filter-select {
-          background: #12121c; border: 1px solid #222233; color: #c8cdd5;
-          padding: 8px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
-          cursor: pointer; transition: border-color 0.15s;
-        }
-        .filter-select:focus { border-color: #6366f1; }
-        .form-input {
-          width: 100%; background: #12121c; border: 1px solid #222233; color: #e2e8f0;
-          padding: 10px 14px; border-radius: 8px; font-size: 14px; font-family: inherit;
-          transition: border-color 0.15s;
-        }
-        .form-input:focus { border-color: #6366f1; }
-        .form-input::placeholder { color: #4a4f5c; }
-        .form-select {
-          width: 100%; background: #12121c; border: 1px solid #222233; color: #e2e8f0;
-          padding: 10px 14px; border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer;
-        }
-        .action-btn { opacity: 0; transition: opacity 0.15s; }
-        .job-row:hover .action-btn { opacity: 1; }
-        .tab-btn {
-          cursor: pointer; border: none; background: transparent; font-family: inherit;
-          font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
-          padding: 10px 18px; border-bottom: 2px solid transparent; color: #5a6070;
-          transition: all 0.15s;
-        }
-        .tab-btn.active { color: #a5b4fc; border-bottom-color: #6366f1; }
-        .tab-btn:hover { color: #e2e8f0; }
-        .jd-box {
-          background: #08080d; border: 1px solid #1e1e2e; border-radius: 8px;
-          padding: 16px; font-size: 14px; color: #b0b8c8; line-height: 1.8;
-          white-space: pre-wrap; max-height: 300px; overflow-y: auto;
-        }
-        .stat-card {
-          padding: 12px 22px; border-right: 1px solid #1a1a2e; min-width: fit-content;
-          cursor: pointer; transition: background 0.15s; user-select: none;
-        }
-        .stat-card:hover { background: #111119; }
-      `}</style>
+      <style>{globalStyles}</style>
 
       {/* ─── Header ─── */}
       <div style={{ background: "#0e0e18", borderBottom: "1px solid #1a1a2e", padding: "22px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -253,7 +167,7 @@ export default function JobTracker() {
         </div>
       </div>
 
-      {/* ─── Compact filter bar (search + 3 dropdowns + sort + clear) ─── */}
+      {/* ─── Compact filter bar ─── */}
       <div style={{ padding: "12px 32px", borderBottom: "1px solid #1a1a2e", display: "flex", gap: "10px", alignItems: "center" }}>
         <input className="filter-select" placeholder="Search..."
           value={search} onChange={e => setSearch(e.target.value)}
@@ -273,6 +187,7 @@ export default function JobTracker() {
 
         <select className="filter-select" value={sortBy} onChange={e => setSortBy(e.target.value)}
           style={{ width: "155px" }}>
+          <option value="custom">Custom Order</option>
           <option value="date">Sort by Applied</option>
           <option value="deadline">Sort by Deadline</option>
           <option value="company">Sort by Company</option>
@@ -308,9 +223,21 @@ export default function JobTracker() {
           const deadlinePast = isDeadlinePast(job.deadline);
 
           return (
-            <div key={job.id} style={{ marginTop: "2px" }}>
+            <div key={job.id}
+              draggable={canDrag}
+              onDragStart={e => canDrag && handleDragStart(e, job.id)}
+              onDragOver={canDrag ? handleDragOver : undefined}
+              onDrop={e => canDrag && handleDrop(e, job.id)}
+              onDragEnd={() => setDragId(null)}
+              style={{ marginTop: "2px", opacity: dragId === job.id ? 0.4 : 1, transition: "opacity 0.15s" }}>
               <div className="job-row" onClick={() => openExpanded(job.id)}
                 style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px 12px", borderBottom: "1px solid #151520" }}>
+
+                {/* Drag handle (only in custom order mode) */}
+                {canDrag && (
+                  <div style={{ flexShrink: 0, cursor: "grab", color: "#3d4350", fontSize: "16px", lineHeight: 1, userSelect: "none", padding: "0 2px" }}
+                    title="Drag to reorder">⠿</div>
+                )}
 
                 {/* Priority + Status dots stacked */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", flexShrink: 0 }}>
@@ -475,51 +402,69 @@ export default function JobTracker() {
             <div style={{ overflowY: "auto", padding: "18px 28px 28px", flex: 1 }}>
               {activeTab === "details" && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                  {F("COMPANY *", <input className="form-input" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="e.g. Google" />)}
-                  {F("ROLE *", <input className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} placeholder="e.g. SWE Intern" />)}
+                  <FormField label="COMPANY *">
+                    <input className="form-input" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="e.g. Google" />
+                  </FormField>
+                  <FormField label="ROLE *">
+                    <input className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} placeholder="e.g. SWE Intern" />
+                  </FormField>
 
-                  {F("STATUS", (
+                  <FormField label="STATUS" col="1/2">
                     <select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                       {STATUSES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  ), "1/2")}
-                  {F("PRIORITY", (
+                  </FormField>
+                  <FormField label="PRIORITY" col="2/3">
                     <select className="form-select" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                       {PRIORITIES.map(p => <option key={p}>{p}</option>)}
                     </select>
-                  ), "2/3")}
+                  </FormField>
 
-                  {F("DATE APPLIED", <input type="date" className="form-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />, "1/2")}
-                  {F("DEADLINE", <input type="date" className="form-input" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />, "2/3")}
+                  <FormField label="DATE APPLIED" col="1/2">
+                    <input type="date" className="form-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+                  </FormField>
+                  <FormField label="DEADLINE" col="2/3">
+                    <input type="date" className="form-input" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />
+                  </FormField>
 
-                  {F("LOCATION", <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. New York, NY" />, "1/2")}
-                  {F("WORK TYPE", (
+                  <FormField label="LOCATION" col="1/2">
+                    <input className="form-input" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. New York, NY" />
+                  </FormField>
+                  <FormField label="WORK TYPE" col="2/3">
                     <select className="form-select" value={form.workType} onChange={e => setForm({ ...form, workType: e.target.value })}>
                       {WORK_TYPES.map(w => <option key={w}>{w}</option>)}
                     </select>
-                  ), "2/3")}
+                  </FormField>
 
-                  {F("SALARY / COMP", <input className="form-input" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="e.g. $40/hr or $120k–$150k" />)}
+                  <FormField label="SALARY / COMP">
+                    <input className="form-input" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="e.g. $40/hr or $120k–$150k" />
+                  </FormField>
 
-                  {F("RESUME VERSION", (
+                  <FormField label="RESUME VERSION" col="1/2">
                     <select className="form-select" value={form.resume} onChange={e => setForm({ ...form, resume: e.target.value })}>
                       {RESUME_VERSIONS.map(r => <option key={r}>{r}</option>)}
                     </select>
-                  ), "1/2")}
-                  {F("SOURCE", (
+                  </FormField>
+                  <FormField label="SOURCE" col="2/3">
                     <select className="form-select" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>
                       {SOURCES.map(s => <option key={s}>{s}</option>)}
                     </select>
-                  ), "2/3")}
+                  </FormField>
 
-                  {F("RECRUITER NAME", <input className="form-input" value={form.recruiter} onChange={e => setForm({ ...form, recruiter: e.target.value })} placeholder="e.g. Jane Smith" />, "1/2")}
-                  {F("RECRUITER EMAIL", <input className="form-input" value={form.recruiterEmail} onChange={e => setForm({ ...form, recruiterEmail: e.target.value })} placeholder="jane@company.com" />, "2/3")}
+                  <FormField label="RECRUITER NAME" col="1/2">
+                    <input className="form-input" value={form.recruiter} onChange={e => setForm({ ...form, recruiter: e.target.value })} placeholder="e.g. Jane Smith" />
+                  </FormField>
+                  <FormField label="RECRUITER EMAIL" col="2/3">
+                    <input className="form-input" value={form.recruiterEmail} onChange={e => setForm({ ...form, recruiterEmail: e.target.value })} placeholder="jane@company.com" />
+                  </FormField>
 
-                  {F("JOB POSTING URL", <input className="form-input" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." />)}
+                  <FormField label="JOB POSTING URL">
+                    <input className="form-input" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://..." />
+                  </FormField>
 
-                  {F("NOTES", (
+                  <FormField label="NOTES">
                     <textarea className="form-input" style={{ minHeight: "80px", resize: "vertical" }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Interview notes, contacts, next steps..." />
-                  ))}
+                  </FormField>
                 </div>
               )}
 
@@ -549,15 +494,6 @@ export default function JobTracker() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function InfoBlock({ label, value, color }) {
-  return (
-    <div>
-      <div style={{ fontSize: "11px", color: "#5a6070", letterSpacing: "0.06em", marginBottom: "5px", fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: "14px", color: color || "#b0b8c8", fontWeight: 500 }}>{value}</div>
     </div>
   );
 }
