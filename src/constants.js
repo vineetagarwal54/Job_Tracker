@@ -22,14 +22,14 @@ export const PRIORITY_CONFIG = {
 
 export const STATUSES = Object.keys(STATUS_CONFIG);
 
-export const EMPTY_FORM = {
-  company: "", role: "", date: "", deadline: "",
+export const getEmptyForm = () => ({
+  company: "", role: "", date: new Date().toISOString().split("T")[0], deadline: "",
   resume: "General/Full-stack", status: "Applied",
   link: "", notes: "", jd: "",
   salary: "", location: "", workType: "Remote",
   source: "LinkedIn", priority: "Medium",
   recruiter: "", recruiterEmail: "",
-};
+});
 
 export const sampleJobs = [
   {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   RESUME_VERSIONS, WORK_TYPES, SOURCES, PRIORITIES,
-  STATUS_CONFIG, PRIORITY_CONFIG, STATUSES, EMPTY_FORM, sampleJobs,
+  STATUS_CONFIG, PRIORITY_CONFIG, STATUSES, getEmptyForm, sampleJobs,
 } from "./constants";
 import { globalStyles } from "./styles";
 import { isDeadlineSoon, isDeadlinePast } from "./utils";
@@ -10,7 +10,7 @@ import { InfoBlock, FormField } from "./InfoBlock";
 export default function JobTracker() {
   const [jobs, setJobs] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(getEmptyForm);
   const [editId, setEditId] = useState(null);
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterResume, setFilterResume] = useState("All");
@@ -48,14 +48,14 @@ export default function JobTracker() {
     } else {
       save([...jobs, { ...form, id: Date.now() }]);
     }
-    setForm(EMPTY_FORM);
+    setForm(getEmptyForm());
     setShowForm(false);
   };
 
   const deleteJob = (id) => save(jobs.filter(j => j.id !== id));
 
   const startEdit = (job) => {
-    setForm({ ...EMPTY_FORM, ...job });
+    setForm({ ...getEmptyForm(), ...job });
     setEditId(job.id);
     setShowForm(true);
     setExpandedId(null);
@@ -138,7 +138,7 @@ export default function JobTracker() {
           </div>
           <div style={{ fontSize: "13px", color: "#5a6070", marginTop: "3px", letterSpacing: "0.05em", fontWeight: 500 }}>VINEET · SUMMER 2026</div>
         </div>
-        <button className="btn" onClick={() => { setShowForm(true); setEditId(null); setForm(EMPTY_FORM); setActiveTab("details"); }}
+        <button className="btn" onClick={() => { setShowForm(true); setEditId(null); setForm(getEmptyForm()); setActiveTab("details"); }}
           style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>
           + Add Job
         </button>
@@ -486,7 +486,7 @@ export default function JobTracker() {
                 style={{ flex: 1, background: "#6366f1", color: "#fff", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>
                 {editId ? "Save Changes" : "Add Application"}
               </button>
-              <button className="btn" onClick={() => { setShowForm(false); setEditId(null); setForm(EMPTY_FORM); }}
+              <button className="btn" onClick={() => { setShowForm(false); setEditId(null); setForm(getEmptyForm()); }}
                 style={{ background: "#1c1c2e", color: "#94a3b8", padding: "12px 20px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>
                 Cancel
               </button>
