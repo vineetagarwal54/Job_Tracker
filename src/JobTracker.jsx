@@ -21,6 +21,7 @@ export default function JobTracker() {
   const [expandedId, setExpandedId] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
   const [dragId, setDragId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -336,9 +337,23 @@ export default function JobTracker() {
                     )}
 
                     {activeTab === "jd" && (
-                      job.jd
-                        ? <div className="jd-box">{job.jd}</div>
-                        : <div style={{ fontSize: "14px", color: "#5a6070" }}>No job description saved. Click Edit to paste it in.</div>
+                      job.jd ? (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+                            <button className="btn" onClick={() => {
+                              navigator.clipboard.writeText(job.jd);
+                              setCopiedId(job.id);
+                              setTimeout(() => setCopiedId(null), 2000);
+                            }}
+                              style={{ background: copiedId === job.id ? "#0f2e1a" : "#1a1a2e", color: copiedId === job.id ? "#4ade80" : "#818cf8", padding: "6px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}>
+                              {copiedId === job.id ? "Copied!" : "Copy JD"}
+                            </button>
+                          </div>
+                          <div className="jd-box">{job.jd}</div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "14px", color: "#5a6070" }}>No job description saved. Click Edit to paste it in.</div>
+                      )
                     )}
 
                     {activeTab === "status" && (
