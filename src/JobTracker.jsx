@@ -22,13 +22,26 @@ export default function JobTracker() {
   const [activeTab, setActiveTab] = useState("details");
   const [dragId, setDragId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [quickAddNotice, setQuickAddNotice] = useState("");
+  const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
         const result = await window.storage.get("jobs_v2");
-        const data = result ? JSON.parse(result.value) : sampleJobs;
-        setJobs(data);
+        if (result) {
+          setJobs(JSON.parse(result.value));
+        } else {
+          // Migrate from localStorage (old web/Electron versions) → new JSON file
+          const legacy = localStorage.getItem("jobs_v2");
+          if (legacy) {
+            const data = JSON.parse(legacy);
+            setJobs(data);
+            await window.storage.set("jobs_v2", legacy);
+          } else {
+            setJobs(sampleJobs);
+          }
+        }
       } catch {
         setJobs(sampleJobs);
       }
@@ -36,9 +49,145 @@ export default function JobTracker() {
     })();
   }, []);
 
+  // Helper: apply quick-add params to form
+  const applyQuickAdd = (params) => {
+    const prefilled = getEmptyForm();
+    ["company", "role", "location", "salary", "link", "source", "workType", "deadline"].forEach(f => {
+      if (params[f]) prefilled[f] = params[f];
+    });
+    setForm(prefilled);
+    setShowForm(true);
+    setEditId(null);
+    setActiveTab("details");
+    if (params.jdCopied === "1") {
+      setQuickAddNotice("Job description copied to clipboard — switch to JD tab and paste it");
+    } else {
+      setQuickAddNotice("Auto-filled from job page — review and hit Add");
+    }
+  };
+
+  // Quick Add: parse URL params from bookmarklet (web mode)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("quickadd")) return;
+    applyQuickAdd(Object.fromEntries(params.entries()));
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  // Quick Add: listen for deep-link from Electron (jobtrack:// protocol)
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    window.electronAPI.onQuickAdd((params) => applyQuickAdd(params));
+    window.electronAPI.signalReady();
+  }, []);
+
+  const getBookmarkletCode = () => {
+    // Each array entry MUST be a complete single-line JS statement.
+    // .join("") produces a valid single-line bookmarklet.
+    const code = [
+      "javascript:void(function(){",
+      "var d={},h=location.hostname,jd='',ats=/greenhouse|lever|workday|ashby|bamboo|icims|taleo|smartrecruiters|jazz|breezy|paylocity|myworkday|phenom/i;",
+
+      // ── 1. JSON-LD structured data (most reliable when present) ──
+      "try{document.querySelectorAll('script[type=\"application/ld+json\"]').forEach(function(s){try{var raw=JSON.parse(s.textContent),items=Array.isArray(raw)?raw:raw['@graph']?raw['@graph']:[raw];items.forEach(function(j){if(j['@type']==='JobPosting'){d.role=d.role||j.title||'';d.company=d.company||(j.hiringOrganization&&j.hiringOrganization.name)||'';if(j.jobLocation){var a=j.jobLocation.address||j.jobLocation;if(a.addressLocality)d.location=[a.addressLocality,a.addressRegion].filter(Boolean).join(', ')}if(j.baseSalary&&j.baseSalary.value){var bv=j.baseSalary.value;d.salary=bv.minValue?'$'+bv.minValue+(bv.maxValue?'-$'+bv.maxValue:''):'$'+(bv.value||'')}jd=jd||j.description||''}})}catch(e){}})}catch(e){}",
+
+      // ── 2. Source detection ──
+      "if(h.includes('handshake'))d.source='Handshake';else if(h.includes('linkedin'))d.source='LinkedIn';else if(h.includes('indeed'))d.source='Indeed';else if(h.includes('jobright'))d.source='Other';else d.source='Company Site';",
+
+      // ── 3. Parse og:title / document.title (useful on both Handshake & company sites) ──
+      // Typical patterns: "Role - Company | Handshake" or "Role | Company" or "Role at Company"
+      "var ogT=(document.querySelector('meta[property=\"og:title\"]')||{}).content||document.title||'';",
+      "var titleParts=ogT.split(/\\s*[\\|\\-\\u2013\\u2014]\\s*/);",
+      "var atParts=ogT.split(/\\s+at\\s+/i);",
+
+      // ── 4. Role ──
+      // JSON-LD first (already set above), then og:title first segment, then h1 (skip generic headings)
+      "if(!d.role&&titleParts.length>1)d.role=titleParts[0].trim();",
+      "if(!d.role){var h1=(document.querySelector('h1')||{}).textContent||'';if(h1&&!/^(careers|jobs|join|open positions|work with us|opportunities)/i.test(h1.trim()))d.role=h1.trim()}",
+      "if(!d.role&&titleParts.length)d.role=titleParts[0].trim();",
+
+      // ── 5. Company ──
+      // 5a. Handshake-specific: find employer link with numeric ID (skip nav link "Employers")
+      "if(!d.company&&h.includes('handshake')){var aEls=document.querySelectorAll('a[href*=\"/employers/\"]');for(var i=0;i<aEls.length;i++){if(/\\/employers\\/\\d/.test(aEls[i].getAttribute('href'))){var t=aEls[i].textContent.trim();if(t&&t.length>1&&t.length<80){d.company=t;break}}}}",
+      // 5b. Handshake fallback: parse "Role - Company | Handshake" from og:title
+      "if(!d.company&&h.includes('handshake')&&titleParts.length>=2){var cp=titleParts[1].trim();if(!/handshake/i.test(cp))d.company=cp;else if(titleParts.length>=3)d.company=titleParts[1].trim()}",
+      // 5c. "Role at Company" pattern
+      "if(!d.company&&atParts.length>=2){var cp2=atParts[1].replace(/\\s*[\\|\\-].*/,'').trim();if(cp2&&cp2.length<80&&!ats.test(cp2))d.company=cp2}",
+      // 5d. og:site_name (skip job boards and ATS platforms)
+      "if(!d.company){var og=document.querySelector('meta[property=\"og:site_name\"]');if(og&&og.content&&!/handshake|linkedin|indeed|glassdoor/i.test(og.content)&&!ats.test(og.content))d.company=og.content.trim()}",
+      // 5e. Data-attribute selectors
+      "if(!d.company){var cEl=document.querySelector('[data-hook*=\"employer\"],[class*=\"employer-name\"],[class*=\"company-name\"],[data-testid*=\"employer\"],[data-testid*=\"company\"]');if(cEl)d.company=cEl.textContent.trim()}",
+      // 5f. Company/employer links (non-Handshake)
+      "if(!d.company&&!h.includes('handshake')){var cLinks=document.querySelectorAll('a[href*=\"/company\"],a[href*=\"/companies\"]');for(var i=0;i<cLinks.length;i++){var t=cLinks[i].textContent.trim();if(t&&t.length>1&&t.length<80){d.company=t;break}}}",
+      // 5g. Last resort: second segment of title
+      "if(!d.company&&titleParts.length>=2){var last=titleParts[titleParts.length-1].trim();if(last.length>1&&last.length<80)d.company=last}",
+
+      // ── 6. Link ──
+      "d.link=location.href;",
+
+      // ── 7. Salary ──
+      // 7a. Scoped: find small text blocks mentioning salary/compensation, extract $ from there
+      "if(!d.salary){try{var sEls=document.querySelectorAll('div,span,dt,li,p,td,dd,section');for(var i=0;i<sEls.length;i++){var el=sEls[i],txt=el.innerText||'';if(txt.length>5&&txt.length<500&&/salary|compensation|pay|stipend|wage/i.test(txt)){var sm=txt.match(/\\$[\\d,]+(\\.[\\d]+)?(k|K)?\\s*([-\\u2013\\/]\\s*(\\$)?[\\d,]+(\\.[\\d]+)?(k|K)?)?\\s*(\\/\\s*(hr|hour|yr|year|month|mo|week|wk|annual))?/i);if(sm&&sm[0].length>3){d.salary=sm[0].trim();break}}}}catch(e){}}",
+      // 7b. Fallback: body-wide scan but require the match to look like a real salary (>3 chars)
+      "if(!d.salary){try{var bt=document.body.innerText;var sm=bt.match(/\\$[\\d,]+(\\.[\\d]+)?(k|K)?\\s*([-\\u2013\\/]\\s*(\\$)?[\\d,]+(\\.[\\d]+)?(k|K)?)?\\s*(\\/\\s*(hr|hour|yr|year|month|mo|week|wk|annual))?/i);if(sm&&sm[0].length>3)d.salary=sm[0].trim()}catch(e){}}",
+
+      // ── 8. Job Description ──
+      // 8a. Specific JD selectors (prefer "job-description" over generic "description")
+      "if(!jd){var jdEl=document.querySelector('[class*=\"job-description\"],[class*=\"job_description\"],[id*=\"job-description\"],[id*=\"job_description\"],[class*=\"posting-description\"],[class*=\"job-detail\"],[class*=\"jobDetail\"]');if(jdEl&&jdEl.innerText.length>100)jd=jdEl.innerText}",
+      // 8b. Broader description selectors
+      "if(!jd||jd.length<200){var jdEl2=document.querySelector('[class*=\"description\"],[id*=\"description\"],article,[role=\"main\"]');if(jdEl2&&jdEl2.innerText.length>200)jd=jdEl2.innerText}",
+      // 8c. Largest text block fallback (exclude nav/footer/header/sidebar)
+      "if(!jd||jd.length<200){var best='';document.querySelectorAll('div,section,main').forEach(function(el){if(el.closest('nav,footer,header,[class*=\"sidebar\"],[class*=\"nav\"],[class*=\"footer\"],[class*=\"header\"]'))return;var t=el.innerText||'';if(t.length>300&&t.length>best.length&&t.length<50000)best=t});if(best.length>300)jd=best}",
+
+      // ── 9. Clipboard + open app ──
+      "var jdC=false;if(jd&&jd.length>50)try{navigator.clipboard.writeText(jd.trim().substring(0,15000));jdC=true}catch(e){}",
+      "var p=new URLSearchParams();for(var k in d)if(d[k])p.set(k,String(d[k]).trim().substring(0,500));if(jdC)p.set('jdCopied','1');",
+      "window.location='jobtrack://add?'+p.toString();",
+      "}())",
+    ].join("");
+    return code;
+  };
+
   const save = async (updated) => {
     setJobs(updated);
     try { await window.storage.set("jobs_v2", JSON.stringify(updated)); } catch {}
+  };
+
+  const exportJobs = () => {
+    const blob = new Blob([JSON.stringify(jobs, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "jobtrack-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJobs = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (!Array.isArray(imported)) { alert("Invalid format: expected an array of jobs."); return; }
+        const existingIds = new Set(jobs.map(j => j.id));
+        const newJobs = imported.filter(j => !existingIds.has(j.id));
+        if (newJobs.length === 0 && imported.length > 0) {
+          if (confirm(`All ${imported.length} jobs already exist. Replace all data with imported file?`)) {
+            save(imported);
+          }
+        } else {
+          const merged = [...jobs, ...newJobs];
+          save(merged);
+          alert(`Imported ${newJobs.length} new job(s). ${imported.length - newJobs.length} duplicate(s) skipped.`);
+        }
+      } catch { alert("Failed to read file. Make sure it's a valid JSON export."); }
+    };
+    input.click();
   };
 
   const handleSubmit = () => {
@@ -51,6 +200,7 @@ export default function JobTracker() {
     }
     setForm(getEmptyForm());
     setShowForm(false);
+    setQuickAddNotice("");
   };
 
   const deleteJob = (id) => save(jobs.filter(j => j.id !== id));
@@ -139,10 +289,24 @@ export default function JobTracker() {
           </div>
           <div style={{ fontSize: "13px", color: "#5a6070", marginTop: "3px", letterSpacing: "0.05em", fontWeight: 500 }}>VINEET · SUMMER 2026</div>
         </div>
-        <button className="btn" onClick={() => { setShowForm(true); setEditId(null); setForm(getEmptyForm()); setActiveTab("details"); }}
-          style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>
-          + Add Job
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button className="btn" onClick={importJobs}
+            style={{ background: "#1a1a2e", color: "#34d399", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
+            Import
+          </button>
+          <button className="btn" onClick={exportJobs}
+            style={{ background: "#1a1a2e", color: "#fbbf24", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
+            Export
+          </button>
+          <button className="btn" onClick={() => setShowSetup(true)}
+            style={{ background: "#1a1a2e", color: "#818cf8", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
+            Quick Add Setup
+          </button>
+          <button className="btn" onClick={() => { setShowForm(true); setEditId(null); setForm(getEmptyForm()); setActiveTab("details"); }}
+            style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>
+            + Add Job
+          </button>
+        </div>
       </div>
 
       {/* ─── Stats bar (clickable = filter by status) ─── */}
@@ -414,6 +578,16 @@ export default function JobTracker() {
               </div>
             </div>
 
+            {quickAddNotice && (
+              <div style={{ margin: "14px 28px 0", padding: "10px 14px", background: "#1a2e1a", border: "1px solid #2d5a2d", borderRadius: "8px", fontSize: "13px", color: "#4ade80", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>{quickAddNotice}</span>
+                <button className="btn" onClick={() => setQuickAddNotice("")}
+                  style={{ background: "transparent", color: "#4ade80", padding: "2px 8px", fontSize: "16px", lineHeight: 1, fontWeight: 600 }}>
+                  x
+                </button>
+              </div>
+            )}
+
             <div style={{ overflowY: "auto", padding: "18px 28px 28px", flex: 1 }}>
               {activeTab === "details" && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
@@ -501,11 +675,100 @@ export default function JobTracker() {
                 style={{ flex: 1, background: "#6366f1", color: "#fff", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>
                 {editId ? "Save Changes" : "Add Application"}
               </button>
-              <button className="btn" onClick={() => { setShowForm(false); setEditId(null); setForm(getEmptyForm()); }}
+              <button className="btn" onClick={() => { setShowForm(false); setEditId(null); setForm(getEmptyForm()); setQuickAddNotice(""); }}
                 style={{ background: "#1c1c2e", color: "#94a3b8", padding: "12px 20px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ─── Quick Add Setup Modal ─── */}
+      {showSetup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ background: "#0e0e18", border: "1px solid #222233", borderRadius: "14px", width: "560px", maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", padding: "28px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px" }}>
+              <div style={{ fontFamily: "Syne, sans-serif", fontSize: "20px", fontWeight: 700, color: "#f1f5f9" }}>
+                Quick Add Setup
+              </div>
+              <button className="btn" onClick={() => setShowSetup(false)}
+                style={{ background: "transparent", color: "#5a6070", fontSize: "20px", lineHeight: 1, padding: "4px 8px" }}>
+                x
+              </button>
+            </div>
+
+            <div style={{ fontSize: "14px", color: "#94a3b8", lineHeight: "1.7", marginBottom: "24px" }}>
+              Save a bookmarklet to your browser's bookmarks bar. When you're on a job posting page, click it to auto-extract the details and open JobTrack with the form pre-filled.
+            </div>
+
+            {/* Step 1 */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "12px", color: "#6366f1", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "8px" }}>
+                STEP 1 — SHOW YOUR BOOKMARKS BAR
+              </div>
+              <div style={{ fontSize: "13px", color: "#7a8494", lineHeight: "1.6" }}>
+                Press <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Ctrl+Shift+B</span> (Chrome/Edge) to toggle the bookmarks bar.
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "12px", color: "#6366f1", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "10px" }}>
+                STEP 2 — DRAG THIS TO YOUR BOOKMARKS BAR
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", padding: "16px" }}>
+                <a
+                  href={getBookmarkletCode()}
+                  onClick={e => e.preventDefault()}
+                  draggable="true"
+                  style={{
+                    display: "inline-block", padding: "14px 28px", background: "linear-gradient(135deg, #6366f1, #818cf8)",
+                    color: "#fff", borderRadius: "10px", fontSize: "15px", fontWeight: 700, fontFamily: "Syne, sans-serif",
+                    textDecoration: "none", cursor: "grab", userSelect: "none",
+                    boxShadow: "0 4px 20px rgba(99,102,241,0.3)", letterSpacing: "0.02em",
+                  }}>
+                  + Save to JobTrack
+                </a>
+              </div>
+              <div style={{ textAlign: "center", fontSize: "12px", color: "#5a6070", marginTop: "4px" }}>
+                Drag the button above into your bookmarks bar
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ fontSize: "12px", color: "#6366f1", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "8px" }}>
+                STEP 3 — USE IT
+              </div>
+              <div style={{ fontSize: "13px", color: "#7a8494", lineHeight: "1.8" }}>
+                1. Go to any job posting page<br />
+                2. Click <span style={{ color: "#e2e8f0", fontWeight: 600 }}>"+ Save to JobTrack"</span> in your bookmarks bar<br />
+                3. JobTrack opens with the form pre-filled<br />
+                4. Review the details and hit <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Add Application</span>
+              </div>
+            </div>
+
+            {/* Supported platforms */}
+            <div style={{ background: "#111119", border: "1px solid #1a1a2e", borderRadius: "10px", padding: "16px 20px" }}>
+              <div style={{ fontSize: "12px", color: "#5a6070", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "10px" }}>
+                SUPPORTED PLATFORMS
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {["Handshake", "Jobright", "LinkedIn", "Indeed", "Company Career Pages"].map(p => (
+                  <span key={p} style={{ padding: "5px 12px", background: "#1a1a2e", borderRadius: "6px", fontSize: "12px", color: "#94a3b8", fontWeight: 600 }}>
+                    {p}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: "12px", color: "#5a6070", marginTop: "10px", lineHeight: "1.6" }}>
+                Extracts: company, role, location, source, job link. Job description is copied to your clipboard for pasting into the JD tab.
+              </div>
+            </div>
+
+            <button className="btn" onClick={() => setShowSetup(false)}
+              style={{ width: "100%", marginTop: "20px", background: "#1c1c2e", color: "#94a3b8", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>
+              Done
+            </button>
           </div>
         </div>
       )}
