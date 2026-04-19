@@ -1,0 +1,109 @@
+# JobTrack
+
+A desktop app for tracking your job applications — built with React + Electron. Features one-click capture from job boards via a browser bookmarklet, deadline tracking, drag-and-drop reordering, and JSON export/import.
+
+---
+
+## What it does
+
+- **Track applications** with status (Wishlist → Applied → OA → Interview → Offer / Rejected), priority, resume version, salary, location, recruiter info, and a full job description tab
+- **Quick Add bookmarklet** — click a button in your browser bar while on any job posting to auto-extract company, role, location, salary, and job description, then open the app with the form pre-filled
+- **Filter & search** by status, priority, resume version, or free-text across company/role/location
+- **Sort** by date applied, deadline, company, status, priority, or custom drag-and-drop order
+- **Deadline alerts** — "DUE SOON" and "EXPIRED" badges on rows
+- **Export / Import** JSON backups
+- Data is stored locally in a JSON file (via Electron's IPC bridge); no account or internet connection required
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| UI | React 18 |
+| Desktop shell | Electron 33 |
+| Build tool | Vite 5 |
+| Styling | Inline styles + global CSS-in-JS (`styles.js`) |
+| Storage | Local JSON file via Electron IPC (`electron/main.cjs`) |
+| Packaging | electron-builder (NSIS installer for Windows) |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18 or later
+- npm v9 or later
+
+### Install
+
+```bash
+git clone https://github.com/vineet54/JobTrack.git
+cd JobTrack
+npm install
+```
+
+### Run in development
+
+```bash
+npm run electron
+```
+
+This starts the Vite dev server and Electron together. The app opens automatically once the dev server is ready.
+
+### Build a distributable
+
+```bash
+npm run electron:build
+```
+
+The installer is output to `release/`. On Windows this produces an NSIS `.exe` installer.
+
+---
+
+## Quick Add Setup (Bookmarklet)
+
+The bookmarklet lets you capture job details from any page in one click:
+
+1. Open JobTrack and click **Quick Add Setup** in the top-right header
+2. Press `Ctrl+Shift+B` to show your browser's bookmarks bar
+3. Drag the **"+ Save to JobTrack"** button into the bookmarks bar
+4. Navigate to any job posting and click the bookmarklet — JobTrack opens with the form pre-filled
+
+**Supported job boards:** Handshake, LinkedIn, Indeed, Jobright, and company career pages
+
+The bookmarklet extracts structured data (JSON-LD), og:title, and DOM selectors to populate company, role, location, salary, and source. The job description is copied to your clipboard automatically.
+
+---
+
+## Project Structure
+
+```
+JobTrack/
+├── electron/
+│   ├── main.cjs        # Electron main process, IPC handlers, deep-link (jobtrack://)
+│   └── preload.cjs     # Exposes storage + electronAPI to renderer
+├── src/
+│   ├── main.jsx        # React entry point
+│   ├── JobTracker.jsx  # Main component — all UI and state
+│   ├── InfoBlock.jsx   # Reusable display + form field components
+│   ├── constants.js    # Statuses, priorities, resume versions, sample data
+│   ├── styles.js       # Global CSS injected as a style tag
+│   └── utils.js        # Deadline date helpers
+├── index.html
+├── vite.config.js
+└── package.json
+```
+
+---
+
+## Data & Privacy
+
+All data is stored in a local JSON file on your machine — nothing is sent to any server. You can export a full backup at any time via the **Export** button and restore it with **Import**.
+
+---
+
+## License
+
+MIT

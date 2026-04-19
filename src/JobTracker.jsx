@@ -21,6 +21,7 @@ export default function JobTracker() {
   const [expandedId, setExpandedId] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
   const [dragId, setDragId] = useState(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [quickAddNotice, setQuickAddNotice] = useState("");
   const [showSetup, setShowSetup] = useState(false);
@@ -229,18 +230,51 @@ export default function JobTracker() {
 
   const canDrag = sortBy === "custom" && !hasActiveFilters;
 
+  const moveJob = (id, dir) => {
+    const idx = jobs.findIndex(j => j.id === id);
+    const target = idx + dir;
+    if (idx === -1 || target < 0 || target >= jobs.length) return;
+    const updated = [...jobs];
+    [updated[idx], updated[target]] = [updated[target], updated[idx]];
+    save(updated);
+  };
+
+  const pinJob = (id) => {
+    const idx = jobs.findIndex(j => j.id === id);
+    if (idx <= 0) return;
+    const updated = [...jobs];
+    const [moved] = updated.splice(idx, 1);
+    updated.unshift(moved);
+    save(updated);
+  };
+
+  const moveJobBottom = (id) => {
+    const idx = jobs.findIndex(j => j.id === id);
+    if (idx === -1 || idx === jobs.length - 1) return;
+    const updated = [...jobs];
+    const [moved] = updated.splice(idx, 1);
+    updated.push(moved);
+    save(updated);
+  };
+
   const handleDragStart = (e, id) => {
     setDragId(id);
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, targetId) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    if (targetId !== undefined) setDropTargetId(targetId);
+    // Auto-scroll when dragging near viewport edges
+    const threshold = 80, speed = 10;
+    if (e.clientY < threshold) window.scrollBy(0, -speed);
+    else if (e.clientY > window.innerHeight - threshold) window.scrollBy(0, speed);
   };
 
   const handleDrop = (e, targetId) => {
     e.preventDefault();
+    setDropTargetId(null);
     if (dragId === null || dragId === targetId) { setDragId(null); return; }
     const fromIdx = jobs.findIndex(j => j.id === dragId);
     const toIdx = jobs.findIndex(j => j.id === targetId);
@@ -250,6 +284,11 @@ export default function JobTracker() {
     updated.splice(toIdx, 0, moved);
     save(updated);
     setDragId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragId(null);
+    setDropTargetId(null);
   };
 
   const filtered = jobs
@@ -391,10 +430,16 @@ export default function JobTracker() {
             <div key={job.id}
               draggable={canDrag}
               onDragStart={e => canDrag && handleDragStart(e, job.id)}
-              onDragOver={canDrag ? handleDragOver : undefined}
+              onDragOver={e => canDrag && handleDragOver(e, job.id)}
+              onDragLeave={() => dropTargetId === job.id && setDropTargetId(null)}
               onDrop={e => canDrag && handleDrop(e, job.id)}
-              onDragEnd={() => setDragId(null)}
-              style={{ marginTop: "2px", opacity: dragId === job.id ? 0.4 : 1, transition: "opacity 0.15s" }}>
+              onDragEnd={handleDragEnd}
+              style={{
+                marginTop: "2px",
+                opacity: dragId === job.id ? 0.4 : 1,
+                transition: "opacity 0.15s",
+                borderTop: dropTargetId === job.id && dragId !== job.id ? "2px solid #6366f1" : "2px solid transparent",
+              }}>
               <div className="job-row" onClick={() => openExpanded(job.id)}
                 style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px 12px", borderBottom: "1px solid #151520" }}>
 
@@ -452,7 +497,19 @@ export default function JobTracker() {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: "6px", flexShrink: 0, alignItems: "center" }}>
+                  {canDrag && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <button className="btn action-btn" onClick={e => { e.stopPropagation(); moveJob(job.id, -1); }}
+                        disabled={filtered.indexOf(job) === 0}
+                        style={{ background: "#1a1a2e", color: filtered.indexOf(job) === 0 ? "#2a2a3a" : "#94a3b8", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", lineHeight: 1 }}
+                        title="Move up">▲</button>
+                      <button className="btn action-btn" onClick={e => { e.stopPropagation(); moveJob(job.id, 1); }}
+                        disabled={filtered.indexOf(job) === filtered.length - 1}
+                        style={{ background: "#1a1a2e", color: filtered.indexOf(job) === filtered.length - 1 ? "#2a2a3a" : "#94a3b8", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", lineHeight: 1 }}
+                        title="Move down">▼</button>
+                    </div>
+                  )}
                   <button className="btn action-btn" onClick={e => { e.stopPropagation(); startEdit(job); }}
                     style={{ background: "#1a1a2e", color: "#818cf8", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}>
                     Edit
@@ -550,6 +607,34 @@ export default function JobTracker() {
                             </button>
                           ))}
                         </div>
+
+                        {sortBy === "custom" && (
+                          <>
+                            <div style={{ fontSize: "12px", color: "#5a6070", letterSpacing: "0.06em", marginTop: "20px", marginBottom: "12px", fontWeight: 600 }}>REORDER</div>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button className="btn" onClick={() => { pinJob(job.id); setExpandedId(null); }}
+                                disabled={jobs.indexOf(job) === 0}
+                                style={{
+                                  padding: "7px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
+                                  background: jobs.indexOf(job) === 0 ? "transparent" : "#0f1a2e",
+                                  color: jobs.indexOf(job) === 0 ? "#3d4350" : "#60a5fa",
+                                  border: "1px solid " + (jobs.indexOf(job) === 0 ? "#222233" : "#1e3a5f"),
+                                }}>
+                                ▲ Pin to Top
+                              </button>
+                              <button className="btn" onClick={() => { moveJobBottom(job.id); setExpandedId(null); }}
+                                disabled={jobs.indexOf(job) === jobs.length - 1}
+                                style={{
+                                  padding: "7px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
+                                  background: jobs.indexOf(job) === jobs.length - 1 ? "transparent" : "#1a1a2e",
+                                  color: jobs.indexOf(job) === jobs.length - 1 ? "#3d4350" : "#94a3b8",
+                                  border: "1px solid " + (jobs.indexOf(job) === jobs.length - 1 ? "#222233" : "#2a2a3e"),
+                                }}>
+                                ▼ Move to Bottom
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

@@ -29,6 +29,7 @@ export const globalStyles = `
   }
   .action-btn { opacity: 0; transition: opacity 0.15s; }
   .job-row:hover .action-btn { opacity: 1; }
+  .action-btn:disabled { cursor: default; pointer-events: none; }
   .tab-btn {
     cursor: pointer; border: none; background: transparent; font-family: inherit;
     font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
