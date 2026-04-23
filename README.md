@@ -25,7 +25,7 @@ A desktop app for tracking your job applications — built with React + Electron
 | Build tool | Vite 5 |
 | Styling | Inline styles + global CSS-in-JS (`styles.js`) |
 | Storage | Local JSON file via Electron IPC (`electron/main.cjs`) |
-| Packaging | electron-builder (NSIS installer for Windows) |
+| Packaging | electron-builder (NSIS installer for Windows, DMG for macOS) |
 
 ---
 
@@ -58,7 +58,14 @@ This starts the Vite dev server and Electron together. The app opens automatical
 npm run electron:build
 ```
 
-The installer is output to `release/`. On Windows this produces an NSIS `.exe` installer.
+The installer is output to `release/`.
+
+| Platform | Output | Notes |
+|---|---|---|
+| Windows | `.exe` (NSIS installer) | Run `electron:build` on a Windows machine |
+| macOS | `.dmg` installer | **Must be built on a Mac** — run `electron:build` on macOS |
+
+> **Mac users:** You need to clone the repo and run `npm run electron:build` on your Mac to produce the `.dmg`. Cross-compiling from Windows to macOS is not supported by electron-builder.
 
 ---
 
@@ -67,7 +74,7 @@ The installer is output to `release/`. On Windows this produces an NSIS `.exe` i
 The bookmarklet lets you capture job details from any page in one click:
 
 1. Open JobTrack and click **Quick Add Setup** in the top-right header
-2. Press `Ctrl+Shift+B` to show your browser's bookmarks bar
+2. Press `Ctrl+Shift+B` (Windows) or `Cmd+Shift+B` (Mac) to show your browser's bookmarks bar
 3. Drag the **"+ Save to JobTrack"** button into the bookmarks bar
 4. Navigate to any job posting and click the bookmarklet — JobTrack opens with the form pre-filled
 
