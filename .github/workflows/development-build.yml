@@ -1,10 +1,7 @@
-name: Development Build
+name: Development Release Build
 
 on:
   push:
-    branches:
-      - development
-  pull_request:
     branches:
       - development
   workflow_dispatch:
@@ -14,7 +11,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows Installer
+    name: Build and Publish Windows Dev Release
     runs-on: windows-latest
 
     steps:
@@ -30,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Electron app
-        run: npm run electron:build
+      - name: Build and publish Electron app
+        run: npm run electron:build -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 

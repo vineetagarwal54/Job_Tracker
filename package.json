@@ -1,6 +1,6 @@
 {
   "name": "job-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A desktop app for tracking job applications — with one-click capture from job boards, deadline alerts, and local-only storage.",
   "author": "Vineet Agarwal",
   "license": "MIT",
@@ -35,15 +35,18 @@
     "productName": "JobTrack",
     "protocols": {
       "name": "JobTrack",
-      "schemes": ["jobtrack"]
+      "schemes": [
+        "jobtrack"
+      ]
     },
     "publish": [
-    {
-    "provider": "github",
-    "owner": "vineetagarwal54",
-    "repo": "Job_Tracker"
-    }
-  ],
+      {
+        "provider": "github",
+        "owner": "vineetagarwal54",
+        "repo": "Job_Tracker",
+        "releaseType": "draft"
+      }
+    ],
     "win": {
       "target": "nsis"
     },
@@ -70,6 +73,7 @@
     ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

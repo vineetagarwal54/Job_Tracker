@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -8,6 +8,58 @@ const fs = require("fs");
 //   macOS:   ~/Library/Application Support/JobTrack/data.json
 //   Linux:   ~/.config/JobTrack/data.json
 // Survives reinstalls and is per-user.
+
+const { autoUpdater } = require("electron-updater");
+
+autoUpdater.autoDownload = false;
+
+function checkForUpdates() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.checkForUpdates();
+}
+
+autoUpdater.on("update-available", async () => {
+  const result = await dialog.showMessageBox({
+    type: "info",
+    buttons: ["Update now", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "Update available",
+    message: "A new version of JobTrack is available.",
+    detail: "Do you want to download and install the update now?"
+  });
+
+  if (result.response === 0) {
+    autoUpdater.downloadUpdate();
+  }
+});
+
+autoUpdater.on("update-downloaded", async () => {
+  const result = await dialog.showMessageBox({
+    type: "info",
+    buttons: ["Restart and install", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "Update ready",
+    message: "The update has been downloaded.",
+    detail: "Restart JobTrack to install the latest version."
+  });
+
+  if (result.response === 0) {
+    autoUpdater.quitAndInstall();
+  }
+});
+
+autoUpdater.on("error", (error) => {
+  console.error("Auto update error:", error);
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  checkForUpdates();
+});
+
 function getDataPath() {
   const dir = path.join(app.getPath("userData"));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
