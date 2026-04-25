@@ -4,13 +4,13 @@
   "description": "A desktop app for tracking job applications — with one-click capture from job boards, deadline alerts, and local-only storage.",
   "author": "Vineet Agarwal",
   "license": "MIT",
-  "homepage": "https://github.com/vineet54/JobTrack",
+  "homepage": "https://github.com/vineetagarwal54/JobTrack",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vineet54/JobTrack.git"
+    "url": "https://github.com/vineetagarwal54/JobTrack.git"
   },
   "bugs": {
-    "url": "https://github.com/vineet54/JobTrack/issues"
+    "url": "https://github.com/vineetagarwal54/JobTrack/issues"
   },
   "keywords": [
     "job-tracker",
@@ -37,6 +37,13 @@
       "name": "JobTrack",
       "schemes": ["jobtrack"]
     },
+    "publish": [
+    {
+    "provider": "github",
+    "owner": "vineetagarwal54",
+    "repo": "Job_Tracker"
+    }
+  ],
     "win": {
       "target": "nsis"
     },

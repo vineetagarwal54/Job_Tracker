@@ -329,6 +329,7 @@ function SelectionBar({
 
   return (
     <div style={{
+      position: "sticky", top: 0,
       display: "flex", alignItems: "center", gap: "10px",
       padding: "10px 32px", background: "#11142a",
       borderBottom: "1px solid #1a1a2e",
