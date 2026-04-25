@@ -2,6 +2,8 @@
 
 A desktop app for tracking your job applications — built with React + Electron. Features one-click capture from job boards via a browser bookmarklet, deadline tracking, drag-and-drop reordering, and JSON export/import.
 
+> **Note:** The features listed below with _(development)_ are on the `development` branch and have not yet been merged to `main`.
+
 ---
 
 ## What it does
@@ -11,7 +13,9 @@ A desktop app for tracking your job applications — built with React + Electron
 - **Filter & search** by status, priority, resume version, or free-text across company/role/location
 - **Sort** by date applied, deadline, company, status, priority, or custom drag-and-drop order
 - **Deadline alerts** — "DUE SOON" and "EXPIRED" badges on rows
-- **Export / Import** JSON backups
+- **Export / Import** JSON backups — export is scoped to the active workspace
+- **Workspaces** _(development)_ — separate your applications into named groups (e.g. "Internships", "Full Time 2027"); switch, create, rename, reorder, and delete workspaces with full data safety
+- **Multi-select & bulk actions** _(development)_ — select multiple jobs, then bulk move to another workspace, bulk change status, or bulk delete with confirmation
 - Data is stored locally in a JSON file (via Electron's IPC bridge); no account or internet connection required
 
 ---
@@ -103,15 +107,35 @@ The bookmarklet extracts structured data (JSON-LD), og:title, and DOM selectors 
 ```
 JobTrack/
 ├── electron/
-│   ├── main.cjs        # Electron main process, IPC handlers, deep-link (jobtrack://)
-│   └── preload.cjs     # Exposes storage + electronAPI to renderer
+│   ├── main.cjs           # Electron main process, IPC handlers, deep-link (jobtrack://)
+│   └── preload.cjs        # Exposes storage + electronAPI to renderer
 ├── src/
-│   ├── main.jsx        # React entry point
-│   ├── JobTracker.jsx  # Main component — all UI and state
-│   ├── InfoBlock.jsx   # Reusable display + form field components
-│   ├── constants.js    # Statuses, priorities, resume versions, sample data
-│   ├── styles.js       # Global CSS injected as a style tag
-│   └── utils.js        # Deadline date helpers
+│   ├── main.jsx           # React entry point
+│   ├── JobTracker.jsx     # Root component — wires all state and layout
+│   ├── constants.js       # Statuses, priorities, resume versions, sample data
+│   ├── styles.js          # Global CSS injected as a style tag
+│   ├── components/
+│   │   ├── Header.jsx         # Title bar + status count pills
+│   │   ├── Filters.jsx        # Search, priority, resume, sort dropdowns
+│   │   ├── WorkspaceSwitcher.jsx  # Tab bar for switching/managing workspaces (development)
+│   │   ├── JobList.jsx        # Drag-and-drop list container
+│   │   ├── JobCard.jsx        # Job row with status/priority dots and action buttons
+│   │   ├── JobDetails.jsx     # Expandable details / JD / status panel
+│   │   ├── JobForm.jsx        # Add/edit modal form
+│   │   ├── QuickAddSetup.jsx  # Bookmarklet instructions modal
+│   │   ├── Toast.jsx          # Notification banner
+│   │   ├── EmptyState.jsx     # Empty list message
+│   │   └── FormField.jsx      # Labelled form field wrapper
+│   ├── hooks/
+│   │   ├── useJobs.js         # All app state: workspaces + jobs + persistence
+│   │   ├── useFilters.js      # Filter and sort state
+│   │   └── useJobSorting.js   # Memoised filter + sort logic
+│   └── utils/
+│       ├── storageHelpers.js      # IPC storage wrapper + migration
+│       ├── bookmarklet.js         # Bookmarklet JS URL generator
+│       ├── validation.js          # Form validation
+│       ├── deadline.js            # Deadline date helpers
+│       └── jobDescriptionCleaner.js  # HTML → plain text cleaner
 ├── index.html
 ├── vite.config.js
 └── package.json
