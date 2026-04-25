@@ -1,6 +1,6 @@
 {
   "name": "job-tracker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A desktop app for tracking job applications — with one-click capture from job boards, deadline alerts, and local-only storage.",
   "author": "Vineet Agarwal",
   "license": "MIT",
