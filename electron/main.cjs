@@ -3,8 +3,11 @@ const path = require("path");
 const fs = require("fs");
 
 // ── File-based storage ────────────────────────────────────────
-// Stores all data in %APPDATA%/JobTrack/data.json
-// Survives reinstalls, works across browsers (same Electron app)
+// Stores all data in the OS-appropriate userData directory:
+//   Windows: %APPDATA%/JobTrack/data.json
+//   macOS:   ~/Library/Application Support/JobTrack/data.json
+//   Linux:   ~/.config/JobTrack/data.json
+// Survives reinstalls and is per-user.
 function getDataPath() {
   const dir = path.join(app.getPath("userData"));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -12,16 +15,33 @@ function getDataPath() {
 }
 
 function readStore() {
+  const dataPath = getDataPath();
+  if (!fs.existsSync(dataPath)) return {};
   try {
-    const raw = fs.readFileSync(getDataPath(), "utf-8");
+    const raw = fs.readFileSync(dataPath, "utf-8");
     return JSON.parse(raw);
-  } catch {
-    return {};
+  } catch (err) {
+    console.error("[JobTrack] Failed to read data.json:", err);
+    // Back up corrupted file so a save doesn't overwrite recoverable data
+    try {
+      const backup = `${dataPath}.corrupted-${Date.now()}`;
+      fs.copyFileSync(dataPath, backup);
+      console.error("[JobTrack] Backed up corrupted file to:", backup);
+    } catch (backupErr) {
+      console.error("[JobTrack] Failed to back up corrupted file:", backupErr);
+    }
+    // Re-throw so renderer sees the error instead of getting an empty store
+    throw err;
   }
 }
 
 function writeStore(data) {
-  fs.writeFileSync(getDataPath(), JSON.stringify(data, null, 2), "utf-8");
+  const dataPath = getDataPath();
+  // Atomic write: write to temp file, then rename, so a crash mid-write
+  // cannot leave a truncated/corrupt data.json
+  const tmp = `${dataPath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
+  fs.renameSync(tmp, dataPath);
 }
 
 // ── Custom protocol ──────────────────────────────────────────
@@ -113,7 +133,10 @@ if (!gotLock) {
     });
 
     ipcMain.handle("storage:set", (_event, key, value) => {
-      const store = readStore();
+      // If the existing store is corrupt, readStore throws and has already
+      // backed up the bad file. Start fresh so the write can succeed.
+      let store;
+      try { store = readStore(); } catch { store = {}; }
       store[key] = value;
       writeStore(store);
     });

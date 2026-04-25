@@ -29,22 +29,23 @@ export const getEmptyForm = () => ({
   salary: "", location: "", workType: "Remote",
   source: "LinkedIn", priority: "Medium",
   recruiter: "", recruiterEmail: "",
+  workspaceId: null,
 });
 
 export const sampleJobs = [
   {
-    id: 1, company: "SharkNinja", role: "Mobile App Developer Intern",
+    id: 1, company: "Acme Corp", role: "Mobile App Developer Intern",
     date: "2026-03-01", deadline: "", resume: "Mobile", status: "Interview",
-    link: "", notes: "React Native focus, SLAM/IoT discussed",
+    link: "", notes: "Example entry — click Edit to modify or Del to remove.",
     jd: "Build cross-platform mobile apps using React Native. Work on IoT integrations for smart home devices.",
-    salary: "$40/hr", location: "Needham, MA", workType: "Hybrid",
-    source: "LinkedIn", priority: "High", recruiter: "Jane Smith", recruiterEmail: "jane@sharkninja.com",
+    salary: "$40/hr", location: "Boston, MA", workType: "Hybrid",
+    source: "LinkedIn", priority: "High", recruiter: "Alex Recruiter", recruiterEmail: "recruiter@example.com",
   },
   {
-    id: 2, company: "fusionSpan", role: "Software Engineer Intern",
+    id: 2, company: "Globex Inc", role: "Software Engineer Intern",
     date: "2026-03-05", deadline: "2026-04-01", resume: "General/Full-stack", status: "OA Pending",
-    link: "", notes: "Java/APEX video screen",
-    jd: "Work on Salesforce APEX and Java-based enterprise applications.",
+    link: "", notes: "Example entry — this is sample data to help you get started.",
+    jd: "Work on backend services and internal tooling. Java / TypeScript stack.",
     salary: "$35/hr", location: "Remote", workType: "Remote",
     source: "Handshake", priority: "Medium", recruiter: "", recruiterEmail: "",
   },
