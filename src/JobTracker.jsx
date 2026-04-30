@@ -13,6 +13,8 @@ import { JobForm } from "./components/JobForm";
 import { QuickAddSetup } from "./components/QuickAddSetup";
 import { Toast } from "./components/Toast";
 import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
+import { AppTabs } from "./components/AppTabs";
+import { ApplicationProfilesPage } from "./components/ApplicationProfilesPage";
 
 const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline"];
 
@@ -25,7 +27,12 @@ export default function JobTracker() {
     exportJobs, importJobs,
     switchWorkspace, addWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
     moveJobsToWorkspace, bulkUpdateJobs, bulkDeleteJobs,
+    applicationProfiles,
+    addProfile, updateProfile, deleteProfile, setDefaultProfile,
   } = useJobs();
+
+  // Top-level view: "jobs" (existing tracker) or "profiles" (new autofill profiles).
+  const [activeView, setActiveView] = useState("jobs");
 
   const filters = useFilters();
 
@@ -204,6 +211,18 @@ export default function JobTracker() {
         </div>
       )}
 
+      <AppTabs activeView={activeView} onChange={setActiveView} />
+
+      {activeView === "profiles" ? (
+        <ApplicationProfilesPage
+          profiles={applicationProfiles}
+          onAdd={addProfile}
+          onUpdate={updateProfile}
+          onDelete={deleteProfile}
+          onSetDefault={setDefaultProfile}
+        />
+      ) : (
+        <>
       <Header
         totalJobs={workspaceJobs.length}
         statusCounts={statusCounts}
@@ -298,6 +317,8 @@ export default function JobTracker() {
           onConfirm={confirmDeleteWorkspace}
           onCancel={cancelDeleteWorkspace}
         />
+      )}
+        </>
       )}
     </div>
   );

@@ -1,0 +1,18 @@
+# Add content to .claudeignore
+@"
+node_modules/
+dist/
+out/
+build/
+.next/
+*.min.js
+*.bundle.js
+*.map
+coverage/
+.cache/
+*.log
+*.lock
+*.db
+*.sqlite
+.git/
+"@ | Out-File -FilePath .claudeignore -Encoding utf8

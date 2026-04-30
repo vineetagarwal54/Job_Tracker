@@ -9,12 +9,12 @@ const DEFAULT_WORKSPACE_NAME = "Internships";
 // atomically. Job-ordering operations (move/pin/reorder) are workspace-aware
 // so reordering inside one workspace can't perturb another's order.
 export function useJobs() {
-  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [] });
+  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [], applicationProfiles: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { workspaces, activeWorkspaceId, jobs } = appData;
+  const { workspaces, activeWorkspaceId, jobs, applicationProfiles } = appData;
 
   useEffect(() => {
     (async () => {
@@ -29,6 +29,7 @@ export function useJobs() {
             workspaces: [ws],
             activeWorkspaceId: ws.id,
             jobs: sampleJobs.map(j => ({ ...j, workspaceId: ws.id })),
+            applicationProfiles: [],
           });
         }
       } catch (err) {
@@ -180,6 +181,51 @@ export function useJobs() {
     save({ workspaces: updated });
   }, [workspaces, save]);
 
+  // Application Profiles ------------------------------------------------------
+  // Profiles share the appData blob so writes don't race with job edits. The
+  // shape is intentionally flat — a future Chrome extension can read profiles
+  // verbatim for autofill without transformation.
+
+  const addProfile = useCallback((profile) => {
+    const isFirst = applicationProfiles.length === 0;
+    const willBeDefault = isFirst || profile.isDefault === true;
+    // Promote a new profile to default if it's the first one OR the form
+    // explicitly marked it. When promoting, demote every other profile.
+    const next = willBeDefault
+      ? applicationProfiles.map(p => ({ ...p, isDefault: false }))
+      : applicationProfiles;
+    save({
+      applicationProfiles: [...next, { ...profile, id: Date.now(), isDefault: willBeDefault }],
+    });
+  }, [applicationProfiles, save]);
+
+  const updateProfile = useCallback((id, updates) => {
+    // Treat isDefault=true in updates as "make this the only default."
+    const promoting = updates.isDefault === true;
+    save({
+      applicationProfiles: applicationProfiles.map(p => {
+        if (p.id === id) return { ...p, ...updates, id };
+        return promoting ? { ...p, isDefault: false } : p;
+      }),
+    });
+  }, [applicationProfiles, save]);
+
+  const deleteProfile = useCallback((id) => {
+    const removed = applicationProfiles.find(p => p.id === id);
+    let next = applicationProfiles.filter(p => p.id !== id);
+    // Always keep one default if any profiles remain.
+    if (removed?.isDefault && next.length > 0) {
+      next = next.map((p, i) => i === 0 ? { ...p, isDefault: true } : p);
+    }
+    save({ applicationProfiles: next });
+  }, [applicationProfiles, save]);
+
+  const setDefaultProfile = useCallback((id) => {
+    save({
+      applicationProfiles: applicationProfiles.map(p => ({ ...p, isDefault: p.id === id })),
+    });
+  }, [applicationProfiles, save]);
+
   // Import / export -----------------------------------------------------------
 
   const exportJobs = useCallback(() => {
@@ -235,5 +281,7 @@ export function useJobs() {
     exportJobs, importJobs,
     switchWorkspace, addWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
     moveJobsToWorkspace, bulkUpdateJobs, bulkDeleteJobs,
+    applicationProfiles,
+    addProfile, updateProfile, deleteProfile, setDefaultProfile,
   };
 }

@@ -32,6 +32,35 @@ export const getEmptyForm = () => ({
   workspaceId: null,
 });
 
+// Application Profiles — local-only autofill profiles. Kept as a flat object so
+// the future Chrome extension can read the same shape without transformation.
+export const WORK_AUTH_OPTIONS = ["", "Yes", "No"];
+export const SPONSORSHIP_OPTIONS = ["", "Yes", "No"];
+
+export const getEmptyProfile = () => ({
+  name: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
+  country: "",
+  linkedin: "",
+  github: "",
+  portfolio: "",
+  school: "",
+  degree: "",
+  major: "",
+  graduationDate: "",
+  workAuthorization: "",
+  sponsorship: "",
+  shortAnswerNotes: "",
+  isDefault: false,
+});
+
 export const sampleJobs = [
   {
     id: 1, company: "Acme Corp", role: "Mobile App Developer Intern",
