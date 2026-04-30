@@ -131,6 +131,8 @@ button.ghost {
 }
 .host strong { color: var(--text-muted); font-weight: 600; }
 
+
+
 /* ─ Field list ───────────────────────────────────── */
 .fields {
   padding: 14px 18px 24px;
@@ -349,3 +351,151 @@ button.ghost {
   background: var(--bg);
 }
 .controls button { flex: 1; min-width: 0; }
+
+
+/* Phase 3.1 UI override: add at the absolute bottom of sidepanel.css */
+
+.field {
+  min-width: 0 !important;
+}
+
+.field-head {
+  display: grid !important;
+  grid-template-columns: 26px minmax(0, 1fr) !important;
+  grid-template-areas:
+    "check label"
+    "check tags" !important;
+  align-items: start !important;
+  justify-content: stretch !important;
+  column-gap: 10px !important;
+  row-gap: 8px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.select-cell {
+  grid-area: check !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  max-width: 26px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 2px !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+}
+
+.select-cell input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  accent-color: var(--accent) !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 11 !important;
+  pointer-events: auto !important;
+}
+
+.field-label {
+  grid-area: label !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  line-height: 1.4 !important;
+}
+
+.tags {
+  grid-area: tags !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  flex-shrink: 1 !important;
+}
+
+.planned,
+.result,
+.options,
+.meta,
+.meta dd {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.meta {
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+}
+
+.test-note-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.test-note-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.test-note-box select,
+.test-note-box input,
+.test-note-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  font: inherit;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.test-note-box textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.test-note-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Phase 3.1 test note dropdown visibility fix */
+.test-note-box select {
+  background: #111827 !important;
+  color: #f9fafb !important;
+  border-color: var(--border) !important;
+}
+
+.test-note-box select option {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.test-note-box input,
+.test-note-box textarea {
+  background: #111827 !important;
+  color: #f9fafb !important;
+}
+
+.test-note-box input::placeholder,
+.test-note-box textarea::placeholder {
+  color: #9ca3af !important;
+}

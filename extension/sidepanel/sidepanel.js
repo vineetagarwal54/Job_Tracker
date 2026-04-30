@@ -1,5 +1,11 @@
 import { classifyField } from "../shared/fieldMatcher.js";
 import { SAMPLE_PROFILE, YES_NO_CATEGORIES } from "../shared/sampleProfile.js";
+import {
+  TEST_NOTE_TYPES,
+  TEST_NOTE_AREAS,
+  saveTestNote,
+  copyAllTestNotes,
+} from "./testNotes.js";
 
 // The service worker owns the scan and fill paths: it picks the active tab,
 // checks the URL is scannable, and runs chrome.scripting.executeScript with
@@ -19,9 +25,32 @@ const SHELL = `
   </header>
   <div id="content"></div>
   <div class="controls">
-    <button id="fill-safe-btn" type="button">Fill safe fields</button>
+    <button id="fill-safe-btn" type="button">Fill all available fields</button>
     <button id="fill-selected-btn" class="ghost" type="button">Fill selected</button>
   </div>
+  <div class="test-note-box">
+  <div class="test-note-row">
+    <select id="test-note-type"></select>
+    <select id="test-note-area"></select>
+  </div>
+
+  <input
+    id="test-note-field"
+    type="text"
+    placeholder="Optional field/question label"
+  />
+
+  <textarea
+    id="test-note-text"
+    rows="3"
+    placeholder="Example: Ashby work authorization filled Yes but side panel showed failed."
+  ></textarea>
+
+  <div class="test-note-actions">
+    <button id="save-test-note-btn" type="button" class="ghost">Save note</button>
+    <button id="copy-test-notes-btn" type="button" class="ghost">Copy notes</button>
+  </div>
+</div>
 `;
 
 // Mutable per-scan state. The plan is rebuilt on every scan; results are
@@ -33,12 +62,26 @@ const state = {
   results: new Map(),  // index → FillResult
 };
 
+function optionsHtml(items) {
+  return items.map((item) => `<option value="${item}">${item}</option>`).join("");
+}
+
 function mount() {
   root.innerHTML = SHELL;
   document.getElementById("rescan-btn").addEventListener("click", scan);
-  document.getElementById("fill-safe-btn").addEventListener("click", fillSafe);
+  document.getElementById("fill-safe-btn").addEventListener("click", fillAvailable);
   document.getElementById("fill-selected-btn").addEventListener("click", fillSelected);
   document.getElementById("content").addEventListener("change", onContentChange);
+  document.getElementById("test-note-type").innerHTML = optionsHtml(TEST_NOTE_TYPES);
+document.getElementById("test-note-area").innerHTML = optionsHtml(TEST_NOTE_AREAS);
+
+document
+  .getElementById("save-test-note-btn")
+  .addEventListener("click", handleSaveTestNote);
+
+document
+  .getElementById("copy-test-notes-btn")
+  .addEventListener("click", handleCopyTestNotes);
   scan();
 }
 
@@ -92,9 +135,14 @@ function buildPlanItem(field, index, profile) {
       plannedValue = plannedValue.toLowerCase();
     }
   }
+  const knownCategory = Boolean(c.category && c.category !== "unknown");
+  const fillable = knownCategory && !!plannedValue && supported;
 
-  const fillable = !!plannedValue && supported;
-  const safeAutoFill = fillable && c.bucket === "high" && !c.reviewRequired && !c.sensitive;
+  // Phase 3.1 change:
+// reviewRequired and sensitive are warnings only now.
+// They should not block autofill because the user reviews before submitting.
+const safeAutoFill = fillable;
+  // const safeAutoFill = fillable && c.bucket === "high" && !c.reviewRequired && !c.sensitive;
 
   return {
     index,
@@ -122,16 +170,29 @@ function buildPlanItem(field, index, profile) {
   };
 }
 
-const SUPPORTED_CONTROL_TYPES = new Set(["text", "select", "radio"]);
+// const SUPPORTED_CONTROL_TYPES = new Set(["text", "select", "radio"]);
+const SUPPORTED_CONTROL_TYPES = new Set(["text", "select", "radio", "customSelect"]); 
+
+// function reasonNotFillable(item) {
+//   if (!SUPPORTED_CONTROL_TYPES.has(item.controlType)) return `${item.controlType} not supported yet`;
+//   if (!item.plannedValue) return "no profile value";
+//   return "";
+// }
 
 function reasonNotFillable(item) {
-  if (!SUPPORTED_CONTROL_TYPES.has(item.controlType)) return `${item.controlType} not supported yet`;
+  if (!item.category || item.category === "unknown") return "unknown category";
   if (!item.plannedValue) return "no profile value";
+  if (!SUPPORTED_CONTROL_TYPES.has(item.controlType)) return `${item.controlType} not supported yet`;
   return "";
 }
 
-async function fillSafe() {
-  const picks = state.plan.filter((p) => p.safeAutoFill);
+// async function fillSafe() {
+//   const picks = state.plan.filter((p) => p.safeAutoFill);
+//   await runFill(picks, false);
+// }
+
+async function fillAvailable() {
+  const picks = state.plan.filter((p) => p.fillable);
   await runFill(picks, false);
 }
 
@@ -262,7 +323,7 @@ function renderSummary(counts, fillCounts) {
       </div>
       <div class="summary-card">
         <div class="summary-num high">${counts.safe}</div>
-        <div class="summary-label">Safe to autofill</div>
+        <div class="summary-label">Available to fill</div>
       </div>
       <div class="summary-card">
         <div class="summary-num review">${counts.reviewRequired}</div>
@@ -294,7 +355,7 @@ function fieldCard(p) {
     : `<span class="tag cat-known">${escapeHtml(p.category)}</span>`);
   tags.push(`<span class="tag conf-${p.bucket}">${p.bucket}</span>`);
   tags.push(`<span class="tag control">${escapeHtml(p.controlType || "unknown")}</span>`);
-  if (p.safeAutoFill) tags.push(`<span class="tag safe">safe</span>`);
+  if (p.safeAutoFill) tags.push(`<span class="tag safe">available</span>`);
   if (p.reviewRequired) tags.push(`<span class="tag review-flag">review required</span>`);
   if (p.sensitive) tags.push(`<span class="tag sensitive">sensitive</span>`);
   if (result) tags.push(renderResultTag(result));
@@ -308,8 +369,9 @@ function fieldCard(p) {
   // Fill result detail
   const resultBlock = result ? renderResultBlock(result) : "";
 
-  // Selection checkbox: only show when fillable. Sensitive fields can be
-  // selected but never auto-filled.
+  // Selection checkbox:
+// Disable only when there is no planned value, unknown category,
+// or unsupported control type. Sensitive/review fields remain selectable.
   const selected = state.selected.has(p.index);
   const checkboxDisabled = !p.fillable;
   const checkbox = `
@@ -357,6 +419,38 @@ function renderResultBlock(result) {
     return `<div class="result warn"><strong>Skipped${reason}</strong>${finalValue}</div>`;
   }
   return `<div class="result bad"><strong>Failed${reason}</strong>${finalValue}</div>`;
+}
+
+async function handleSaveTestNote() {
+  const type = document.getElementById("test-note-type").value;
+  const area = document.getElementById("test-note-area").value;
+  const fieldLabel = document.getElementById("test-note-field").value;
+  const noteInput = document.getElementById("test-note-text");
+  const note = noteInput.value;
+
+  try {
+    await saveTestNote({
+      type,
+      area,
+      fieldLabel,
+      note,
+      tab: state.tab,
+    });
+
+    noteInput.value = "";
+    flashControls("Test note saved.");
+  } catch (err) {
+    flashControls(err?.message || String(err));
+  }
+}
+
+async function handleCopyTestNotes() {
+  try {
+    const count = await copyAllTestNotes();
+    flashControls(`Copied ${count} saved notes.`);
+  } catch (err) {
+    flashControls(err?.message || String(err));
+  }
 }
 
 function metaRows(p) {
