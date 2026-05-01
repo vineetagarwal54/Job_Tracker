@@ -1,17 +1,37 @@
-// Classifies a raw detected field into one of the JobTrack profile categories
-// and decorates it with metadata for the side panel and autofill planner.
+// Central field registry. Each category supports rich metadata used by both
+// the field matcher (classification + scoring) and the autofill engine
+// (value formatting + safety gating).
 //
-// Phase 3.1 goal:
-// - Keep detection generalized, not company-specific.
-// - Expand common application fields such as LinkedIn, GitHub, portfolio,
-//   website, relocation, referral, source, and application history.
-// - Keep review/sensitive flags as UI warnings only; sidepanel.js decides
-//   whether a field is fillable.
+// Category schema:
+//   id              — stable internal id (also used as a default profile key)
+//   profileKey      — which key on SAMPLE_PROFILE to read from. Defaults to id.
+//   phrases         — multi-word phrases that strongly imply this category
+//                     when they appear in the visible label/aria/placeholder.
+//   keywords        — single tokens to match against id/name (snake/camel).
+//   autocomplete    — autocomplete attribute values that imply this category.
+//   inputTypes      — input[type=...] values that imply this category.
+//   contextClues    — phrases that, when found in the section/parent-block
+//                     text, push the score up. Used for vague labels like
+//                     "Year" that only make sense inside an Education block.
+//   negativeClues   — phrases that, when found anywhere in the field's text,
+//                     drop the score. Used to keep e.g. "salary" out of GPA.
+//   expectedType    — value type for pre-fill formatting. One of:
+//                       text, yesNo, year, monthYear, date, gpa, number,
+//                       email, tel, url, select.
+//   safety          — high | review | sensitive
+//                       review     → never silently autofill, mark for review
+//                       sensitive  → review + EEO/voluntary marker
+//                       high       → ok to autofill at high confidence
+//
+// Backwards-compat exports: ALWAYS_REVIEW and SENSITIVE sets are derived from
+// the safety field so older code paths keep working.
 
 export const CATEGORIES = [
   // ── Online profile / links ──────────────────────────────────────────
   {
     id: "linkedinUrl",
+    expectedType: "url",
+    safety: "high",
     phrases: [
       "linkedin profile url",
       "linkedin profile",
@@ -23,6 +43,8 @@ export const CATEGORIES = [
   },
   {
     id: "githubUrl",
+    expectedType: "url",
+    safety: "high",
     phrases: [
       "github profile url",
       "github profile",
@@ -35,6 +57,8 @@ export const CATEGORIES = [
   },
   {
     id: "portfolioUrl",
+    expectedType: "url",
+    safety: "high",
     phrases: [
       "portfolio website url",
       "portfolio website",
@@ -48,6 +72,8 @@ export const CATEGORIES = [
   },
   {
     id: "personalWebsite",
+    expectedType: "url",
+    safety: "high",
     phrases: [
       "personal website url",
       "personal website",
@@ -61,6 +87,8 @@ export const CATEGORIES = [
   },
   {
     id: "otherWebsite",
+    expectedType: "url",
+    safety: "high",
     phrases: [
       "other website url",
       "other website",
@@ -75,9 +103,164 @@ export const CATEGORIES = [
     keywords: ["other website", "other link", "additional link"],
   },
 
+  // ── Education ───────────────────────────────────────────────────────
+  // Year/date-only sub-categories live above the broader date categories so
+  // a "Start year" label inside an Education section resolves to the year
+  // category, not the start-date one.
+  {
+    id: "educationStartYear",
+    profileKey: "educationStartDate",
+    expectedType: "year",
+    safety: "review",
+    phrases: [
+      "school start year",
+      "education start year",
+      "degree start year",
+      "program start year",
+      "start year",
+    ],
+    keywords: ["start year", "from year"],
+    contextClues: ["education", "school", "university", "college", "degree"],
+    negativeClues: ["work", "experience", "employment", "job"],
+  },
+  {
+    id: "educationEndYear",
+    profileKey: "educationEndDate",
+    expectedType: "year",
+    safety: "review",
+    phrases: [
+      "school end year",
+      "education end year",
+      "degree end year",
+      "program end year",
+      "graduation year",
+      "end year",
+    ],
+    keywords: ["end year", "to year", "graduation year"],
+    contextClues: ["education", "school", "university", "college", "degree"],
+    negativeClues: ["work", "experience", "employment", "job"],
+  },
+  {
+    id: "educationStartDate",
+    expectedType: "monthYear",
+    safety: "review",
+    phrases: [
+      "education school start date",
+      "school start date",
+      "education start date",
+      "degree start date",
+      "program start date",
+      "start date for your current degree",
+      "start date for current degree program",
+    ],
+    keywords: ["start date"],
+    contextClues: ["education", "school", "university", "college", "degree"],
+    negativeClues: ["work", "experience", "employment", "earliest"],
+  },
+  {
+    id: "educationEndDate",
+    expectedType: "monthYear",
+    safety: "review",
+    phrases: [
+      "education school end date",
+      "school end date",
+      "education end date",
+      "degree end date",
+      "program end date",
+      "graduation date",
+      "expected graduation date",
+      "expected graduation date month and year",
+      "what is your expected graduation date",
+      "current degree program",
+    ],
+    keywords: ["end date", "graduation date"],
+    contextClues: ["education", "school", "university", "college", "degree"],
+    negativeClues: ["work", "experience", "employment"],
+  },
+  {
+    id: "expectedGraduationDate",
+    profileKey: "educationEndDate",
+    expectedType: "monthYear",
+    safety: "review",
+    phrases: [
+      "expected graduation date",
+      "expected graduation",
+      "anticipated graduation",
+      "graduation date",
+      "graduation month and year",
+    ],
+    keywords: ["graduation"],
+    contextClues: ["education", "school", "university", "college"],
+  },
+  {
+    id: "currentGpa",
+    expectedType: "gpa",
+    safety: "review",
+    phrases: [
+      "current cumulative gpa",
+      "cumulative gpa",
+      "current gpa",
+      "gpa on a 4.0 scale",
+      "4.0 scale",
+      "most recent degree program",
+      "gpa",
+    ],
+    keywords: ["gpa"],
+    contextClues: ["education", "school", "academic", "degree"],
+    negativeClues: ["salary", "compensation", "wage"],
+  },
+  {
+    id: "educationSchoolName",
+    expectedType: "text",
+    safety: "review",
+    phrases: [
+      "school name",
+      "education school name",
+      "institution name",
+      "university name",
+      "college name",
+      "name of school",
+      "name of institution",
+      "current school",
+      "current university",
+      "most recent school",
+      "most recent university",
+      "school",
+      "university",
+      "college",
+      "institution",
+    ],
+    keywords: ["school", "university", "college", "institution"],
+    contextClues: ["education", "academic", "degree"],
+    negativeClues: ["high school", "company", "employer", "work"],
+  },
+
+  // ── Experience (placeholders — section-aware so "Title" inside an
+  // Experience block does not collide with anything else) ─────────────
+  {
+    id: "companyName",
+    expectedType: "text",
+    safety: "review",
+    phrases: ["company name", "employer name", "company", "employer"],
+    keywords: ["company", "employer"],
+    contextClues: ["experience", "employment", "work history", "previous role"],
+    negativeClues: ["education", "school", "university"],
+  },
+  {
+    id: "jobTitle",
+    expectedType: "text",
+    safety: "review",
+    phrases: ["job title", "position title", "role title", "your title", "title"],
+    keywords: ["job title", "position", "role"],
+    contextClues: ["experience", "employment", "work history", "previous role"],
+    negativeClues: ["education", "school", "university", "degree"],
+  },
+
   // ── Work eligibility / application questions ────────────────────────
   {
     id: "earliestStartDate",
+    expectedType: "date",
+    safety: "review",
     phrases: [
       "soonest date you can start",
       "soonest you can start",
@@ -90,9 +273,13 @@ export const CATEGORIES = [
       "what is your start date",
       "start date",
     ],
+    keywords: ["start date", "availability"],
+    negativeClues: ["education", "school", "university", "degree", "graduation"],
   },
   {
     id: "workAuthorization",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "legally authorized to work in the united states",
       "authorized to work in the united states",
@@ -107,9 +294,12 @@ export const CATEGORIES = [
       "right to work",
       "right to work in",
     ],
+    keywords: ["authorization", "authorized"],
   },
   {
     id: "sponsorship",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "now or in the future require sponsorship",
       "require sponsorship now or in the future",
@@ -127,9 +317,12 @@ export const CATEGORIES = [
       "h 1b sponsorship",
       "h1b sponsorship",
     ],
+    keywords: ["sponsorship", "visa"],
   },
   {
     id: "requireSponsorship",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "do you require visa sponsorship",
       "do you require sponsorship",
@@ -141,6 +334,8 @@ export const CATEGORIES = [
   },
   {
     id: "futureSponsorship",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "in the future require sponsorship",
       "future require sponsorship",
@@ -151,6 +346,8 @@ export const CATEGORIES = [
   },
   {
     id: "locationRequirement",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "does this work for you",
       "are you able to work from",
@@ -169,6 +366,8 @@ export const CATEGORIES = [
   },
   {
     id: "relocation",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "willing to relocate",
       "able to relocate",
@@ -181,6 +380,8 @@ export const CATEGORIES = [
   },
   {
     id: "stateResidency",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "currently a resident and located",
       "resident and located in the state",
@@ -193,6 +394,8 @@ export const CATEGORIES = [
   },
   {
     id: "ageOver18",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "are you at least 18 years old",
       "are you over 18",
@@ -204,6 +407,8 @@ export const CATEGORIES = [
   },
   {
     id: "previouslyApplied",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "previously applied",
       "applied to this company before",
@@ -215,6 +420,8 @@ export const CATEGORIES = [
   },
   {
     id: "previouslyEmployed",
+    expectedType: "yesNo",
+    safety: "review",
     phrases: [
       "previously employed",
       "worked at this company before",
@@ -226,6 +433,8 @@ export const CATEGORIES = [
   },
   {
     id: "referralName",
+    expectedType: "text",
+    safety: "high",
     phrases: [
       "employee referral name",
       "referral name",
@@ -240,6 +449,8 @@ export const CATEGORIES = [
   },
   {
     id: "source",
+    expectedType: "text",
+    safety: "high",
     phrases: [
       "how did you hear about this job",
       "how did you hear about us",
@@ -253,9 +464,11 @@ export const CATEGORIES = [
     keywords: ["source"],
   },
 
-  // ── EEO / voluntary self-identification ─────────────────────────────
+  // ── EEO / voluntary self-identification (sensitive) ─────────────────
   {
     id: "hispanicLatino",
+    expectedType: "yesNo",
+    safety: "sensitive",
     phrases: [
       "hispanic or latino",
       "hispanic latino",
@@ -268,6 +481,8 @@ export const CATEGORIES = [
   },
   {
     id: "race",
+    expectedType: "select",
+    safety: "sensitive",
     phrases: [
       "race ethnicity",
       "race / ethnicity",
@@ -280,6 +495,8 @@ export const CATEGORIES = [
   },
   {
     id: "gender",
+    expectedType: "select",
+    safety: "sensitive",
     phrases: [
       "gender identity",
       "gender",
@@ -289,6 +506,8 @@ export const CATEGORIES = [
   },
   {
     id: "pronouns",
+    expectedType: "text",
+    safety: "review",
     phrases: [
       "preferred pronouns",
       "your pronouns",
@@ -298,6 +517,8 @@ export const CATEGORIES = [
   },
   {
     id: "veteranStatus",
+    expectedType: "select",
+    safety: "sensitive",
     phrases: [
       "protected veteran status",
       "protected veteran",
@@ -307,6 +528,8 @@ export const CATEGORIES = [
   },
   {
     id: "disabilityStatus",
+    expectedType: "select",
+    safety: "sensitive",
     phrases: [
       "voluntary self identification of disability",
       "self identification of disability",
@@ -318,6 +541,8 @@ export const CATEGORIES = [
   // ── Standard profile fields ─────────────────────────────────────────
   {
     id: "email",
+    expectedType: "email",
+    safety: "high",
     autocomplete: ["email"],
     inputTypes: ["email"],
     phrases: ["email address", "e mail address", "e-mail address", "e mail", "e-mail", "email"],
@@ -325,6 +550,8 @@ export const CATEGORIES = [
   },
   {
     id: "phone",
+    expectedType: "tel",
+    safety: "high",
     autocomplete: ["tel", "tel-national", "tel-local"],
     inputTypes: ["tel"],
     phrases: ["phone number", "mobile number", "telephone number", "phone", "telephone", "mobile"],
@@ -332,42 +559,56 @@ export const CATEGORIES = [
   },
   {
     id: "fullName",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["name"],
     phrases: ["legal name", "full legal name", "full name", "your name", "name"],
     keywords: ["full name", "legal name", "name"],
   },
   {
     id: "firstName",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["given-name"],
     phrases: ["first name", "given name", "preferred first name"],
     keywords: ["first name", "given name", "firstname", "fname"],
   },
   {
     id: "lastName",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["family-name"],
     phrases: ["last name", "family name", "surname"],
     keywords: ["last name", "family name", "lastname", "lname", "surname"],
   },
   {
     id: "addressLine1",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["address-line1"],
     phrases: ["address line 1", "address line one", "street address line 1", "street address"],
     keywords: ["address line 1", "address1", "street address"],
   },
   {
     id: "addressLine2",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["address-line2"],
     phrases: ["address line 2", "address line two", "apartment", "suite", "unit"],
     keywords: ["address line 2", "address2", "apartment", "suite", "unit"],
   },
   {
     id: "address",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["street-address"],
     phrases: ["mailing address", "home address", "address"],
     keywords: ["address"],
   },
   {
     id: "currentLocation",
+    expectedType: "text",
+    safety: "high",
     phrases: [
       "where are you currently located",
       "where are you located",
@@ -384,54 +625,70 @@ export const CATEGORIES = [
   },
   {
     id: "city",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["address-level2"],
     phrases: ["city", "town"],
     keywords: ["city", "town"],
   },
   {
     id: "state",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["address-level1"],
     phrases: ["state / province", "state or province", "state province", "state/province", "province", "state"],
     keywords: ["state", "province", "region"],
   },
   {
     id: "zip",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["postal-code"],
     phrases: ["zip code", "postal code", "zip / postal code", "zip postal code", "postcode", "zip"],
     keywords: ["zip", "postal", "postcode"],
   },
   {
     id: "country",
+    expectedType: "text",
+    safety: "high",
     autocomplete: ["country", "country-name"],
     phrases: ["country of residence", "country/region", "country region", "country"],
     keywords: ["country"],
   },
 ];
 
-// These are warnings in Phase 3.1, not blockers. sidepanel.js can still fill
-// them when the user chooses Fill all available fields.
-export const ALWAYS_REVIEW = new Set([
-  "workAuthorization",
-  "sponsorship",
-  "requireSponsorship",
-  "futureSponsorship",
-  "locationRequirement",
-  "relocation",
-  "stateResidency",
-  "ageOver18",
-  "previouslyApplied",
-  "previouslyEmployed",
-  "gender",
-  "race",
-  "hispanicLatino",
-  "veteranStatus",
-  "disabilityStatus",
-]);
+// Resolve the profile key for a category. Defaults to the category id when
+// the registry doesn't override it.
+export function profileKeyFor(categoryId) {
+  if (!categoryId) return "";
+  const entry = CATEGORIES.find((c) => c.id === categoryId);
+  return entry?.profileKey || categoryId;
+}
 
-export const SENSITIVE = new Set([
-  "gender",
-  "race",
-  "hispanicLatino",
-  "veteranStatus",
-  "disabilityStatus",
-]);
+export function expectedTypeFor(categoryId) {
+  if (!categoryId) return "text";
+  const entry = CATEGORIES.find((c) => c.id === categoryId);
+  return entry?.expectedType || "text";
+}
+
+export function safetyFor(categoryId) {
+  if (!categoryId) return "high";
+  const entry = CATEGORIES.find((c) => c.id === categoryId);
+  return entry?.safety || "high";
+}
+
+// Backwards-compat sets derived from the safety field. Existing callers can
+// keep importing ALWAYS_REVIEW / SENSITIVE without churn.
+export const ALWAYS_REVIEW = new Set(
+  CATEGORIES.filter((c) => c.safety === "review" || c.safety === "sensitive").map((c) => c.id)
+);
+
+export const SENSITIVE = new Set(
+  CATEGORIES.filter((c) => c.safety === "sensitive").map((c) => c.id)
+);
+
+// Categories whose planned value should be treated as yes/no — derived from
+// expectedType so adding a new yes/no question only requires one place.
+export const YES_NO_CATEGORIES = new Set(
+  CATEGORIES.filter((c) => c.expectedType === "yesNo").map((c) => c.id)
+);

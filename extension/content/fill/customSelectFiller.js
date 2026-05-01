@@ -137,12 +137,14 @@
       };
     }
 
-    const simpleExpected =
-      yesNoReading?.(expectedValue) ||
-      isPreferNotToSay?.(expectedValue) ||
-      category === "gender" ||
-      category === "veteranStatus" ||
-      category === "disabilityStatus";
+   const simpleExpected =
+  yesNoReading?.(expectedValue) ||
+  isPreferNotToSay?.(expectedValue) ||
+  category === "gender" ||
+  category === "race" ||
+  category === "hispanicLatino" ||
+  category === "veteranStatus" ||
+  category === "disabilityStatus";
 
     if (simpleExpected && matchedOption?.text) {
       return {

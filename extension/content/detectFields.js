@@ -7,6 +7,7 @@ export function detectFields() {
     "hidden", "submit", "button", "image", "reset", "file",
   ]);
   const NEARBY_TEXT_LIMIT = 200;
+  const PARENT_BLOCK_TEXT_LIMIT = 600;
   const SELECT_OPTION_LIMIT = 12;
   const TEXT_INPUT_TYPES = new Set([
     "", "text", "email", "tel", "url", "search", "number",
@@ -99,6 +100,190 @@ export function detectFields() {
     return t;
   };
 
+  // Walks up looking for the nearest section heading. Section headings tell
+  // us things like "Education" or "Work Experience" so a vague label like
+  // "Year" inside that block can resolve to educationStartYear etc.
+  //
+  // We check, in order:
+  //   1. Fieldset legend on the way up.
+  //   2. Any ancestor that has a heading-like first child.
+  //   3. The nearest preceding sibling that is itself a heading or contains one.
+  //   4. Ancestor classes / data attributes that name a section.
+  const SECTION_KEYWORDS = [
+    "education", "school", "degree", "academic",
+    "experience", "employment", "work history", "previous role",
+    "personal", "contact", "profile",
+    "voluntary", "self identification", "demographic",
+    "eligibility", "authorization",
+  ];
+
+  const sectionFromAncestorClasses = (el) => {
+    let node = el.parentElement;
+    for (let depth = 0; depth < 8 && node; depth++, node = node.parentElement) {
+      const blob = `${node.className || ""} ${node.id || ""} ${node.getAttribute?.("data-section") || ""}`.toLowerCase();
+      for (const keyword of SECTION_KEYWORDS) {
+        if (blob.includes(keyword.replace(/\s+/g, "-")) || blob.includes(keyword.replace(/\s+/g, "_")) || blob.includes(keyword)) {
+          return keyword;
+        }
+      }
+    }
+    return "";
+  };
+
+  const sectionFromHeadings = (el) => {
+    // Find the nearest preceding heading by walking up-and-back.
+    let node = el;
+    let depth = 0;
+
+    while (node && depth < 8) {
+      // Look at previous siblings of this node first.
+      let sib = node.previousElementSibling;
+      while (sib) {
+        if (/^h[1-6]$/i.test(sib.tagName) || sib.getAttribute?.("role") === "heading") {
+          const t = text(sib.textContent);
+          if (t) return t.slice(0, 120);
+        }
+        const inner = sib.querySelector?.("h1,h2,h3,h4,h5,h6,[role='heading']");
+        if (inner) {
+          const t = text(inner.textContent);
+          if (t) return t.slice(0, 120);
+        }
+        sib = sib.previousElementSibling;
+      }
+
+      const parent = node.parentElement;
+      if (parent) {
+        // Heading as the parent's first child (common pattern).
+        const firstHeading = parent.querySelector?.(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > [role='heading']");
+        if (firstHeading) {
+          const t = text(firstHeading.textContent);
+          if (t) return t.slice(0, 120);
+        }
+      }
+
+      node = parent;
+      depth += 1;
+    }
+
+    return "";
+  };
+
+  const sectionTextFor = (el) => {
+    const fs = el.closest("fieldset");
+    if (fs) {
+      const legend = fs.querySelector(":scope > legend");
+      if (legend) {
+        const t = text(legend.textContent);
+        if (t) return t.slice(0, 120);
+      }
+    }
+
+    const heading = sectionFromHeadings(el);
+    if (heading) return heading;
+
+    return sectionFromAncestorClasses(el);
+  };
+
+  // Captures a slightly wider chunk of context than nearbyText — useful for
+  // catching headings/labels that sit a few elements away from the input but
+  // still inside the same logical block.
+  const parentBlockTextFor = (el) => {
+    let node = el.parentElement;
+    for (let depth = 0; depth < 4 && node; depth++, node = node.parentElement) {
+      const cls = `${node.className || ""}`.toLowerCase();
+      // Stop at obvious form/group boundaries.
+      if (/section|fieldset|group|education|experience|work|employment|school|profile|application/.test(cls)) {
+        const t = text(stripFormControls(node).textContent);
+        if (t) return t.slice(0, PARENT_BLOCK_TEXT_LIMIT);
+      }
+    }
+
+    // Fallback: a couple of levels up regardless.
+    let parent = el.parentElement?.parentElement || el.parentElement;
+    if (!parent) return "";
+    const t = text(stripFormControls(parent).textContent);
+    return t ? t.slice(0, PARENT_BLOCK_TEXT_LIMIT) : "";
+  };
+
+  const groupPeers = (el, type) => {
+    if (!el.name) return [];
+
+    try {
+      return Array.from(
+        document.querySelectorAll(`input[type="${type}"][name="${CSS.escape(el.name)}"]`)
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  const getChoiceGroupRoot = (el, type) => {
+    const peers = groupPeers(el, type);
+
+    if (peers.length < 2) return null;
+
+    let node = el.parentElement;
+
+    for (let depth = 0; depth < 8 && node; depth += 1) {
+      if (peers.every((peer) => node.contains(peer))) return node;
+      node = node.parentElement;
+    }
+
+    return null;
+  };
+
+  const cleanChoiceQuestionText = (value) => {
+    return text(
+      value
+        .replace(/\bYes\b/gi, " ")
+        .replace(/\bNo\b/gi, " ")
+        .replace(/\bPrefer not to say\b/gi, " ")
+        .replace(/\bI do not wish to answer\b/gi, " ")
+        .replace(/\bI don't wish to answer\b/gi, " ")
+        .replace(/\s+/g, " ")
+    );
+  };
+
+  const choiceGroupText = (el, type) => {
+    const fieldset = el.closest("fieldset");
+
+    if (fieldset) {
+      const legend = fieldset.querySelector(":scope > legend");
+      const legendText = text(legend?.textContent || "");
+
+      if (legendText) return legendText;
+    }
+
+    const root = getChoiceGroupRoot(el, type);
+
+    if (!root) return "";
+
+    const labelledBy = root.getAttribute?.("aria-labelledby");
+
+    if (labelledBy) {
+      const labelledText = text(
+        labelledBy
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent || "")
+          .join(" ")
+      );
+
+      if (labelledText) return labelledText;
+    }
+
+    const cleanedText = cleanChoiceQuestionText(stripFormControls(root).textContent || "");
+
+    return cleanedText.length > 8 ? cleanedText : "";
+  };
+
+  const shouldKeepHiddenChoiceInput = (el, type) => {
+    if (type !== "radio" && type !== "checkbox") return false;
+
+    const root = getChoiceGroupRoot(el, type);
+
+    return !!root && isVisible(root) && !!choiceGroupText(el, type);
+  };
+
   const collectGroupOptions = (el, type) => {
     if (!el.name) return [];
     try {
@@ -149,7 +334,12 @@ export function detectFields() {
     const rawType = (el.type || "").toLowerCase();
 
     if (tag === "input" && SKIP_INPUT_TYPES.has(rawType)) continue;
-    if (!isVisible(el)) continue;
+
+    const isChoiceInput = tag === "input" && (rawType === "radio" || rawType === "checkbox");
+
+    if (!isVisible(el) && !shouldKeepHiddenChoiceInput(el, rawType)) continue;
+
+    const groupedChoiceLabel = isChoiceInput ? choiceGroupText(el, rawType) : "";
 
     // Dedupe radio/checkbox groups by name — emit one entry per group
     if (tag === "input" && rawType === "radio" && el.name) {
@@ -174,8 +364,11 @@ export function detectFields() {
       autocomplete: el.getAttribute("autocomplete") || "",
       placeholder: el.getAttribute("placeholder") || "",
       required: !!(el.required || el.getAttribute("aria-required") === "true"),
-      label: labelFor(el),
-      nearby: nearbyText(el),
+      label: groupedChoiceLabel || labelFor(el),
+      nearby: groupedChoiceLabel || nearbyText(el),
+      // New: section/parent-block context for vague labels.
+      section: sectionTextFor(el),
+      parentBlockText: parentBlockTextFor(el),
       options: [],
     };
 

@@ -2,7 +2,10 @@
 // Later, this should be replaced by real JobTrack profile data through
 // native messaging or another extension-to-app bridge.
 //
-// Keys must match the category ids emitted by shared/fieldMatcher.js.
+// Keys must match the category ids emitted by shared/fieldMatcher.js, OR be
+// referenced from a category's profileKey override in fieldCategories.js.
+
+import { YES_NO_CATEGORIES as REGISTRY_YES_NO } from "./fieldCategories.js";
 
 export const SAMPLE_PROFILE = {
   // Basic identity
@@ -42,6 +45,17 @@ export const SAMPLE_PROFILE = {
   stateResidency: "No",
   ageOver18: "Yes",
 
+  // Education
+  educationStartDate: "August 2024",
+  educationEndDate: "December 2026",
+  expectedGraduationDate: "December 2026",
+  graduationDate: "December 2026",
+  gpa: "3.5",
+  currentGpa: "3.5",
+  educationSchoolName: "University of Maryland, College Park",
+  schoolName: "University of Maryland, College Park",
+  universityName: "University of Maryland, College Park",
+
   // Application history / source
   previouslyApplied: "No",
   previouslyEmployed: "No",
@@ -59,19 +73,7 @@ export const SAMPLE_PROFILE = {
   pronouns: "",
 };
 
-// Categories whose planned value should be treated as yes/no.
-// The fill engine can type these into text boxes or match equivalent
-// dropdown/radio options.
-export const YES_NO_CATEGORIES = new Set([
-  "workAuthorization",
-  "sponsorship",
-  "requireSponsorship",
-  "futureSponsorship",
-  "locationRequirement",
-  "relocation",
-  "stateResidency",
-  "ageOver18",
-  "previouslyApplied",
-  "previouslyEmployed",
-  "hispanicLatino",
-]);
+// Re-export the canonical yes/no set so existing callers (sidepanel.js)
+// don't have to switch their import path. The source of truth lives in
+// fieldCategories.js (derived from each category's expectedType).
+export const YES_NO_CATEGORIES = REGISTRY_YES_NO;

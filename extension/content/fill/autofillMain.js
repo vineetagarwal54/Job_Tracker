@@ -80,7 +80,7 @@
     };
 
     if (plan.controlType === "text") {
-      fillResult = fillTextInput?.(el, plan.plannedValue) || fillResult;
+      fillResult = fillTextInput?.(el, plan.plannedValue, plan.expectedType) || fillResult;
     } else if (plan.controlType === "select") {
       fillResult = fillNativeSelect?.(el, plan.plannedValue, plan.category) || fillResult;
     } else if (plan.controlType === "radio") {
