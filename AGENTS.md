@@ -150,10 +150,9 @@ matched `pypdf`'s `extract_text(extraction_mode="layout")` byte-for-byte.
   header comment documents this constraint and consolidates spacing dials
   at the top of `main.tex` (`\sectionBefore`, `\sectionAfter`, `\listTopSep`,
   `\listBottomTrim`, `\headerRuleGap`, `\skillRowSep`) for one-place tuning —
-  use those instead of hand-editing spacing throughout the file. Note:
-  `main.tex`'s own spacing-dial comment still says "113 chars, 12pt pitch"
-  — that inline comment was not updated as part of this re-measurement
-  (out of scope for this pass); update it if you touch that section.
+  use those instead of hand-editing spacing throughout the file. The
+  `main.tex` spacing-dial comment is updated to the 119-character,
+  11.96pt measurement.
 
 ### Stack constraints
 

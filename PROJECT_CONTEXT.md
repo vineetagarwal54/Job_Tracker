@@ -4,7 +4,7 @@
 **Repo:** github.com/vineetagarwal54/Job_Tracker (local: `D:\Projects\JobTrack`)
 **Document date:** July 19, 2026 (rev 2)
 **Target completion:** August 15, 2026
-**Status:** Phase 0 complete. Template constants re-measured. CUDA conflict resolved. Phase 1 pending `main.tex` correction, then unblocked.
+**Status:** Phase 0 complete. Template constants re-measured. The CUDA conflict is resolved and the template correction is applied.
 
 **Place this file at the repo root and commit it.** Tooling has been instructed to read it by path.
 
@@ -574,7 +574,7 @@ PHASE 0  Repo prep              CLAUDE.md, AGENTS.md, folders      Claude Code  
    ▼
 PHASE 1  Content bank           content-bank.json                  Claude Code   IN PROGRESS
    │                            Constants re-measured DONE
-   │                            main.tex CUDA correction PENDING
+   │                            main.tex CUDA correction APPLIED
    │                            Bank population PENDING
    ▼
         ◄── /ultraplan here ──►  Plan Phases 2 to 6 against real data
@@ -702,13 +702,7 @@ This is authoritative. Do not reopen it.
 
 ### What was wrong
 
-`resume/template/main.tex` contained a bullet claiming:
-
-> Implemented fused RMSNorm and Linear CUDA kernels for the Qwen3 attention projection, validated to within 7.5e-6 of the reference at fp32, removing a redundant normalization pass per layer.
-
-and a summary line reading "down to CUDA kernel fusion and 4 bit quantization."
-
-Both are false and were shipping on a live resume. This is the most important correction in the project, because the content bank becomes source of truth for every generated resume afterward.
+An earlier template incorrectly attributed CUDA kernel authoring and kernel fusion work to Vineet. Those statements were false, have been removed, and must never enter the content bank or generated documents.
 
 ### Consequent rules
 

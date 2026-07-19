@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { execFile } = require("child_process");
 
 // ── File-based storage ────────────────────────────────────────
 // Stores all data in the OS-appropriate userData directory:
@@ -15,6 +16,8 @@ const PROTOCOL = "jobtrack";
 const NATIVE_HOST_FLAG = "--native-messaging-host";
 const NATIVE_HOST_NAME = "com.vineet.jobtrack";
 const APP_DATA_KEY = "app_data_v3";
+const RESUME_TEMPLATE_FILE = path.resolve(__dirname, "..", "resume", "template", "main.tex");
+const RESUME_OUTPUT_DIR = path.resolve(__dirname, "..", "resume", "output");
 const PROFILE_FIELDS = [
   "name", "firstName", "lastName", "email", "phone", "address", "city", "state",
   "zip", "country", "linkedin", "github", "portfolio", "school", "degree", "major",
@@ -133,6 +136,47 @@ function getDefaultProfile() {
     if (profile[field] != null) safeProfile[field] = profile[field];
     return safeProfile;
   }, {});
+}
+
+function isWithinDirectory(candidate, directory) {
+  const relative = path.relative(directory, candidate);
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function compileResumeTex(fileName) {
+  if (typeof fileName !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*\.tex$/i.test(fileName)) {
+    return Promise.resolve({ ok: false, error: { code: "INVALID_OUTPUT_PATH", message: "Choose a safe generated .tex filename." } });
+  }
+  if (!fs.existsSync(RESUME_TEMPLATE_FILE)) {
+    return Promise.resolve({ ok: false, error: { code: "MISSING_TEMPLATE", message: "The resume template is missing." } });
+  }
+  const texPath = path.resolve(RESUME_OUTPUT_DIR, fileName);
+  if (!isWithinDirectory(texPath, RESUME_OUTPUT_DIR) || !fs.existsSync(texPath)) {
+    return Promise.resolve({ ok: false, error: { code: "INVALID_OUTPUT_PATH", message: "The generated .tex file is not available in resume/output." } });
+  }
+  const pdfPath = path.join(RESUME_OUTPUT_DIR, `${path.basename(fileName, ".tex")}.pdf`);
+  return new Promise((resolve) => {
+    execFile("tectonic", [texPath, "--outdir", RESUME_OUTPUT_DIR], {
+      cwd: RESUME_OUTPUT_DIR,
+      windowsHide: true,
+      timeout: 120000,
+      maxBuffer: 1024 * 1024,
+    }, (error, stdout, stderr) => {
+      if (error?.code === "ENOENT") {
+        resolve({ ok: false, error: { code: "TECTONIC_NOT_FOUND", message: "Tectonic was not found on PATH." } });
+        return;
+      }
+      if (error) {
+        resolve({ ok: false, error: { code: "COMPILATION_FAILED", message: stderr || stdout || error.message } });
+        return;
+      }
+      if (!fs.existsSync(pdfPath) || !isWithinDirectory(pdfPath, RESUME_OUTPUT_DIR)) {
+        resolve({ ok: false, error: { code: "INVALID_OUTPUT_PATH", message: "Tectonic did not create a PDF in resume/output." } });
+        return;
+      }
+      resolve({ ok: true, fileName, pdfFileName: path.basename(pdfPath), stdout, stderr });
+    });
+  });
 }
 
 function writeNativeMessage(message) {
@@ -259,6 +303,8 @@ if (!gotLock) {
       store[key] = value;
       writeStore(store);
     });
+
+    ipcMain.handle("resume:compile", (_event, fileName) => compileResumeTex(fileName));
 
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {

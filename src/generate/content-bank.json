@@ -1,0 +1,1158 @@
+{
+  "meta": {
+    "version": 1,
+    "updated": "2026-07-19"
+  },
+  "identity": {
+    "name": "Vineet Agarwal",
+    "location": "College Park, MD",
+    "phone": "240-353-9811",
+    "email": "vineet54@umd.edu",
+    "links": {
+      "linkedin": "https://www.linkedin.com/in/vineetagarwal54/",
+      "github": "https://github.com/vineetagarwal54",
+      "portfolio": "https://vineet-agarwal54.vercel.app/"
+    }
+  },
+  "summary": {
+    "text": "Software engineering graduate student with 2+ years of production experience focused on multi-agent AI systems and LLM inference optimization, from agent orchestration with LangChain, LangGraph, and Bedrock to speculative decoding and multi-framework inference benchmarking on GPU workloads.",
+    "variants": [
+      "ai-llm",
+      "cloud-backend",
+      "fullstack"
+    ]
+  },
+  "education": [
+    {
+      "id": "umd-meng-software-engineering",
+      "school": "University of Maryland, College Park",
+      "degree": "Master of Engineering, Computer Software Engineering, Minor in Cloud Engineering",
+      "dates": "Jan 2025 to Dec 2026 (Expected)",
+      "gpa": "GPA: 3.7",
+      "note": "",
+      "variants": [
+        "ai-llm",
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "academic"
+      ]
+    }
+  ],
+  "skillGroups": [
+    {
+      "id": "llm-inference",
+      "label": "LLM Inference & Optimization",
+      "items": [
+        "vLLM",
+        "SGLang",
+        "TensorRT-LLM",
+        "llama.cpp",
+        "quantization",
+        "speculative decoding",
+        "KV cache"
+      ],
+      "variants": [
+        "ai-llm"
+      ]
+    },
+    {
+      "id": "applied-ai",
+      "label": "Applied AI",
+      "items": [
+        "LangChain",
+        "LangGraph",
+        "AutoGen",
+        "RAG pipelines",
+        "OpenAI APIs",
+        "Amazon Bedrock",
+        "Hugging Face"
+      ],
+      "variants": [
+        "ai-llm",
+        "cloud-backend"
+      ]
+    },
+    {
+      "id": "databases",
+      "label": "Databases",
+      "items": [
+        "PostgreSQL",
+        "MongoDB",
+        "Redis",
+        "FAISS",
+        "Pinecone"
+      ],
+      "variants": [
+        "ai-llm",
+        "cloud-backend",
+        "fullstack"
+      ]
+    },
+    {
+      "id": "cloud-devops",
+      "label": "Cloud & DevOps",
+      "items": [
+        "AWS",
+        "Docker",
+        "Kubernetes",
+        "CloudFormation",
+        "GitHub Actions CI/CD"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "ai-llm"
+      ]
+    },
+    {
+      "id": "languages",
+      "label": "Languages",
+      "items": [
+        "Python",
+        "JavaScript",
+        "TypeScript",
+        "C++",
+        "SQL",
+        "Go"
+      ],
+      "variants": [
+        "ai-llm",
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "academic"
+      ]
+    },
+    {
+      "id": "frontend",
+      "label": "Frontend",
+      "items": [
+        "React",
+        "Next.js",
+        "React Native",
+        "Redux Toolkit"
+      ],
+      "variants": [
+        "fullstack",
+        "mobile"
+      ]
+    },
+    {
+      "id": "backend",
+      "label": "Backend",
+      "items": [
+        "FastAPI",
+        "Node.js",
+        "Express",
+        "Django",
+        "REST APIs",
+        "WebSocket",
+        "WebRTC"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "mobile"
+      ]
+    },
+    {
+      "id": "core-engineering",
+      "label": "Core Engineering",
+      "items": [
+        "Data Structures & Algorithms",
+        "OOP",
+        "System Design",
+        "Microservices",
+        "Agile/Scrum"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "academic"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "servbeyond-enterprise-ai-platform-intern",
+      "org": "ServBeyond Solutions",
+      "role": "Enterprise AI & Platform Intern",
+      "dates": "Jun 2026 to Present",
+      "location": "Rockville, MD",
+      "variants": [
+        "ai-llm",
+        "cloud-backend",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "servbeyond-rag-manual-lookup",
+          "text": "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95% answer accuracy across 100 users.",
+          "chars": 188,
+          "skills": [
+            "langchain",
+            "openai apis",
+            "rag",
+            "retrieval augmented generation"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "25 hours",
+            "95%",
+            "100 users"
+          ],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-agentic-workflows",
+          "text": "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST plus SOAP integration into a normalized data layer.",
+          "chars": 171,
+          "skills": [
+            "amazon bedrock",
+            "agentic workflows",
+            "rest",
+            "soap",
+            "aws"
+          ],
+          "variants": [
+            "ai-llm",
+            "cloud-backend"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-documentation-rag",
+          "text": "Delivered an internal documentation assistant with LangChain and OpenAI APIs for 100 users.",
+          "chars": 91,
+          "skills": [
+            "langchain",
+            "openai apis",
+            "rag"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "100 users"
+          ],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-normalized-integrations",
+          "text": "Integrated Salesforce, ServiceNow, and AWS workflows with a normalized data layer through REST and SOAP interfaces.",
+          "chars": 115,
+          "skills": [
+            "salesforce",
+            "servicenow",
+            "aws",
+            "rest",
+            "soap"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-bedrock-orchestration",
+          "text": "Orchestrated enterprise GenAI workflows with Amazon Bedrock across Salesforce, ServiceNow, and AWS.",
+          "chars": 99,
+          "skills": [
+            "amazon bedrock",
+            "agentic workflows",
+            "aws"
+          ],
+          "variants": [
+            "ai-llm",
+            "cloud-backend"
+          ],
+          "lockedMetrics": [],
+          "priority": 5,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "runara-ml-inference-engineer-intern",
+      "org": "Runara.ai",
+      "role": "ML & Inference Engineer Intern",
+      "dates": "Apr 2026 to May 2026",
+      "location": "",
+      "variants": [
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "runara-speculative-decoding",
+          "text": "Implemented speculative decoding from scratch across two GPUs in PyTorch and Hugging Face Transformers, applying the paper's probabilistic rejection sampling criterion rather than naive argmax matching.",
+          "chars": 202,
+          "skills": [
+            "speculative decoding",
+            "pytorch",
+            "hugging face transformers",
+            "gpu inference"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": false
+        },
+        {
+          "id": "runara-acceptance-gap",
+          "text": "Diagnosed a gap between 92% isolated draft agreement and 29% in-loop acceptance, tracing it to KV cache and verification input handling and showing argmax draft selection beats temperature sampling.",
+          "chars": 198,
+          "skills": [
+            "speculative decoding",
+            "kv cache",
+            "inference debugging"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "92%",
+            "29%"
+          ],
+          "priority": 2,
+          "rewritable": false
+        },
+        {
+          "id": "runara-framework-benchmark",
+          "text": "Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on RTX Pro 6000 Blackwell GPUs from 1K to 128K context, profiling TTFT, throughput, KV cache growth, and multi-user scalability.",
+          "chars": 195,
+          "skills": [
+            "vllm",
+            "sglang",
+            "tensorrt-llm",
+            "inference benchmarking",
+            "ttft",
+            "kv cache"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "Qwen3-Coder-480B",
+            "1K",
+            "128K"
+          ],
+          "priority": 3,
+          "rewritable": false
+        },
+        {
+          "id": "runara-quantization-requirement",
+          "text": "Flagged that an official Qwen3-Coder FP8 checkpoint did not meet a 4-bit quantization requirement before compute was spent.",
+          "chars": 123,
+          "skills": [
+            "quantization",
+            "fp8",
+            "4-bit",
+            "qwen3-coder"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "4-bit"
+          ],
+          "priority": 4,
+          "rewritable": false
+        },
+        {
+          "id": "runara-throughput-conditions",
+          "text": "Established draft-to-target cost conditions required for speculative decoding to improve throughput on large target models.",
+          "chars": 123,
+          "skills": [
+            "speculative decoding",
+            "inference performance analysis"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 5,
+          "rewritable": false
+        },
+        {
+          "id": "runara-inference-profiling",
+          "text": "Profiled TTFT, throughput, KV cache growth, and multi-user scalability across vLLM, SGLang, and TensorRT-LLM.",
+          "chars": 109,
+          "skills": [
+            "ttft",
+            "throughput",
+            "kv cache",
+            "vllm",
+            "sglang",
+            "tensorrt-llm"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 6,
+          "rewritable": false
+        }
+      ]
+    },
+    {
+      "id": "svipes-software-engineer",
+      "org": "Svipes",
+      "role": "Software Engineer",
+      "dates": "Jul 2024 to Dec 2024",
+      "location": "",
+      "variants": [
+        "mobile",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "svipes-react-native-screens",
+          "text": "Shipped 50+ React Native screens with Redux Toolkit and cut video playback stutter 70% through async loading and client-side caching.",
+          "chars": 133,
+          "skills": [
+            "react native",
+            "redux toolkit",
+            "async loading",
+            "caching"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [
+            "50+",
+            "70%"
+          ],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "svipes-video-module-refactor",
+          "text": "Refactored the video module with async loading and caching, reducing stutter by 40% to 70% and improving load time by 1.3 seconds.",
+          "chars": 130,
+          "skills": [
+            "react native",
+            "async loading",
+            "caching",
+            "video performance"
+          ],
+          "variants": [
+            "mobile",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "40%",
+            "70%",
+            "1.3 seconds"
+          ],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "svipes-mobile-state-management",
+          "text": "Developed React Native screens using Redux Toolkit for a mobile application.",
+          "chars": 76,
+          "skills": [
+            "react native",
+            "redux toolkit"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "svipes-client-caching",
+          "text": "Applied client-side caching and async loading to improve mobile video playback performance.",
+          "chars": 91,
+          "skills": [
+            "caching",
+            "async loading",
+            "react native",
+            "video performance"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
+          "id": "svipes-video-load-time",
+          "text": "Improved video load time by 1.3 seconds through async loading and client-side caching.",
+          "chars": 86,
+          "skills": [
+            "async loading",
+            "caching",
+            "video performance"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [
+            "1.3 seconds"
+          ],
+          "priority": 5,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "xelpmoc-software-engineer",
+      "org": "Xelpmoc Design and Tech Limited",
+      "role": "Software Engineer",
+      "dates": "Nov 2022 to Apr 2024",
+      "location": "",
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "mobile"
+      ],
+      "bullets": [
+        {
+          "id": "xelpmoc-api-performance",
+          "text": "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding Redis caching.",
+          "chars": 171,
+          "skills": [
+            "sql",
+            "redis",
+            "database indexing",
+            "api performance"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "75 seconds",
+            "under 10 seconds",
+            "4x"
+          ],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-sql-joins-indexing",
+          "text": "Refactored SQL joins and indexed high-traffic tables to reduce API response time from 75 seconds to under 10 seconds.",
+          "chars": 117,
+          "skills": [
+            "sql",
+            "database indexing",
+            "api performance"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "75 seconds",
+            "under 10 seconds"
+          ],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-redis-throughput",
+          "text": "Added a Redis caching layer that increased API throughput 4x.",
+          "chars": 61,
+          "skills": [
+            "redis",
+            "caching",
+            "api performance"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "4x"
+          ],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-tourism-platform",
+          "text": "Architected RESTful backend services for a tourism platform serving 10K+ daily bookings, cutting production defects 40% and accelerating feature delivery 25%.",
+          "chars": 158,
+          "skills": [
+            "rest apis",
+            "backend services",
+            "tourism platform"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "10K+",
+            "40%",
+            "25%"
+          ],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-tourism-rest-services",
+          "text": "Created RESTful services for a tourism platform serving 10K+ daily bookings.",
+          "chars": 76,
+          "skills": [
+            "rest apis",
+            "backend services"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "10K+"
+          ],
+          "priority": 5,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-webRTC-interviews",
+          "text": "Built a WebRTC real-time interview system supporting 100+ concurrent sessions with sub-200ms latency.",
+          "chars": 101,
+          "skills": [
+            "webrtc",
+            "real-time systems",
+            "websocket"
+          ],
+          "variants": [
+            "fullstack",
+            "mobile"
+          ],
+          "lockedMetrics": [
+            "100+",
+            "sub-200ms"
+          ],
+          "priority": 6,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-credentials-wallet",
+          "text": "Built a React Native credentials wallet with blockchain webhooks across 30+ screens.",
+          "chars": 84,
+          "skills": [
+            "react native",
+            "blockchain webhooks",
+            "mobile"
+          ],
+          "variants": [
+            "mobile",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "30+"
+          ],
+          "priority": 7,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-senior-living-apps",
+          "text": "Delivered twin production applications for a senior living network that improved coordination efficiency by 35%.",
+          "chars": 112,
+          "skills": [
+            "production applications",
+            "product engineering"
+          ],
+          "variants": [
+            "fullstack",
+            "mobile"
+          ],
+          "lockedMetrics": [
+            "35%"
+          ],
+          "priority": 8,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-production-defects",
+          "text": "Cut production defects 40% and accelerated feature delivery 25% for a tourism platform.",
+          "chars": 87,
+          "skills": [
+            "backend services",
+            "product engineering"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "40%",
+            "25%"
+          ],
+          "priority": 9,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-high-traffic-data",
+          "text": "Optimized high-traffic data access with SQL indexing and Redis caching.",
+          "chars": 71,
+          "skills": [
+            "sql",
+            "database indexing",
+            "redis",
+            "caching"
+          ],
+          "variants": [
+            "cloud-backend"
+          ],
+          "lockedMetrics": [],
+          "priority": 10,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "iiit-hyderabad-software-intern",
+      "org": "IIIT Hyderabad",
+      "role": "Software Intern",
+      "dates": "Jun 2022 to Aug 2022",
+      "location": "",
+      "variants": [
+        "academic",
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "iiit-multilingual-extraction",
+          "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, lifting NLP classification accuracy from 78% to 93%.",
+          "chars": 146,
+          "skills": [
+            "python",
+            "selenium",
+            "nlp",
+            "data extraction"
+          ],
+          "variants": [
+            "academic",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "5+",
+            "78%",
+            "93%"
+          ],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "iiit-python-selenium",
+          "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium.",
+          "chars": 93,
+          "skills": [
+            "python",
+            "selenium",
+            "data extraction"
+          ],
+          "variants": [
+            "academic",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "5+"
+          ],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "iiit-nlp-accuracy",
+          "text": "Improved NLP classification accuracy by 15% through multilingual data extraction.",
+          "chars": 81,
+          "skills": [
+            "nlp",
+            "data extraction"
+          ],
+          "variants": [
+            "academic",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "15%"
+          ],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "iiit-classification-lift",
+          "text": "Lifted NLP classification accuracy from 78% to 93% with Python and Selenium automation.",
+          "chars": 87,
+          "skills": [
+            "nlp",
+            "python",
+            "selenium"
+          ],
+          "variants": [
+            "academic",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "78%",
+            "93%"
+          ],
+          "priority": 4,
+          "rewritable": true
+        }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "reporesearchai-multi-agent-code-analysis",
+      "org": "RepoResearchAI",
+      "role": "Multi-Agent Code Analysis Platform",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/RepoResearchAI",
+      "variants": [
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "reporesearchai-agents-rag",
+          "text": "Built a multi-agent code analysis system with AutoGen, LangChain, and FAISS vector search; specialized SDE, PM, and QA agents generate architecture insights, API documentation, and schema analysis with GPT-4 RAG over codebase embeddings.",
+          "chars": 237,
+          "skills": [
+            "autogen",
+            "langchain",
+            "faiss",
+            "vector search",
+            "rag",
+            "gpt-4"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "care-bridge-ai",
+      "org": "Care Bridge AI",
+      "role": "Healthcare Assistant",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/heena5498/carebridge-ai",
+      "variants": [
+        "ai-llm",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "care-bridge-healthcare-assistant",
+          "text": "Built a healthcare assistant at Bitcamp with FastAPI, PostgreSQL, React, and the Gemini API for conversational patient support.",
+          "chars": 127,
+          "skills": [
+            "fastapi",
+            "postgresql",
+            "react",
+            "gemini api"
+          ],
+          "variants": [
+            "ai-llm",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "terrapin-events",
+      "org": "Terrapin Events",
+      "role": "Full-Stack Event Platform",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "cloud-backend",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "terrapin-events-platform",
+          "text": "Developed an event platform with React, FastAPI, MongoDB, Kubernetes, CAS SSO with JWT RBAC, and Stripe webhooks for 100+ concurrent users with sub-200ms API latency.",
+          "chars": 166,
+          "skills": [
+            "react",
+            "fastapi",
+            "mongodb",
+            "kubernetes",
+            "cas sso",
+            "jwt",
+            "rbac",
+            "stripe webhooks"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "100+",
+            "sub-200ms"
+          ],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "aws-video-analytics-streaming-platform",
+      "org": "AWS Video Analytics Streaming Platform",
+      "role": "Cloud Streaming Platform",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "cloud-backend",
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "aws-video-analytics-platform",
+          "text": "Created a video analytics streaming platform with 3 Lambda functions, EKS, S3, DynamoDB, SQS, AppSync GraphQL, and CloudFormation that autoscaled from 2 to 10 pods with zero critical vulnerabilities.",
+          "chars": 199,
+          "skills": [
+            "aws lambda",
+            "eks",
+            "s3",
+            "dynamodb",
+            "sqs",
+            "appsync graphql",
+            "cloudformation",
+            "kubernetes"
+          ],
+          "variants": [
+            "cloud-backend",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "3",
+            "2 to 10",
+            "zero critical vulnerabilities"
+          ],
+          "priority": 1,
+          "rewritable": false
+        }
+      ]
+    },
+    {
+      "id": "collabdraw",
+      "org": "CollabDraw",
+      "role": "Collaborative Whiteboard",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "collabdraw-realtime-whiteboard",
+          "text": "Created a real-time collaborative whiteboard with Next.js 15, TypeScript, WebSocket, PostgreSQL, Prisma, and a monorepo architecture.",
+          "chars": 133,
+          "skills": [
+            "next.js",
+            "typescript",
+            "websocket",
+            "postgresql",
+            "prisma",
+            "monorepo"
+          ],
+          "variants": [
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "15"
+          ],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "meetspace",
+      "org": "MeetSpace",
+      "role": "WebRTC Meeting Application",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "fullstack",
+        "mobile"
+      ],
+      "bullets": [
+        {
+          "id": "meetspace-video-meetings",
+          "text": "Developed a WebRTC meeting application with peer-to-peer video, screen sharing, recording, React, TypeScript, and Express.",
+          "chars": 122,
+          "skills": [
+            "webrtc",
+            "peer-to-peer",
+            "react",
+            "typescript",
+            "express",
+            "screen sharing",
+            "recording"
+          ],
+          "variants": [
+            "fullstack",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "activity-logger",
+      "org": "Activity Logger",
+      "role": "Mobile Activity Application",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "mobile",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "activity-logger-mobile",
+          "text": "Built a mobile activity logging application with React Native, Node.js, and SQL.",
+          "chars": 80,
+          "skills": [
+            "react native",
+            "node.js",
+            "sql"
+          ],
+          "variants": [
+            "mobile",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "plywood-studio-ai-chatbot",
+      "org": "Plywood Studio AI Chatbot",
+      "role": "Domain-Specific AI Chatbot",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "plywood-ai-chatbot",
+          "text": "Built a domain-specific AI chatbot with FastAPI, OpenAI, a Hugging Face fallback, and Redis caching.",
+          "chars": 100,
+          "skills": [
+            "fastapi",
+            "openai apis",
+            "hugging face",
+            "redis",
+            "caching"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "locra",
+      "org": "Locra",
+      "role": "On-Device Vision AI for Android",
+      "dates": "Active",
+      "location": "",
+      "link": "",
+      "variants": [
+        "ai-llm",
+        "mobile"
+      ],
+      "bullets": [
+        {
+          "id": "locra-on-device-vision",
+          "text": "Developing on-device vision AI for Android in TypeScript without Wi-Fi, cloud services, or an account.",
+          "chars": 102,
+          "skills": [
+            "on-device ai",
+            "computer vision",
+            "android",
+            "typescript"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "google-adk-experiments",
+      "org": "google-adk",
+      "role": "Multi-Agent Orchestration Experiments",
+      "dates": "",
+      "location": "",
+      "link": "",
+      "variants": [
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "google-adk-orchestration",
+          "text": "Explored Google ADK and agentic workflow patterns for multi-agent orchestration.",
+          "chars": 80,
+          "skills": [
+            "google adk",
+            "agentic workflows",
+            "multi-agent systems"
+          ],
+          "variants": [
+            "ai-llm"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    }
+  ],
+  "doNotClaim": [
+    "CUDA kernel authoring",
+    "low-level kernel fusion",
+    "GPU kernel optimization",
+    "the 2 to 3x speculative decoding speedup as a personal benchmark result",
+    "deep production distributed systems at massive scale beyond listed roles"
+  ]
+}

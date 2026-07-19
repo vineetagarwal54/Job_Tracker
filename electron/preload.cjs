@@ -15,3 +15,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.send("renderer-ready");
   },
 });
+
+contextBridge.exposeInMainWorld("resume", {
+  compile: (fileName) => ipcRenderer.invoke("resume:compile", fileName),
+});
