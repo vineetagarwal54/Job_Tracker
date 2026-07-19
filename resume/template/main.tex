@@ -1,0 +1,251 @@
+%%%%
+% Based on MTecknology's Resume
+% Author: Michael Lustfield
+% License: CC-BY-4
+% - https://creativecommons.org/licenses/by/4.0/legalcode.txt
+%
+% Modified for Vineet Agarwal:
+%   - Compiles under BOTH pdfLaTeX (Overleaf) and XeTeX (Tectonic)
+%   - Spacing dials consolidated at the top for one-place tuning
+%%%%
+
+\documentclass[letterpaper,10pt]{article}
+
+% Dependencies
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{multicol}
+\usepackage{bookmark}
+\usepackage{lastpage}
+
+% Serif
+\usepackage{XCharter}
+
+% Colors
+\usepackage{xcolor}
+\definecolor{accentTitle}{HTML}{0e6e55}
+\definecolor{accentText}{HTML}{0e6e55}
+\definecolor{accentLine}{HTML}{a16f0b}
+
+% Misc. Options
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\urlstyle{same}
+
+% Adjust Margins
+\addtolength{\oddsidemargin}{-0.7in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.19in}
+\addtolength{\topmargin}{-0.85in}
+\addtolength{\textheight}{1.7in}
+
+\setlength{\multicolsep}{-3.0pt}
+\setlength{\columnsep}{-1pt}
+\setlength{\tabcolsep}{0pt}
+\setlength{\footskip}{3.7pt}
+\raggedbottom
+\raggedright
+
+% ATS Readability (pdfTeX only; XeTeX embeds Unicode mapping natively)
+\ifdefined\pdfglyphtounicode
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+\fi
+
+%==================================================================%
+% SPACING DIALS                                                     %
+% Tune these to fit more or less content. Raise to loosen, lower to %
+% tighten. Measured baseline: 119 chars per bullet line, 11.96pt pitch.%
+%==================================================================%
+
+\newlength{\sectionBefore}    \setlength{\sectionBefore}{7pt}   % was ~18pt
+\newlength{\sectionAfter}     \setlength{\sectionAfter}{6pt}    % was ~11pt
+\newlength{\listTopSep}       \setlength{\listTopSep}{1pt}      % was 2pt
+\newlength{\listBottomTrim}   \setlength{\listBottomTrim}{-3pt} % was -4pt
+\newlength{\headerRuleGap}    \setlength{\headerRuleGap}{6pt}   % was 10pt
+\newcommand{\skillRowSep}{1pt}                                  % was 3pt
+
+%-----------------%
+% Custom Commands %
+%-----------------%
+
+\newcommand{\documentTitle}[2]{
+  \begin{center}
+    {\Huge\color{accentTitle} #1}
+    \vspace{\headerRuleGap}
+    {\color{accentLine} \hrule}
+    \vspace{2pt}
+    \footnotesize{#2}
+    \vspace{2pt}
+    {\color{accentLine} \hrule}
+  \end{center}
+}
+
+\newcommand{\documentFooter}[1]{
+  \setlength{\footskip}{10.25pt}
+  \fancyfoot[C]{\footnotesize #1}
+}
+
+\newcommand{\numberedPages}{
+  \documentFooter{\thepage/\pageref{LastPage}}
+}
+
+\titleformat{\section}{
+  \color{accentText}
+  \raggedright\large\bfseries
+}{}{0em}{}[\color{accentLine}\titlerule]
+
+\titlespacing*{\section}{0pt}{\sectionBefore}{\sectionAfter}
+
+\newcommand{\tinysection}[1]{
+  \phantomsection
+  \addcontentsline{toc}{section}{#1}
+  {\large{\bfseries\color{accentText}#1} {\color{accentLine} |}}
+}
+
+\newcommand{\heading}[2]{
+  \hspace{10pt}#1\hfill#2\\
+}
+
+\newcommand{\headingBf}[2]{
+  \heading{\textbf{#1}}{\textbf{#2}}
+}
+
+\newcommand{\headingIt}[2]{
+  \heading{\textit{#1}}{\textit{#2}}
+}
+
+\newenvironment{resume_list}{
+  \vspace{0pt}
+  \begin{itemize}[itemsep=0pt, parsep=0pt, leftmargin=30pt, topsep=\listTopSep]
+}{
+  \end{itemize}
+  \vspace{\listBottomTrim}
+}
+
+\newcommand{\itemTitle}[1]{
+  \item[] \underline{#1}\vspace{4pt}
+}
+
+\renewcommand\labelitemi{\textbullet}
+
+%=======================%
+% Vineet Agarwal Resume %
+%=======================%
+
+\begin{document}
+
+  %---------%
+  % Heading %
+  %---------%
+
+  \documentTitle{Vineet Agarwal}{
+    College Park, MD |
+    \href{tel:2403539811}{240-353-9811} |
+    \href{mailto:vineet54@umd.edu}{vineet54@umd.edu} |
+    \href{https://www.linkedin.com/in/vineetagarwal54/}{linkedin.com/in/vineetagarwal54} |
+    \href{https://github.com/vineetagarwal54}{github.com/vineetagarwal54} |
+    \href{https://vineet-agarwal54.vercel.app/}{vineet-agarwal54.vercel.app}
+  }
+
+  %---------%
+  % Summary %
+  %---------%
+
+  \tinysection{Summary}
+  Software engineering grad student with 2+ years production experience, focused on multi-agent AI systems and LLM inference optimization, from agent orchestration (LangChain, LangGraph, Bedrock) down to speculative decoding and multi framework inference benchmarking on GPU workloads.
+
+  %--------%
+  % Skills %
+  %--------%
+
+  \section{Skills}
+
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+  \vspace{0pt}
+  \textbf{LLM Inference \& Optimization}\enspace vLLM, SGLang, TensorRT-LLM, llama.cpp, speculative decoding, KV cache \\[\skillRowSep]
+  \textbf{Applied AI}\enspace LangChain, LangGraph, AutoGen, RAG pipelines, OpenAI APIs, Amazon Bedrock, Hugging Face \\[\skillRowSep]
+  \textbf{Databases}\enspace PostgreSQL, MongoDB, Redis, FAISS, Pinecone \\[\skillRowSep]
+  \textbf{Cloud \& DevOps}\enspace AWS (Lambda, EKS), Docker, Kubernetes, CloudFormation, GitHub Actions CI/CD
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+  \vspace{0pt}
+  \textbf{Languages}\enspace Python, JavaScript, TypeScript, C++, SQL, Go \\[\skillRowSep]
+  \textbf{Frontend}\enspace React, Next.js, React Native, Redux Toolkit \\[\skillRowSep]
+  \textbf{Backend}\enspace FastAPI, Node.js, Express, Django, REST APIs, WebSocket, WebRTC \\[\skillRowSep]
+  \textbf{Core Engineering}\enspace Data Structures \& Algorithms (C++), OOP, System Design, Microservices, Agile/Scrum
+\end{minipage}
+
+  %------------%
+  % Experience %
+  %------------%
+
+  \section{Experience}
+
+  \headingBf{ServBeyond Solutions}{Jun 2026 -- Present}
+  \headingIt{Enterprise AI \& Platform Intern}{}
+  \begin{resume_list}
+    \item Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95\% answer accuracy across 100 users.
+    \item Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for agent orchestration and REST plus SOAP integration into a normalized data layer.
+  \end{resume_list}
+
+  \headingBf{Runara.ai}{Apr 2026 -- May 2026}
+  \headingIt{ML \& Inference Engineer Intern}{}
+  \begin{resume_list}
+    \item Implemented speculative decoding from scratch across two GPUs in PyTorch and HuggingFace Transformers, applying the paper's probabilistic rejection sampling criterion rather than naive argmax matching.
+    \item Diagnosed a gap between 92\% isolated draft agreement and 29\% in-loop acceptance, tracing it to KV cache and verification input handling and showing argmax draft selection beats temperature sampling.
+    \item Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on RTX Pro 6000 Blackwell GPUs from 1K to 128K context, profiling TTFT, throughput, KV cache growth, and multi user scalability.
+  \end{resume_list}
+
+  \headingBf{Svipes}{Jul 2024 -- Dec 2024}
+  \headingIt{Software Engineer}{}
+  \begin{resume_list}
+    \item Shipped 50+ React Native screens with Redux Toolkit and cut video playback stutter 70\% via async loading and client side caching.
+  \end{resume_list}
+
+  \headingBf{Xelpmoc Design and Tech Limited}{Nov 2022 -- Apr 2024}
+  \headingIt{Software Engineer}{}
+  \begin{resume_list}
+    \item Reduced API response time from 75s to under 10s and increased throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding a Redis caching layer.
+    \item Architected RESTful backend services for a tourism platform serving 10K+ daily bookings; cut production defects 40\% and accelerated feature delivery 25\%.
+  \end{resume_list}
+
+  \headingBf{IIIT Hyderabad}{Jun 2022 -- Aug 2022}
+  \headingIt{Software Intern}{}
+  \begin{resume_list}
+    \item Automated multilingual data extraction across 5+ regional languages with Python and Selenium; lifted NLP classification accuracy from 78\% to 93\%.
+  \end{resume_list}
+
+  %-----------%
+  % Education %
+  %-----------%
+
+  \section{Education}
+
+  \headingBf{University of Maryland, College Park}{Jan 2025 -- Dec 2026 (Expected)}
+  \headingIt{Master of Engineering, Computer Software Engineering, Minor in Cloud Engineering}{GPA: 3.7}
+
+  %----------%
+  % Projects %
+  %----------%
+
+  \section{Projects}
+
+  \headingBf{RepoResearchAI: Multi-Agent Code Analysis Platform \href{https://github.com/vineetagarwal54/RepoResearchAI}{(github.com/vineetagarwal54/RepoResearchAI)}}{}
+  \begin{resume_list}
+    \item Built a multi-agent AI system with AutoGen, LangChain, and FAISS vector search; specialized agents (SDE, PM, QA) generate architecture insights, API docs, and schema analysis using GPT-4 with RAG over codebase embeddings.
+  \end{resume_list}
+
+  \headingBf{Care Bridge AI \href{https://github.com/heena5498/carebridge-ai}{(github.com/heena5498/carebridge-ai)}}{}
+  \begin{resume_list}
+    \item Built a healthcare assistant at Bitcamp using FastAPI, PostgreSQL, React, and the Gemini API, delivering conversational patient support with low-latency responses.
+  \end{resume_list}
+
+\end{document}
