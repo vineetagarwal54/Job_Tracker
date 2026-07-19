@@ -71,6 +71,12 @@ export function validateContentBank(bank) {
   for (const field of ["name", "location", "phone", "email", "links"]) {
     assert(Object.hasOwn(bank?.identity || {}, field), `identity: missing '${field}'`, errors);
   }
+  for (const field of ["name", "location", "phone", "email"]) {
+    assert(bank?.identity?.[field] === "", `identity.${field} must be an empty committed placeholder`, errors);
+  }
+  for (const field of ["linkedin", "github", "portfolio"]) {
+    assert(bank?.identity?.links?.[field] === "", `identity.links.${field} must be an empty committed placeholder`, errors);
+  }
   assert(typeof bank?.summary?.text === "string" && bank.summary.text.length > 0, "summary.text must be a non-empty string", errors);
   validateVariants(bank?.summary?.variants, "summary", errors);
   const ids = new Set();

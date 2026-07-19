@@ -1,6 +1,7 @@
 import { escapeLatex, escapeLatexWithProtectedTerms } from "./latexEscape.js";
 import { budgetSelection } from "./lineBudget.js";
 import { validateSelection } from "./validateSelection.js";
+import { validateRendererIdentity } from "./profileIdentity.js";
 
 function latexLink(url) {
   const visible = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -66,7 +67,8 @@ export function safeResumeFileName(company, role) {
   return base || "resume";
 }
 
-export function renderResume({ bank, selection, template }) {
+export function renderResume({ bank, selection, template, identity }) {
+  const runtimeIdentity = validateRendererIdentity(identity);
   const initialSelection = validateSelection(bank, selection, { requireUniqueActionVerbs: false });
   const budget = budgetSelection(initialSelection);
   const finalSelection = finalSelectionFromBudget(selection, budget);
@@ -78,17 +80,18 @@ export function renderResume({ bank, selection, template }) {
   const education = bank.education.find((item) => item.id === selection.educationId);
   const experience = budget.included.filter((item) => item.section === "experience").map(formatEntry).join("\n\n");
   const projects = budget.included.filter((item) => item.section === "projects").map(formatEntry).join("\n\n");
-  const phoneDigits = bank.identity.phone.replace(/\D/g, "");
+  const contactParts = [];
+  if (runtimeIdentity.location) contactParts.push(escapeLatex(runtimeIdentity.location));
+  if (runtimeIdentity.phone) contactParts.push(`\\href{tel:${runtimeIdentity.phone.replace(/\D/g, "")}}{${escapeLatex(runtimeIdentity.phone)}}`);
+  contactParts.push(`\\href{mailto:${escapeLatex(runtimeIdentity.email)}}{${escapeLatex(runtimeIdentity.email)}}`);
+  for (const key of ["linkedin", "github", "portfolio"]) {
+    if (runtimeIdentity.links[key]) contactParts.push(latexLink(runtimeIdentity.links[key]));
+  }
 
   const body = `
 
-  \\documentTitle{${escapeLatex(bank.identity.name)}}{
-    ${escapeLatex(bank.identity.location)} |
-    \\href{tel:${phoneDigits}}{${escapeLatex(bank.identity.phone)}} |
-    \\href{mailto:${escapeLatex(bank.identity.email)}}{${escapeLatex(bank.identity.email)}} |
-    ${latexLink(bank.identity.links.linkedin)} |
-    ${latexLink(bank.identity.links.github)} |
-    ${latexLink(bank.identity.links.portfolio)}
+  \\documentTitle{${escapeLatex(runtimeIdentity.name)}}{
+    ${contactParts.join(" |\n    ")}
   }
 
   \\tinysection{Summary}

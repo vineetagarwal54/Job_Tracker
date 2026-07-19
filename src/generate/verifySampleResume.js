@@ -20,7 +20,15 @@ for (const expected of ["\\&", "\\%", "\\#", "\\_", "\\{", "\\}", "\\textasciiti
   if (!escapedProbe.includes(expected)) throw new Error(`LaTex escaping missed '${expected}'`);
 }
 
-const rendered = renderResume({ bank, selection, template });
+const identity = { name: "Jordan Example", location: "Example City, MD", phone: "555-010-2040", email: "jordan@example.test", links: { linkedin: "", github: "https://example.test/code", portfolio: "" } };
+const rendered = renderResume({ bank, selection, template, identity });
+try {
+  renderResume({ bank, selection, template });
+  throw new Error("Renderer accepted missing runtime identity");
+} catch (error) {
+  if (error.message === "Renderer accepted missing runtime identity") throw error;
+}
+if (rendered.tex.includes(" |\n    \n") || rendered.tex.includes(" |\n  }")) throw new Error("Optional identity fields rendered an empty separator");
 const included = rendered.budget.included.flatMap((entry) => entry.bullets);
 const verbs = new Set();
 for (const item of included) {
@@ -61,6 +69,8 @@ console.log(JSON.stringify({
   lockedMetricsPreserved: true,
   duplicateActionVerbs: false,
   selectionGuardsValid: true,
+  runtimeIdentityRequired: true,
+  optionalIdentityFieldsClean: true,
   includedBulletIds: included.map((item) => item.bullet.id),
   excluded: rendered.budget.excluded,
 }, null, 2));

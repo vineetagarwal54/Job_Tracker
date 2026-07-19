@@ -18,4 +18,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
 contextBridge.exposeInMainWorld("resume", {
   compile: (fileName) => ipcRenderer.invoke("resume:compile", fileName),
+  keyStatus: () => ipcRenderer.invoke("resume:key-status"),
+  saveApiKey: (key, options) => ipcRenderer.invoke("resume:key-save", key, options),
+  deleteApiKey: () => ipcRenderer.invoke("resume:key-delete"),
+  testApiKey: () => ipcRenderer.invoke("resume:key-test"),
+  analyzeJob: (job) => ipcRenderer.invoke("resume:analyze-job", job),
+  generate: (job) => ipcRenderer.invoke("resume:generate", job),
+  cancelGeneration: () => ipcRenderer.invoke("resume:cancel-generation"),
+  onGenerationEvent: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("resume:generation-event", listener);
+    return () => ipcRenderer.removeListener("resume:generation-event", listener);
+  },
 });

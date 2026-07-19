@@ -1,7 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { execFile } = require("child_process");
+const { createAnthropicClient } = require("./anthropic/apiClient.cjs");
+const { createKeyStore } = require("./anthropic/keyStore.cjs");
+const { analyzeJob } = require("./anthropic/analyzeJob.cjs");
+const { createOrchestrator } = require("./anthropic/orchestrator.cjs");
+const { createActiveGenerations } = require("./anthropic/activeGenerations.cjs");
 
 // ── File-based storage ────────────────────────────────────────
 // Stores all data in the OS-appropriate userData directory:
@@ -179,6 +184,44 @@ function compileResumeTex(fileName) {
   });
 }
 
+function serializeResumeError(error) {
+  return { code: error?.code || "RESUME_ERROR", message: error?.message || "Resume operation failed.", status: error?.status || null, retryable: Boolean(error?.retryable) };
+}
+
+function registerResumeIpc() {
+  const keyStore = createKeyStore({ safeStorage, userDataPath: app.getPath("userData") });
+  const client = createAnthropicClient();
+  const generateDir = path.resolve(__dirname, "..", "src", "generate");
+  const orchestrate = createOrchestrator({ rootDir: path.resolve(__dirname, ".."), client, keyStore, getDefaultProfile, compileResumeTex });
+  const active = createActiveGenerations();
+  ipcMain.handle("resume:key-status", () => keyStore.status());
+  ipcMain.handle("resume:key-save", (_event, key, options) => keyStore.saveKey(key, options));
+  ipcMain.handle("resume:key-delete", () => keyStore.deleteKey());
+  ipcMain.handle("resume:key-test", async () => {
+    try {
+      const key = keyStore.readKey();
+      await client.request({ apiKey: key, body: { model: "claude-haiku-4-5-20251001", max_tokens: 1, messages: [{ role: "user", content: "Reply OK" }] } });
+      return { ok: true };
+    } catch (error) { return { ok: false, error: serializeResumeError(error) }; }
+  });
+  ipcMain.handle("resume:analyze-job", async (_event, job) => {
+    try { const result = await analyzeJob({ client, apiKey: keyStore.readKey(), job, generateDir }); return { ok: true, ...result }; }
+    catch (error) { return { ok: false, error: serializeResumeError(error) }; }
+  });
+  ipcMain.handle("resume:generate", async (event, job) => {
+    const owner = event.sender.id;
+    const controller = active.start(owner);
+    if (!controller) return { ok: false, error: { code: "GENERATION_ACTIVE", message: "A resume generation is already running for this window." } };
+    const send = (type, message, result) => { if (!event.sender.isDestroyed()) event.sender.send("resume:generation-event", { type, message, result }); };
+    send("started", "Analyzing requirements");
+    try { const result = await orchestrate({ job, signal: controller.signal, progress: (message) => send("progress", message) }); send("completed", "Resume generation completed", result); return { ok: true, result }; }
+    catch (error) { const cancelled = error?.code === "CANCELLED" || controller.signal.aborted; send(cancelled ? "cancelled" : "failed", cancelled ? "Resume generation cancelled" : error.message); return { ok: false, error: serializeResumeError(cancelled ? Object.assign(new Error("Resume generation cancelled."), { code: "CANCELLED" }) : error) }; }
+    finally { active.finish(owner); }
+  });
+  ipcMain.handle("resume:cancel-generation", (event) => active.cancel(event.sender.id) ? { ok: true } : { ok: false, message: "No resume generation is active." });
+  ipcMain.handle("resume:compile", (_event, fileName) => compileResumeTex(fileName));
+}
+
 function writeNativeMessage(message) {
   const payload = Buffer.from(JSON.stringify(message), "utf8");
   const header = Buffer.alloc(4);
@@ -304,8 +347,6 @@ if (!gotLock) {
       writeStore(store);
     });
 
-    ipcMain.handle("resume:compile", (_event, fileName) => compileResumeTex(fileName));
-
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {
       if (pendingDeepLink) {
@@ -322,6 +363,7 @@ if (!gotLock) {
       runNativeMessagingHost();
       return;
     }
+    registerResumeIpc();
     createWindow();
     checkForUpdates();
   });

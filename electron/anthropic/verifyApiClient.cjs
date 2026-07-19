@@ -1,0 +1,11 @@
+const { createAnthropicClient } = require("./apiClient.cjs");
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "request-id": "req_fake" } });
+async function main() {
+  const normal = createAnthropicClient({ fetchImpl: async () => jsonResponse({ content: [{ type: "text", text: "{}" }], usage: {} }), maxRetries: 0 }); const response = await normal.request({ apiKey: "fake", body: { model: "fake", max_tokens: 1, messages: [] } }); assert(response.content[0].text === "{}", "Normal JSON response failed");
+  const sse = ["event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":1}}}\n\n", "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"{\\\"ok\\\":true}\"}}\n\n", "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}\n\n", "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"];
+  const streamClient = createAnthropicClient({ fetchImpl: async () => new Response(new ReadableStream({ start(controller) { for (const chunk of sse) controller.enqueue(new TextEncoder().encode(chunk)); controller.close(); } }), { status: 200, headers: { "content-type": "text/event-stream" } }), maxRetries: 0 }); const streamed = await streamClient.request({ apiKey: "fake", stream: true, body: { model: "fake", max_tokens: 1, messages: [] } }); assert(streamed.text === "{\"ok\":true}" && streamed.stopReason === "end_turn", "SSE parsing failed");
+  let authCalls = 0; const auth = createAnthropicClient({ fetchImpl: async () => { authCalls++; return jsonResponse({ type: "error", error: { type: "authentication_error", message: "bad key" } }, 401); } }); try { await auth.request({ apiKey: "fake", body: {} }); } catch (error) { assert(error.code === "authentication_error", "Authentication error was not structured"); } assert(authCalls === 1, "Authentication failure retried");
+  console.log(JSON.stringify({ normalJson: true, streamingSse: true, structuredAuthenticationError: true, authenticationNotRetried: true }, null, 2));
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });

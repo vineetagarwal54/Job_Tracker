@@ -10,9 +10,10 @@ const selection = JSON.parse(fs.readFileSync(path.join(here, "sample-ai-selectio
 const template = fs.readFileSync(path.join(root, "resume", "template", "main.tex"), "utf8");
 const outputDir = path.join(root, "resume", "output");
 const outputPath = path.join(outputDir, `${safeResumeFileName("sample", "ai-resume")}.tex`);
+const identity = { name: "Jordan Example", location: "Example City, MD", phone: "555-010-2040", email: "jordan@example.test", links: { linkedin: "https://example.test/linkedin", github: "https://example.test/github", portfolio: "" } };
 
 fs.mkdirSync(outputDir, { recursive: true });
-const result = renderResume({ bank, selection, template });
+const result = renderResume({ bank, selection, template, identity });
 fs.writeFileSync(outputPath, result.tex, "utf8");
 console.log(JSON.stringify({
   outputPath,

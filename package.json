@@ -69,6 +69,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "src/generate/**/*",
+      "resume/template/**/*",
       "package.json"
     ]
   },
