@@ -1,6 +1,4 @@
-// Temporary hardcoded profile used during Phase 3 development.
-// Later, this should be replaced by real JobTrack profile data through
-// native messaging or another extension-to-app bridge.
+// Clearly fake data for explicit development-only fallback testing.
 //
 // Keys must match the category ids emitted by shared/fieldMatcher.js, OR be
 // referenced from a category's profileKey override in fieldCategories.js.
@@ -9,33 +7,33 @@ import { YES_NO_CATEGORIES as REGISTRY_YES_NO } from "./fieldCategories.js";
 
 export const SAMPLE_PROFILE = {
   // Basic identity
-  firstName: "Vineet",
-  lastName: "Agarwal",
-  fullName: "Vineet Agarwal",
-  email: "vineetagarwal540@gmail.com",
-  phone: "1234567890",
+  firstName: "Dev",
+  lastName: "Example",
+  fullName: "Dev Example",
+  email: "dev.example@example.test",
+  phone: "+1 555 010 0199",
 
   // Address and location
   country: "United States",
-  address: "College Park, MD",
-  addressLine1: "College Park, MD",
+  address: "123 Example Avenue",
+  addressLine1: "123 Example Avenue",
   addressLine2: "",
-  city: "College Park",
-  state: "Maryland",
-  stateCode: "MD",
-  zip: "20742",
-  postalCode: "20742",
-  currentLocation: "College Park, Maryland",
+  city: "Exampleville",
+  state: "Example State",
+  stateCode: "EX",
+  zip: "00000",
+  postalCode: "00000",
+  currentLocation: "Exampleville, Example State",
 
   // Online profiles
-  linkedinUrl: "https://www.linkedin.com/in/vineet-agarwal54",
-  githubUrl: "https://github.com/vineetagarwal54",
-  portfolioUrl: "https://vineet-agarwal54.vercel.app",
-  personalWebsite: "https://vineet-agarwal54.vercel.app",
-  otherWebsite: "https://vineet-agarwal54.vercel.app",
+  linkedinUrl: "https://www.linkedin.com/in/example-dev",
+  githubUrl: "https://github.com/example-dev",
+  portfolioUrl: "https://example.test/portfolio",
+  personalWebsite: "https://example.test/portfolio",
+  otherWebsite: "https://example.test/portfolio",
 
   // Work eligibility
-  earliestStartDate: "May 19, 2026",
+  earliestStartDate: "January 1, 2099",
   workAuthorization: "yes",
   sponsorship: "no",
   requireSponsorship: "no",
@@ -46,15 +44,15 @@ export const SAMPLE_PROFILE = {
   ageOver18: "Yes",
 
   // Education
-  educationStartDate: "August 2024",
-  educationEndDate: "December 2026",
-  expectedGraduationDate: "December 2026",
-  graduationDate: "December 2026",
-  gpa: "3.5",
-  currentGpa: "3.5",
-  educationSchoolName: "University of Maryland, College Park",
-  schoolName: "University of Maryland, College Park",
-  universityName: "University of Maryland, College Park",
+  educationStartDate: "January 2090",
+  educationEndDate: "December 2094",
+  expectedGraduationDate: "December 2094",
+  graduationDate: "December 2094",
+  gpa: "4.0",
+  currentGpa: "4.0",
+  educationSchoolName: "Example Technical Institute",
+  schoolName: "Example Technical Institute",
+  universityName: "Example Technical Institute",
 
   // Application history / source
   previouslyApplied: "No",
@@ -63,11 +61,11 @@ export const SAMPLE_PROFILE = {
   source: "LinkedIn",
 
   // EEO / voluntary self-identification
-  gender: "Male",
-  race: "Asian",
-  hispanicLatino: "No",
-  veteranStatus: "I am not a protected veteran",
-  disabilityStatus: "No, I do not have a disability",
+  gender: "Prefer not to say",
+  race: "Prefer not to say",
+  hispanicLatino: "Prefer not to say",
+  veteranStatus: "Prefer not to say",
+  disabilityStatus: "Prefer not to say",
 
   // Optional demographic fields
   pronouns: "",

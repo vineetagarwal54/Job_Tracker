@@ -11,6 +11,19 @@ const fs = require("fs");
 
 const { autoUpdater } = require("electron-updater");
 
+const PROTOCOL = "jobtrack";
+const NATIVE_HOST_FLAG = "--native-messaging-host";
+const NATIVE_HOST_NAME = "com.vineet.jobtrack";
+const APP_DATA_KEY = "app_data_v3";
+const PROFILE_FIELDS = [
+  "name", "firstName", "lastName", "email", "phone", "address", "city", "state",
+  "zip", "country", "linkedin", "github", "portfolio", "school", "degree", "major",
+  "graduationDate", "workAuthorization", "sponsorship", "shortAnswerNotes",
+];
+const isNativeMessagingHost = process.argv.some((arg) =>
+  arg === NATIVE_HOST_FLAG || arg.startsWith(`${NATIVE_HOST_FLAG}=`)
+) || (process.stdin.isTTY === false && process.argv.length <= 1);
+
 autoUpdater.autoDownload = false;
 
 function checkForUpdates() {
@@ -55,11 +68,6 @@ autoUpdater.on("error", (error) => {
   console.error("Auto update error:", error);
 });
 
-app.whenReady().then(() => {
-  createWindow();
-  checkForUpdates();
-});
-
 function getDataPath() {
   const dir = path.join(app.getPath("userData"));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -97,7 +105,6 @@ function writeStore(data) {
 }
 
 // ── Custom protocol ──────────────────────────────────────────
-const PROTOCOL = "jobtrack";
 if (process.defaultApp) {
   app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [
     path.resolve(process.argv[1]),
@@ -107,7 +114,67 @@ if (process.defaultApp) {
 }
 
 // ── Single instance ──────────────────────────────────────────
-const gotLock = app.requestSingleInstanceLock();
+function getDefaultProfile() {
+  const store = readStore();
+  const raw = store[APP_DATA_KEY];
+  if (!raw) return null;
+  let appData;
+  try {
+    appData = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+  const profiles = Array.isArray(appData?.applicationProfiles)
+    ? appData.applicationProfiles
+    : [];
+  const profile = profiles.find((candidate) => candidate?.isDefault === true);
+  if (!profile) return null;
+  return PROFILE_FIELDS.reduce((safeProfile, field) => {
+    if (profile[field] != null) safeProfile[field] = profile[field];
+    return safeProfile;
+  }, {});
+}
+
+function writeNativeMessage(message) {
+  const payload = Buffer.from(JSON.stringify(message), "utf8");
+  const header = Buffer.alloc(4);
+  header.writeUInt32LE(payload.length, 0);
+  process.stdout.write(Buffer.concat([header, payload]));
+}
+
+function runNativeMessagingHost() {
+  let buffer = Buffer.alloc(0);
+  let handled = false;
+  process.stdin.on("data", (chunk) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    if (handled || buffer.length < 4) return;
+    const length = buffer.readUInt32LE(0);
+    if (length > 1024 * 1024 || buffer.length < length + 4) return;
+    handled = true;
+    let request;
+    try {
+      request = JSON.parse(buffer.subarray(4, length + 4).toString("utf8"));
+    } catch {
+      writeNativeMessage({ ok: false, error: "Invalid native messaging request." });
+      return;
+    }
+    if (request?.type !== "GET_DEFAULT_PROFILE") {
+      writeNativeMessage({ ok: false, error: "Unsupported JobTrack request." });
+      return;
+    }
+    try {
+      const profile = getDefaultProfile();
+      writeNativeMessage(profile
+        ? { ok: true, profile }
+        : { ok: false, error: "No default JobTrack application profile exists." });
+    } catch (error) {
+      writeNativeMessage({ ok: false, error: "JobTrack could not read its profile." });
+      console.error(`[${NATIVE_HOST_NAME}]`, error);
+    }
+  });
+}
+
+const gotLock = isNativeMessagingHost || app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
@@ -153,7 +220,7 @@ if (!gotLock) {
     }
   });
 
-  app.whenReady().then(() => {
+  function createWindow() {
     const isDev = !app.isPackaged;
 
     mainWindow = new BrowserWindow({
@@ -202,6 +269,15 @@ if (!gotLock) {
     });
 
     handleArgv(process.argv);
+  }
+
+  app.whenReady().then(() => {
+    if (isNativeMessagingHost) {
+      runNativeMessagingHost();
+      return;
+    }
+    createWindow();
+    checkForUpdates();
   });
 
   app.on("window-all-closed", () => {

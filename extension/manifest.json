@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "JobTrack — Apply Helper",
   "version": "0.1.0",
-  "description": "Scan the current job application page and preview detected form fields. Phase 2 foundation — detection only, no autofill.",
-  "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
+  "description": "Scan job application pages, review detected fields, and autofill selected values from a local JobTrack profile. Never submits applications.",
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "nativeMessaging"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "action": {
     "default_title": "JobTrack — scan this page"

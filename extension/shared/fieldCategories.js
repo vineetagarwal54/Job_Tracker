@@ -4,7 +4,7 @@
 //
 // Category schema:
 //   id              — stable internal id (also used as a default profile key)
-//   profileKey      — which key on SAMPLE_PROFILE to read from. Defaults to id.
+//   profileKey      — which key on the normalized profile to read from. Defaults to id.
 //   phrases         — multi-word phrases that strongly imply this category
 //                     when they appear in the visible label/aria/placeholder.
 //   keywords        — single tokens to match against id/name (snake/camel).

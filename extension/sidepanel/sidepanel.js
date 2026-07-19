@@ -1,5 +1,6 @@
 import { classifyField } from "../shared/fieldMatcher.js";
 import { SAMPLE_PROFILE, YES_NO_CATEGORIES } from "../shared/sampleProfile.js";
+import { normalizeDesktopProfile } from "../shared/profileAdapter.js";
 import {
   TEST_NOTE_TYPES,
   TEST_NOTE_AREAS,
@@ -10,7 +11,7 @@ import {
 // The service worker owns the scan and fill paths: it picks the active tab,
 // checks the URL is scannable, and runs chrome.scripting.executeScript with
 // detectFields and the split fill engine. The side panel is the brains —
-// it classifies detected fields, builds a fill plan against the sample
+// it classifies detected fields, builds a fill plan against one normalized
 // profile, and merges fill results back into the plan for verification.
 //
 // UI stays simple by default. Internal classification metadata (category id,
@@ -73,6 +74,9 @@ const state = {
   selected: new Set(), // plan indices the user ticked manually
   results: new Map(),  // index → FillResult
   debug: false,        // when true, render technical details
+  profile: null,
+  profileMessage: "",
+  profileSource: "none",
 };
 
 function optionsHtml(items) {
@@ -99,12 +103,14 @@ async function saveDebugMode(value) {
 
 async function mount() {
   await loadDebugMode();
+  await loadProfile();
 
   root.innerHTML = SHELL;
   document.getElementById("rescan-btn").addEventListener("click", scan);
   document.getElementById("fill-safe-btn").addEventListener("click", fillAvailable);
   document.getElementById("fill-selected-btn").addEventListener("click", fillSelected);
   document.getElementById("content").addEventListener("change", onContentChange);
+  document.getElementById("content").addEventListener("click", onContentClick);
 
   const debugToggle = document.getElementById("debug-toggle");
   debugToggle.checked = state.debug;
@@ -129,6 +135,34 @@ async function mount() {
   scan();
 }
 
+async function loadProfile() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "GET_DEFAULT_PROFILE" });
+    if (response?.ok && response.profile) {
+      state.profile = normalizeDesktopProfile(response.profile);
+      state.profileSource = "JobTrack";
+      state.profileMessage = "Using the default JobTrack profile.";
+      return;
+    }
+    state.profile = null;
+    state.profileSource = "none";
+    state.profileMessage = response?.error || "No default JobTrack profile exists.";
+  } catch (err) {
+    state.profile = null;
+    state.profileSource = "none";
+    state.profileMessage = `JobTrack is unavailable: ${err?.message || String(err)}`;
+  }
+}
+
+function onContentClick(event) {
+  if (event.target.closest("#dev-fallback-btn")) {
+    state.profile = normalizeDesktopProfile(SAMPLE_PROFILE);
+    state.profileSource = "development fallback";
+    state.profileMessage = "Using clearly fake development data. This is never used automatically.";
+    scan();
+  }
+}
+
 function onContentChange(e) {
   const cb = e.target.closest('input[type="checkbox"][data-plan-index]');
   if (!cb) return;
@@ -139,6 +173,7 @@ function onContentChange(e) {
 }
 
 async function scan() {
+  if (state.profileSource !== "development fallback") await loadProfile();
   state.results.clear();
   state.selected.clear();
   setContent(`<div class="notice"><strong>Scanning…</strong>
@@ -155,7 +190,7 @@ async function scan() {
 
   const fields = (response.fields || []).map((f) => ({ ...f, classification: classifyField(f) }));
   state.tab = response.tab || {};
-  state.plan = fields.map((f, i) => buildPlanItem(f, i, SAMPLE_PROFILE));
+  state.plan = fields.map((f, i) => buildPlanItem(f, i, state.profile || {}));
   render();
 }
 
@@ -373,8 +408,15 @@ function render() {
     try { return new URL(state.tab.url).hostname; } catch { return state.tab.url || ""; }
   })();
 
+  const profileBlock = state.profile
+    ? `<div class="notice"><strong>Profile:</strong> ${escapeHtml(state.profileMessage)}</div>`
+    : `<div class="notice error"><strong>${escapeHtml(state.profileMessage || "No JobTrack profile loaded.")}</strong>
+       <div class="hint">Start JobTrack and create or mark an application profile as default.</div>
+       <button id="dev-fallback-btn" class="ghost" type="button">Use fake development profile</button></div>`;
+
   if (fields.length === 0) {
     setContent(`
+      ${profileBlock}
       ${hostBlock(host)}
       <div class="notice">
         <strong>No form fields detected</strong>
@@ -386,7 +428,7 @@ function render() {
 
   const summary = renderSummary(counts, fillCounts);
   const list = fields.map(fieldCard).join("");
-  setContent(`${summary}${hostBlock(host)}<div class="fields">${list}</div>`);
+  setContent(`${profileBlock}${summary}${hostBlock(host)}<div class="fields">${list}</div>`);
 }
 
 function countBuckets(fields) {
