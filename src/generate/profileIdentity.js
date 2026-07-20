@@ -76,15 +76,29 @@ export function validateFinalIdentity(identity) {
 }
 
 export function resolveResumeIdentity({ profile, bank }) {
-  try {
-    return applicationProfileToIdentity(profile);
-  } catch {
-    try {
-      return bankIdentityToIdentity(bank);
-    } catch {
-      const error = new Error("No valid resume identity is available in the Application Profile or content bank.");
-      error.code = "MISSING_PROFILE";
-      throw error;
-    }
+  let fallback;
+  try { fallback = bankIdentityToIdentity(bank); } catch { fallback = null; }
+  if (!profile || typeof profile !== "object") {
+    if (fallback) return fallback;
+    const error = new Error("No valid resume identity is available in the Application Profile or content bank."); error.code = "MISSING_PROFILE"; throw error;
+  }
+  // Profiles override only valid, present fields.  This prevents one malformed
+  // value (especially a truncated phone) from replacing verified bank data.
+  const candidate = {
+    name: clean(profile.fullName) || [clean(profile.firstName), clean(profile.lastName)].filter(Boolean).join(" ") || fallback?.name,
+    location: [clean(profile.city), clean(profile.state)].filter(Boolean).join(", ") || clean(profile.country) || fallback?.location,
+    phone: clean(profile.phone) || fallback?.phone,
+    email: clean(profile.email) || fallback?.email,
+    links: {
+      linkedin: clean(profile.linkedin) || fallback?.links?.linkedin,
+      github: clean(profile.github) || fallback?.links?.github,
+      portfolio: clean(profile.portfolio) || fallback?.links?.portfolio,
+    },
+  };
+  try { validateFinalIdentity(candidate); return candidate; }
+  catch (error) {
+    // A profile's malformed optional override must not poison the bank identity.
+    if (fallback) return fallback;
+    throw error;
   }
 }

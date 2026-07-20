@@ -12,7 +12,7 @@ if (!fs.existsSync(texPath)) throw new Error("Run renderSampleCoverLetter.js fir
 const tex = fs.readFileSync(texPath, "utf8");
 if (!tex.includes("Jordan Example") || tex.includes("Vineet Agarwal")) throw new Error("Sample identity is not clearly fake.");
 if (tex.includes("\\documentclass") && /opening|bodyParagraphs|closing/.test(tex)) throw new Error("Raw model structure leaked into LaTeX.");
-const sample = { version: 1, opening: "A ".repeat(40), bodyParagraphs: ["B ".repeat(40), "C ".repeat(40)], closing: "D ".repeat(40) };
+const sample = { version: 1, opening: "A ".repeat(40), bodyParagraphs: ["B ".repeat(40), "C ".repeat(40)], closing: "D ".repeat(40), claimEvidence: [{ sentence: "Sample factual draft", evidenceIds: ["sample-evidence"] }] };
 validateCoverLetter(sample, bank);
 try { validateCoverLetter({ ...sample, opening: "Built 999 systems. " + "A ".repeat(40) }, bank); throw new Error("Invented number accepted"); } catch (error) { if (error.message === "Invented number accepted") throw error; }
 try { validateCoverLetter({ ...sample, opening: "\\section{Unsafe} " + "A ".repeat(40) }, bank); throw new Error("Raw LaTeX accepted"); } catch (error) { if (error.message === "Raw LaTeX accepted") throw error; }

@@ -37,7 +37,9 @@ export const EMPHASIS_VARIANT = Object.freeze({
   "agentic-rag": "ai-llm",
   "ai-product": "ai-llm",
   "llm-inference": "ai-llm",
-  "data-engineering": "ai-llm",
+  // ETL, warehouse and ingestion work is backend/cloud work unless the JD
+  // independently contains an AI-product or agentic signal.
+  "data-engineering": "cloud-backend",
   backend: "cloud-backend",
   "cloud-platform": "cloud-backend",
   "systems-infra": "cloud-backend",

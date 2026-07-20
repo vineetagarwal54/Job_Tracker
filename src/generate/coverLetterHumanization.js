@@ -59,6 +59,10 @@ export function validateHumanizedCoverLetter(original, humanized, options = {}) 
   if (factSignature(originalText) !== factSignature(humanizedText)) {
     errors.push("humanized cover letter changed a fact (number or technology)");
   }
+  const signature = (claims) => JSON.stringify((claims || []).map((claim) => [...(claim.evidenceIds || [])].sort()).sort((a, b) => a.join("|").localeCompare(b.join("|"))));
+  // Evidence IDs make this a factual provenance check, rather than a broad
+  // semantic-similarity guess. A wording-only rewrite keeps the same claims.
+  if (signature(original.claimEvidence) !== signature(humanized.claimEvidence)) errors.push("humanized cover letter changed claim evidence, ownership, scope, or association");
   const generic = findGenericPhrases(humanizedText, options);
   if (generic.length) errors.push(`humanized cover letter contains generic phrasing: ${generic.join(", ")}`);
   return { valid: errors.length === 0, errors, generic };

@@ -14,6 +14,7 @@ const content = {
     "I have also built production AI and backend systems around verified operational needs. At ServBeyond Solutions, I shipped a RAG assistant that cut 25 hours of manual lookup per week while reaching 95% answer accuracy across 100 users. Earlier backend work reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x through SQL refactoring, indexing, and Redis caching.",
   ],
   closing: "I would bring careful performance analysis, direct implementation experience, and a strong bias toward validated results to the Example Robotics team. Thank you for considering my application for the role.",
+  claimEvidence: [{ sentence: "Sample factual draft", evidenceIds: ["runara-speculative-decoding"] }],
 };
 const identity = { name: "Jordan Example", location: "Example City, MD", phone: "555-010-2040", email: "jordan@example.test", links: { linkedin: "https://example.test/jordan", github: "", portfolio: "" } };
 const job = { company: "Example Robotics", title: "Example AI Engineer" };

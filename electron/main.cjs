@@ -229,6 +229,32 @@ function registerResumeIpc() {
       return { ok: false, error: serializeResumeError(error) };
     }
   });
+  // One folder chooser avoids two competing native save dialogs.  Files retain
+  // their friendly names and collisions are resolved without overwriting.
+  ipcMain.handle("resume:save-both", async (event, input) => {
+    try {
+      const files = Array.isArray(input?.files) ? input.files : [];
+      if (files.length !== 2) throw Object.assign(new Error("Resume and cover letter are required."), { code: "INVALID_OUTPUT_PATH" });
+      const sources = files.map((file) => ({ source: paths.resolveGeneratedFile(file.fileName, ".pdf"), suggestedName: file.suggestedName }));
+      if (sources.some(({ source }) => !fs.existsSync(source))) throw Object.assign(new Error("A generated PDF no longer exists."), { code: "INVALID_OUTPUT_PATH" });
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const picked = await dialog.showOpenDialog(win, { title: "Choose folder for both documents", properties: ["openDirectory", "createDirectory"] });
+      if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+      const folder = picked.filePaths[0];
+      const saved = []; const failures = [];
+      for (const item of sources) {
+        try {
+          let name = path.basename(String(item.suggestedName || "Document.pdf")).replace(/[\\/:*?\"<>|]+/g, "_");
+          if (!/\.pdf$/i.test(name)) name += ".pdf";
+          const ext = path.extname(name); const stem = path.basename(name, ext);
+          let target = path.join(folder, name); let version = 2;
+          while (fs.existsSync(target)) target = path.join(folder, `${stem}_v${version++}${ext}`);
+          await fs.promises.copyFile(item.source, target); saved.push(target);
+        } catch (error) { failures.push(error.message); }
+      }
+      return { ok: failures.length === 0, partial: saved.length > 0 && failures.length > 0, savedPaths: saved, error: failures.length ? { code: "SAVE_PARTIAL", message: failures.join("; ") } : undefined };
+    } catch (error) { return { ok: false, error: serializeResumeError(error) }; }
+  });
 }
 
 function writeNativeMessage(message) {

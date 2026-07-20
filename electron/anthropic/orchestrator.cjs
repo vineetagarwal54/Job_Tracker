@@ -146,6 +146,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let compiled;
       let pageCount = null;
       const removedForFit = [];
+      const addedForFit = [];
       for (let attempt = 0; attempt <= 3; attempt += 1) {
         rendered = renderModule.renderResume({ bank, selection: currentSelection, template, identity, jdContext });
         fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
@@ -159,6 +160,24 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         if (!trim) throw codedError("VALIDATION_FAILED", "Resume exceeds one page and no nonmandatory bullet can be trimmed.");
         removedForFit.push(trim.removed);
         currentSelection = trim.selection;
+      }
+
+      // A sparse but valid one-page render gets a bounded chance to add one
+      // high-value, already-ranked bullet. Never add filler and revert if the
+      // PDF grows past one page.
+      for (let attempt = 0; attempt < 2 && rendered?.budget?.availableLines - rendered?.budget?.usedLines >= 3; attempt += 1) {
+        const expansion = pageFittingModule.addOneRelevantBullet(bank, currentSelection, rankScores);
+        if (!expansion) break;
+        const expanded = renderModule.renderResume({ bank, selection: expansion.selection, template, identity, jdContext });
+        fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), expanded.tex, "utf8");
+        const expandedCompiled = await compileResumeTex(texFileName);
+        const expandedPages = expandedCompiled.ok ? countPages(paths.resolveGeneratedFile(expandedCompiled.pdfFileName, ".pdf")) : null;
+        if (!expandedCompiled.ok || expandedPages !== 1) {
+          fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
+          compiled = await compileResumeTex(texFileName);
+          break;
+        }
+        currentSelection = expansion.selection; rendered = expanded; compiled = expandedCompiled; pageCount = expandedPages; addedForFit.push(expansion.added);
       }
 
       progress?.("Verifying PDF text layer");
@@ -196,7 +215,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         job: { company: job.company, title: job.title }, analysis: analyzed.analysis, preliminaryCoverage,
         selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
-        atsIntegrity, atsWarning: ATS_WARNING, removedForFit,
+        atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,
         warnings,
         fallback: { analysis: usedAnalysisFallback, selection: usedSelectionFallback, reason: selectionFallbackReason },
         emphases: emphasisResult.emphases, primaryEmphasis: emphasisResult.primary,

@@ -9,7 +9,7 @@ import { GenerateDocumentsModal } from "./GenerateDocumentsModal";
 import { ResumeGenerationResult } from "./ResumeGenerationResult";
 import { CoverLetterResult } from "./CoverLetterResult";
 
-export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, workspaces, onChangeStatus, onChangePriority, onPin, onMoveToBottom, onMoveToWorkspace, resumeStatus, onAddGenerated, onOpenGenerated, onRevealGenerated, onRemoveGenerated }) {
+export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, workspaces, onChangeStatus, onChangePriority, onPin, onMoveToBottom, onMoveToWorkspace, resumeStatus, onAddGenerated, onOpenGenerated, onRevealGenerated, onRemoveGenerated, globalResumeSources = [] }) {
   const [activeTab, setActiveTab] = useState("details");
   const [copied, setCopied] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -22,11 +22,16 @@ export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, wor
   const pc = PRIORITY_CONFIG[job.priority] || PRIORITY_CONFIG.Medium;
   const resumeMissing = missingGenerationRequirements({ status: resumeStatus, job, active: generation.active });
   const documentJob = { company: job.company || "Untitled", title: job.role || "Role", description: job.jd };
-  const resumeSources = coverLetterSources({ documents: (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company })), liveResult: generation.resumeResult, liveJob: documentJob });
+  const resumeSources = [...coverLetterSources({ documents: (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company })), liveResult: generation.resumeResult, liveJob: documentJob }), ...globalResumeSources.filter((source) => source.id !== "live")];
   const openGenerate = () => { generation.reset(); setShowGenerateModal(true); };
-  const saveBoth = () => {
-    if (generation.resumeResult) window.resume?.saveCopy?.({ fileName: generation.resumeResult.pdfFileName, suggestedName: generation.resumeResult.suggestedFileName });
-    if (generation.coverLetterResult) window.resume?.saveCopy?.({ fileName: generation.coverLetterResult.pdfFileName, suggestedName: generation.coverLetterResult.suggestedFileName });
+  const [saveBothMessage, setSaveBothMessage] = useState("");
+  const saveBoth = async () => {
+    const result = await window.resume?.saveBoth?.({ files: [
+      { fileName: generation.resumeResult.pdfFileName, suggestedName: generation.resumeResult.suggestedFileName },
+      { fileName: generation.coverLetterResult.pdfFileName, suggestedName: generation.coverLetterResult.suggestedFileName },
+    ] });
+    if (result?.canceled) return;
+    setSaveBothMessage(result?.ok ? `Saved both documents to ${result.savedPaths?.[0] ? "the selected folder" : "the selected folder"}.` : result?.partial ? `Saved ${result.savedPaths?.length || 0} document(s); ${result.error?.message || "the other file could not be saved"}.` : result?.error?.message || "Could not save both documents.");
   };
   const copyJd = () => { navigator.clipboard.writeText(cleanJobDescription(job.jd)); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
@@ -49,6 +54,7 @@ export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, wor
         {generation.error && <div style={errorBox}>{generation.error}</div>}
         {generation.coverLetterError && <div style={{ ...errorBox, color: "#fbbf24", borderColor: "#5a4a20", background: "#241d0e" }}>Resume completed. Cover letter: {generation.coverLetterError}</div>}
         {generation.resumeResult && generation.coverLetterResult && <button className="btn" onClick={saveBoth} style={{ background: "#6366f1", color: "#fff", padding: "9px 16px", borderRadius: "8px", fontWeight: 700, marginBottom: "12px" }}>Save Both</button>}
+        {saveBothMessage && <div style={{ color: "#a5b4fc", fontSize: "12px", marginBottom: "10px" }}>{saveBothMessage}</div>}
         <ResumeGenerationResult result={generation.resumeResult} onOpen={onOpenGenerated} onReveal={onRevealGenerated} onOpenFolder={() => window.resume.openOutputFolder()} onGenerateAgain={openGenerate} />
         <CoverLetterResult result={generation.coverLetterResult} onOpen={onOpenGenerated} onReveal={onRevealGenerated} onOpenFolder={() => window.resume.openOutputFolder()} />
       </div>}

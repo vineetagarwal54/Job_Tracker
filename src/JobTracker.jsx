@@ -17,6 +17,7 @@ import { AppTabs } from "./components/AppTabs";
 import { ApplicationProfilesPage } from "./components/ApplicationProfilesPage";
 import { AiResumePage } from "./components/AiResumePage";
 import { QuickGenerateModal } from "./components/QuickGenerateModal";
+import { allCoverLetterSources } from "./utils/resumeGeneration";
 
 const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline"];
 
@@ -320,6 +321,7 @@ export default function JobTracker() {
         onOpenGenerated={(fileName) => window.resume?.openPdf(fileName)}
         onRevealGenerated={(fileName) => window.resume?.revealGenerated(fileName)}
         onRemoveGenerated={removeGeneratedDocument}
+        coverLetterSources={allCoverLetterSources({ jobs, generationHistory })}
       />
 
       {formState && (

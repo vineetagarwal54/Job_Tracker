@@ -46,7 +46,7 @@ export function documentHistoryEntry(type, result) {
     // Persist the verified evidence for a generated resume so a later
     // cover-letter-only generation can reuse it without regenerating the resume.
     ...(type === "resume" && result.selection && result.analysis
-      ? { source: { analysis: result.analysis, selection: result.selection } }
+      ? { source: { analysis: result.analysis, selection: result.selection, bulletEvidence: result.selection.rankedBullets || [], renderedSkills: result.renderedSkills || [], company: result.job?.company || "", role: result.job?.title || "", createdAt: new Date().toISOString(), pdfFileName: result.pdfFileName } }
       : {}),
   };
 }
@@ -71,6 +71,7 @@ export function coverLetterSources({ documents = [], liveResult = null, liveJob 
       label: `${document.company || "Resume"} · ${new Date(document.createdAt).toLocaleDateString()}`,
       analysis: document.source.analysis,
       selection: document.source.selection,
+      createdAt: document.createdAt,
     });
   }
   return sources;
@@ -79,8 +80,19 @@ export function coverLetterSources({ documents = [], liveResult = null, liveJob 
 export function quickGenerationHistoryEntry(job, type, result) {
   return {
     ...documentHistoryEntry(type, result),
-    source: "quick-generate",
+    // Preserve the resume evidence object.  A string here used to make quick
+    // resumes impossible to reuse for a factual cover letter.
+    source: type === "resume" ? { ...(documentHistoryEntry(type, result).source || {}), origin: "quick-generate" } : { origin: "quick-generate" },
     company: String(job?.company || "Untitled"),
     title: String(job?.title || "Role"),
   };
+}
+
+export function allCoverLetterSources({ jobs = [], generationHistory = [], liveResult = null, liveJob = null } = {}) {
+  const documents = [
+    ...jobs.flatMap((job) => (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company, title: job.role }))),
+    ...generationHistory,
+  ];
+  return coverLetterSources({ documents, liveResult, liveJob })
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }

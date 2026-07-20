@@ -29,6 +29,7 @@ export function JobList({
   onOpenGenerated,
   onRevealGenerated,
   onRemoveGenerated,
+  coverLetterSources,
 }) {
   const [expandedId, setExpandedId] = useState(null);
   const [dragId, setDragId] = useState(null);
@@ -130,6 +131,7 @@ export function JobList({
                 onOpenGenerated={onOpenGenerated}
                 onRevealGenerated={onRevealGenerated}
                 onRemoveGenerated={(documentId) => onRemoveGenerated(job.id, documentId)}
+                globalResumeSources={coverLetterSources}
               />
             )}
           </div>

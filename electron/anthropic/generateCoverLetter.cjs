@@ -29,10 +29,12 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
     max_tokens: 2200,
     system: [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }],
     output_config: { format: { type: "json_schema", schema: COVER_LETTER_SCHEMA } },
-    messages: [{ role: "user", content: JSON.stringify({ job: safeJob, analysis, selectedEvidence: evidence, requirements: "Approximately 150 to 320 words in four paragraphs. No invented facts or numbers; use only the supplied evidence." }) }],
+    messages: [{ role: "user", content: JSON.stringify({ job: safeJob, analysis, selectedEvidence: evidence, requirements: "150 to 320 words in exactly four paragraphs. No invented facts or numbers; use only supplied evidence. Return claimEvidence with every factual sentence and its one or more evidence IDs." }) }],
   } });
   progress?.("Validating cover letter claims");
   const draft = validateCoverLetter(parseJsonText(draftResponse.text, "Cover letter", { stopReason: draftResponse.stopReason }), bank, { jobDescription: safeJob.description });
+  const evidenceIds = new Set(evidence.map((item) => item.id));
+  if (draft.claimEvidence.some((claim) => claim.evidenceIds.some((id) => !evidenceIds.has(id)))) throw Object.assign(new Error("Cover letter cited evidence outside the selected resume."), { code: "VALIDATION_FAILED" });
 
   // Pass 2: humanize, then revalidate facts. On any failure keep the factual
   // draft (never ship a version that changed a fact).
@@ -46,7 +48,7 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
       max_tokens: 2200,
       system: HUMANIZER_SYSTEM,
       output_config: { format: { type: "json_schema", schema: COVER_LETTER_SCHEMA } },
-      messages: [{ role: "user", content: JSON.stringify({ draft: { version: 1, opening: draft.opening, bodyParagraphs: draft.bodyParagraphs, closing: draft.closing }, jobDescription: safeJob.description, requirements: "Keep every number, technology, scope, and outcome identical. Change wording only. Return the same four paragraphs." }) }],
+      messages: [{ role: "user", content: JSON.stringify({ draft: { version: 1, opening: draft.opening, bodyParagraphs: draft.bodyParagraphs, closing: draft.closing, claimEvidence: draft.claimEvidence }, jobDescription: safeJob.description, requirements: "Keep every number, technology, ownership, responsibility, scope, employer/project association, production status, customer count, leadership claim, team size, and outcome identical. Change wording only; preserve claimEvidence exactly. Return four paragraphs and 150 to 320 words." }) }],
     } });
     accumulateUsage(usageTotals, humanizeResponse.usage);
     const candidate = validateCoverLetter(parseJsonText(humanizeResponse.text, "Humanized cover letter", { stopReason: humanizeResponse.stopReason }), bank, { jobDescription: safeJob.description });

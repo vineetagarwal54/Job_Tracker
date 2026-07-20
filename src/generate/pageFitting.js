@@ -64,3 +64,25 @@ export function trimOneBullet(bank, selection, rankScores = null) {
   };
   return { selection: next, removed: victim };
 }
+
+// The inverse of trimming: when the deterministic line budget shows genuinely
+// useful room, add the highest-ranked unused verified bullet. The compiler is
+// still the authority; callers keep the change only after a one-page compile.
+export function addOneRelevantBullet(bank, selection, rankScores = null) {
+  const selected = new Set();
+  for (const section of ["experience", "projects"]) for (const entry of selection[section] || []) for (const bullet of entry.bullets || []) selected.add(bullet.id);
+  const candidates = [];
+  for (const section of ["experience", "projects"]) for (const entry of bank[section] || []) {
+    const existing = (selection[section] || []).find((item) => item.entryId === entry.id);
+    const count = existing?.bullets?.length || 0;
+    // Never turn an absent entry into filler; prefer strengthening selected
+    // ServBeyond/Xelpmoc experience and already-selected mandatory projects.
+    if (!existing || count >= 3) continue;
+    for (const bullet of entry.bullets || []) if (!selected.has(bullet.id)) candidates.push({ section, entry, bullet, score: rankScores?.get(bullet.id) || 0, preferred: /servbeyond|xelpmoc/i.test(entry.id) ? 2 : 1 });
+  }
+  candidates.sort((a, b) => (b.preferred - a.preferred) || (b.score - a.score) || ((a.bullet.priority || 999) - (b.bullet.priority || 999)));
+  const chosen = candidates[0];
+  if (!chosen) return null;
+  const next = { ...selection, [chosen.section]: selection[chosen.section].map((entry) => entry.entryId === chosen.entry.id ? { ...entry, bullets: [...entry.bullets, { id: chosen.bullet.id }] } : entry) };
+  return { selection: next, added: { entryId: chosen.entry.id, bulletId: chosen.bullet.id, section: chosen.section } };
+}
