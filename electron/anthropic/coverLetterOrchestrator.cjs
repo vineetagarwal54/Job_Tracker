@@ -15,10 +15,8 @@ function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaul
     if (!apiKey) throw codedError("KEY_NOT_CONFIGURED", "Anthropic API key is not configured.");
     const job = sanitizeJob(rawJob);
     const [identityModule, renderer, pricingModule] = await Promise.all(["profileIdentity", "renderCoverLetter", "modelPricing"].map((name) => load(path.join(generateDir, `${name}.js`))));
-    const profile = getDefaultProfile();
-    if (!profile) throw codedError("MISSING_PROFILE", "No default Application Profile exists.");
-    let identity; try { identity = identityModule.applicationProfileToIdentity(profile); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
+    let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     if (!fs.existsSync(paths.template("cover-letter.tex"))) throw codedError("MISSING_TEMPLATE", "The cover-letter template is missing.");
     const generated = await generateCoverLetter({ client, apiKey, bank, job, analysis, selection, signal, generateDir, progress });
     progress?.("Preparing cover letter PDF");

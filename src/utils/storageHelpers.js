@@ -36,6 +36,7 @@ function normalizeAppData(data) {
     activeWorkspaceId: data.activeWorkspaceId ?? null,
     jobs: (data.jobs ?? []).map(job => ({ ...job, generatedDocuments: Array.isArray(job.generatedDocuments) ? job.generatedDocuments : [] })),
     applicationProfiles: data.applicationProfiles ?? [],
+    generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : [],
   };
 }
 
@@ -46,6 +47,7 @@ async function migrateLegacyJobs(oldJobs) {
     activeWorkspaceId: ws.id,
     jobs: (oldJobs || []).map(j => ({ ...j, workspaceId: ws.id })),
     applicationProfiles: [],
+    generationHistory: [],
   };
   await window.storage.set(APP_DATA_KEY, JSON.stringify(migrated));
   return migrated;

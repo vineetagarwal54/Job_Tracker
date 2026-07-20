@@ -32,3 +32,21 @@ export function validateRendererIdentity(identity) {
     linkedin: identity.links?.linkedin, github: identity.links?.github, portfolio: identity.links?.portfolio,
   });
 }
+
+export function bankIdentityToIdentity(bank) {
+  return validateRendererIdentity(bank?.identity);
+}
+
+export function resolveResumeIdentity({ profile, bank }) {
+  try {
+    return applicationProfileToIdentity(profile);
+  } catch {
+    try {
+      return bankIdentityToIdentity(bank);
+    } catch {
+      const error = new Error("No valid resume identity is available in the Application Profile or content bank.");
+      error.code = "MISSING_PROFILE";
+      throw error;
+    }
+  }
+}

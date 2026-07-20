@@ -6,8 +6,8 @@ export function CoverLetterResult({ result, onOpen, onReveal, onOpenFolder }) {
     <div style={{ marginTop: "6px", color: "#7a8494", fontSize: "12px" }}>{result.model} · {result.pdfFileName}</div>
     <div style={{ marginTop: "6px", color: "#7a8494", fontSize: "12px" }}>{result.usage?.coverLetter?.inputTokens || 0} input · {result.usage?.coverLetter?.outputTokens || 0} output · {result.usage?.coverLetter?.cacheCreationInputTokens || 0} cache write · {result.usage?.coverLetter?.cacheReadInputTokens || 0} cache read tokens</div>
     <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap" }}>
-      <button className="btn" onClick={() => onOpen(result.pdfFileName)} style={button}>Open PDF</button>
-      <button className="btn" onClick={() => onReveal(result.pdfFileName)} style={button}>Reveal in File Explorer</button>
+      <button className="btn" onClick={() => onOpen(result.pdfFileName)} style={button}>Open Cover Letter</button>
+      <button className="btn" onClick={() => onReveal(result.pdfFileName)} style={button}>Reveal Cover Letter</button>
       <button className="btn" onClick={onOpenFolder} style={button}>Open Output Folder</button>
     </div>
   </div>;

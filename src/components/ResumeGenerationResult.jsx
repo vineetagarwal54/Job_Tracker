@@ -30,7 +30,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
       <Detail label="Resume selection usage" value={formatUsage(result.usage?.resumeSelection)} />
       <Detail label="Files" value={`${result.pdfFileName}; ${result.texFileName}`} />
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "16px" }}>
-        <Action onClick={() => onOpen(result.pdfFileName)}>Open PDF</Action><Action onClick={() => onReveal(result.pdfFileName)}>Reveal in File Explorer</Action><Action onClick={onOpenFolder}>Open Output Folder</Action><Action onClick={onGenerateAgain}>Generate Again</Action><Action onClick={onGenerateCoverLetter} disabled={coverActive}>{coverActive ? "Generating..." : "Generate Cover Letter"}</Action>
+        <Action onClick={() => onOpen(result.pdfFileName)}>Open Resume</Action><Action onClick={() => onReveal(result.pdfFileName)}>Reveal Resume</Action><Action onClick={onOpenFolder}>Open Output Folder</Action>{onGenerateAgain && <Action onClick={onGenerateAgain}>Generate Again</Action>}{onGenerateCoverLetter && <Action onClick={onGenerateCoverLetter} disabled={coverActive}>{coverActive ? "Generating..." : "Generate Cover Letter"}</Action>}
       </div>
     </div>
   );

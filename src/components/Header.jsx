@@ -1,6 +1,6 @@
 import { STATUSES, STATUS_CONFIG } from "../constants";
 
-export function Header({ totalJobs, statusCounts, filterStatus, onFilterStatus, onImport, onExport, onOpenSetup, onAddJob }) {
+export function Header({ totalJobs, statusCounts, filterStatus, onFilterStatus, onImport, onExport, onOpenSetup, onAddJob, onQuickGenerate }) {
   return (
     <>
       <div style={{ background: "#0e0e18", borderBottom: "1px solid #1a1a2e", padding: "22px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -22,6 +22,10 @@ export function Header({ totalJobs, statusCounts, filterStatus, onFilterStatus, 
           <button className="btn" onClick={onOpenSetup}
             style={{ background: "#1a1a2e", color: "#818cf8", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
             Quick Add Setup
+          </button>
+          <button className="btn" onClick={onQuickGenerate}
+            style={{ background: "#1a1f3a", color: "#a5b4fc", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, letterSpacing: "0.02em" }}>
+            Quick Generate
           </button>
           <button className="btn" onClick={onAddJob}
             style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>

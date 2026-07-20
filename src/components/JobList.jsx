@@ -25,9 +25,7 @@ export function JobList({
   onMoveToBottom,
   onMoveToWorkspace,
   resumeStatus,
-  defaultProfile,
-  onGenerateResume,
-  onOpenProfiles,
+  onAddGenerated,
   onOpenGenerated,
   onRevealGenerated,
   onRemoveGenerated,
@@ -128,9 +126,7 @@ export function JobList({
                 onMoveToBottom={() => { onMoveToBottom(job.id); setExpandedId(null); }}
                 onMoveToWorkspace={(wsId) => { onMoveToWorkspace(job.id, wsId); setExpandedId(null); }}
                 resumeStatus={resumeStatus}
-                defaultProfile={defaultProfile}
-                onGenerateResume={(type) => onGenerateResume(job, type)}
-                onOpenProfiles={onOpenProfiles}
+                onAddGenerated={(document) => onAddGenerated(job.id, document)}
                 onOpenGenerated={onOpenGenerated}
                 onRevealGenerated={onRevealGenerated}
                 onRemoveGenerated={(documentId) => onRemoveGenerated(job.id, documentId)}

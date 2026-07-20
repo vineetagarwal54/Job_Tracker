@@ -30,10 +30,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
     try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
     progress?.("Analyzing job requirements");
     const [keywordModule, coverageModule, identityModule, renderModule, verifyModule, pricingModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification", "modelPricing"].map((name) => load(path.join(generateDir, `${name}.js`))));
-    const profile = getDefaultProfile();
-    if (!profile) throw codedError("MISSING_PROFILE", "No default Application Profile exists.");
-    let identity; try { identity = identityModule.applicationProfileToIdentity(profile); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
+    let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     const extraction = keywordModule.extractJobKeywords(job.description);
     const analyzed = await analyzeJob({ client, apiKey, job, signal, generateDir });
     progress?.("Selecting resume variant");

@@ -6,7 +6,7 @@ export const RESUME_ERROR_MESSAGES = {
   TIMEOUT: "The request timed out. Try again.", NETWORK_ERROR: "Could not reach Anthropic.", CANCELLED: "Generation cancelled.",
   GENERATION_ACTIVE: "Another generation is already running.", TECTONIC_NOT_FOUND: "Install Tectonic and ensure it is on PATH.",
   COMPILATION_FAILED: "Tectonic could not compile the generated document.", MISSING_TEMPLATE: "A required document template is missing.",
-  INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "Complete the default Application Profile before generating.",
+  INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the Application Profile or content bank.",
   MISSING_JOB_DESCRIPTION: "Save the full job description before generating.", MALFORMED_RESPONSE: "Anthropic returned an unreadable response.",
   VALIDATION_FAILED: "Generated content did not pass factual validation.",
 };
@@ -15,16 +15,12 @@ export function messageForResumeError(error) {
   return RESUME_ERROR_MESSAGES[error?.code] || error?.message || "Document generation failed.";
 }
 
-export function missingGenerationRequirements({ status, profile, job, active }) {
+export function missingGenerationRequirements({ status, job, active }) {
   const missing = [];
   if (!status?.api?.configured) missing.push("Anthropic API key");
   if (!status?.tectonic?.available) missing.push("Tectonic");
-  if (!profile) missing.push("default Application Profile");
-  else {
-    if (![profile.fullName, profile.firstName, profile.lastName].some(value => String(value || "").trim())) missing.push("profile name");
-    if (!String(profile.email || "").trim()) missing.push("profile email");
-  }
-  if (!String(job?.jd || "").trim()) missing.push("job description");
+  const description = String(job?.jd || "").trim() || String(job?.description || "").trim();
+  if (!description) missing.push("job description");
   if (active) missing.push("another active generation");
   return missing;
 }
@@ -45,5 +41,14 @@ export function documentHistoryEntry(type, result) {
     texFileName: result.texFileName,
     mustHaveCoverage: type === "resume" ? Number(result.finalCoverage?.mustHave?.percentage || 0) : 0,
     estimatedCostUsd: Number(result.estimatedCostUsd || 0),
+  };
+}
+
+export function quickGenerationHistoryEntry(job, type, result) {
+  return {
+    ...documentHistoryEntry(type, result),
+    source: "quick-generate",
+    company: String(job?.company || "Untitled"),
+    title: String(job?.title || "Role"),
   };
 }

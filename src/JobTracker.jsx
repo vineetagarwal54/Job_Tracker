@@ -16,6 +16,7 @@ import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 import { AppTabs } from "./components/AppTabs";
 import { ApplicationProfilesPage } from "./components/ApplicationProfilesPage";
 import { AiResumePage } from "./components/AiResumePage";
+import { QuickGenerateModal } from "./components/QuickGenerateModal";
 
 const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline"];
 
@@ -31,25 +32,20 @@ export default function JobTracker() {
     applicationProfiles,
     addProfile, updateProfile, deleteProfile, setDefaultProfile,
     addGeneratedDocument, removeGeneratedDocument,
+    generationHistory, addGenerationHistoryEntry, removeGenerationHistoryEntry,
   } = useJobs();
 
   // Top-level view: "jobs" (existing tracker) or "profiles" (new autofill profiles).
   const [activeView, setActiveView] = useState("jobs");
   const [resumeStatus, setResumeStatus] = useState(null);
-  const [requestedResumeJob, setRequestedResumeJob] = useState(null);
-  const defaultProfile = applicationProfiles.find(profile => profile.isDefault) || null;
+  const [showQuickGenerate, setShowQuickGenerate] = useState(false);
 
   const refreshResumeStatus = useCallback(async () => {
     if (!window.resume?.status) return;
-    try { setResumeStatus(await window.resume.status()); } catch { setResumeStatus({ api: { configured: false }, tectonic: { available: false }, profile: { ready: false, missing: ["status unavailable"] } }); }
+    try { setResumeStatus(await window.resume.status()); } catch { setResumeStatus({ api: { configured: false }, tectonic: { available: false } }); }
   }, []);
 
-  useEffect(() => { refreshResumeStatus(); }, [refreshResumeStatus, applicationProfiles]);
-
-  const generateResumeForJob = useCallback((job, type = "resume") => {
-    setRequestedResumeJob({ jobId: job.id, type, nonce: Date.now() });
-    setActiveView("ai-resume");
-  }, []);
+  useEffect(() => { refreshResumeStatus(); }, [refreshResumeStatus]);
 
   const filters = useFilters();
 
@@ -241,13 +237,11 @@ export default function JobTracker() {
       ) : activeView === "ai-resume" ? (
         <AiResumePage
           jobs={jobs}
-          defaultProfile={defaultProfile}
+          generationHistory={generationHistory}
           status={resumeStatus}
           onRefreshStatus={refreshResumeStatus}
-          requestedJob={requestedResumeJob}
-          onOpenProfiles={() => setActiveView("profiles")}
-          onAddHistory={addGeneratedDocument}
-          onRemoveHistory={removeGeneratedDocument}
+          onRemoveJobHistory={removeGeneratedDocument}
+          onRemoveQuickHistory={removeGenerationHistoryEntry}
         />
       ) : (
         <>
@@ -260,6 +254,7 @@ export default function JobTracker() {
         onExport={exportJobs}
         onOpenSetup={() => setShowSetup(true)}
         onAddJob={openAddForm}
+        onQuickGenerate={() => setShowQuickGenerate(true)}
       />
 
       <WorkspaceSwitcher
@@ -321,9 +316,7 @@ export default function JobTracker() {
         onMoveToBottom={moveJobBottom}
         onMoveToWorkspace={handleSingleMoveToWorkspace}
         resumeStatus={resumeStatus}
-        defaultProfile={defaultProfile}
-        onGenerateResume={generateResumeForJob}
-        onOpenProfiles={() => setActiveView("profiles")}
+        onAddGenerated={addGeneratedDocument}
         onOpenGenerated={(fileName) => window.resume?.openPdf(fileName)}
         onRevealGenerated={(fileName) => window.resume?.revealGenerated(fileName)}
         onRemoveGenerated={removeGeneratedDocument}
@@ -343,6 +336,7 @@ export default function JobTracker() {
       )}
 
       {showSetup && <QuickAddSetup onClose={() => setShowSetup(false)} />}
+      <QuickGenerateModal open={showQuickGenerate} status={resumeStatus} onClose={() => setShowQuickGenerate(false)} onAddHistory={addGenerationHistoryEntry} />
 
       {deletingWorkspace && (
         <DeleteWorkspaceDialog

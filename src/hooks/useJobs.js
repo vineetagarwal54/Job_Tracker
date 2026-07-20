@@ -9,13 +9,13 @@ const DEFAULT_WORKSPACE_NAME = "Internships";
 // atomically. Job-ordering operations (move/pin/reorder) are workspace-aware
 // so reordering inside one workspace can't perturb another's order.
 export function useJobs() {
-  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [], applicationProfiles: [] });
+  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [], applicationProfiles: [], generationHistory: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
   const appDataRef = useRef(appData);
 
-  const { workspaces, activeWorkspaceId, jobs, applicationProfiles } = appData;
+  const { workspaces, activeWorkspaceId, jobs, applicationProfiles, generationHistory } = appData;
 
   useEffect(() => {
     (async () => {
@@ -32,6 +32,7 @@ export function useJobs() {
             activeWorkspaceId: ws.id,
             jobs: sampleJobs.map(j => ({ ...j, workspaceId: ws.id })),
             applicationProfiles: [],
+            generationHistory: [],
           };
           appDataRef.current = seeded;
           setAppData(seeded);
@@ -241,6 +242,14 @@ export function useJobs() {
     save(current => ({ jobs: current.jobs.map(job => job.id === jobId ? { ...job, generatedDocuments: (job.generatedDocuments || []).filter(document => document.id !== documentId) } : job) }));
   }, [save]);
 
+  const addGenerationHistoryEntry = useCallback((entry) => {
+    save(current => ({ generationHistory: [...(current.generationHistory || []), entry] }));
+  }, [save]);
+
+  const removeGenerationHistoryEntry = useCallback((id) => {
+    save(current => ({ generationHistory: (current.generationHistory || []).filter(entry => entry.id !== id) }));
+  }, [save]);
+
   // Import / export -----------------------------------------------------------
 
   const exportJobs = useCallback(() => {
@@ -299,5 +308,6 @@ export function useJobs() {
     applicationProfiles,
     addProfile, updateProfile, deleteProfile, setDefaultProfile,
     addGeneratedDocument, removeGeneratedDocument,
+    generationHistory, addGenerationHistoryEntry, removeGenerationHistoryEntry,
   };
 }

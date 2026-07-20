@@ -71,11 +71,11 @@ export function validateContentBank(bank) {
   for (const field of ["name", "location", "phone", "email", "links"]) {
     assert(Object.hasOwn(bank?.identity || {}, field), `identity: missing '${field}'`, errors);
   }
-  for (const field of ["name", "location", "phone", "email"]) {
-    assert(bank?.identity?.[field] === "", `identity.${field} must be an empty committed placeholder`, errors);
-  }
+  assert(typeof bank?.identity?.name === "string" && bank.identity.name.trim(), "identity.name must be a non-empty string", errors);
+  assert(typeof bank?.identity?.email === "string" && bank.identity.email.trim(), "identity.email must be a non-empty string", errors);
+  for (const field of ["location", "phone"]) assert(typeof bank?.identity?.[field] === "string", `identity.${field} must be a string`, errors);
   for (const field of ["linkedin", "github", "portfolio"]) {
-    assert(bank?.identity?.links?.[field] === "", `identity.links.${field} must be an empty committed placeholder`, errors);
+    assert(typeof bank?.identity?.links?.[field] === "string", `identity.links.${field} must be a string`, errors);
   }
   assert(typeof bank?.summary?.text === "string" && bank.summary.text.length > 0, "summary.text must be a non-empty string", errors);
   validateVariants(bank?.summary?.variants, "summary", errors);
