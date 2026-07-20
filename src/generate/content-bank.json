@@ -50,7 +50,8 @@
         "llama.cpp",
         "quantization",
         "speculative decoding",
-        "KV cache"
+        "KV cache",
+        "llama.rn"
       ],
       "variants": [
         "ai-llm"
@@ -66,7 +67,8 @@
         "RAG pipelines",
         "OpenAI APIs",
         "Amazon Bedrock",
-        "Hugging Face"
+        "Hugging Face",
+        "Anthropic API"
       ],
       "variants": [
         "ai-llm",
@@ -131,7 +133,9 @@
         "React",
         "Next.js",
         "React Native",
-        "Redux Toolkit"
+        "Redux Toolkit",
+        "Electron",
+        "Tailwind CSS"
       ],
       "variants": [
         "fullstack",
@@ -148,7 +152,8 @@
         "Django",
         "REST APIs",
         "WebSocket",
-        "WebRTC"
+        "WebRTC",
+        "Prisma"
       ],
       "variants": [
         "cloud-backend",
@@ -164,7 +169,8 @@
         "OOP",
         "System Design",
         "Microservices",
-        "Agile/Scrum"
+        "Agile/Scrum",
+        "Monorepos"
       ],
       "variants": [
         "cloud-backend",
@@ -825,21 +831,99 @@
       "bullets": [
         {
           "id": "reporesearchai-agents-rag",
-          "text": "Built a multi-agent code analysis system with AutoGen, LangChain, and FAISS vector search; specialized SDE, PM, and QA agents generate architecture insights, API documentation, and schema analysis with GPT-4 RAG over codebase embeddings.",
-          "chars": 237,
+          "text": "Built a multi-agent code analysis platform with AutoGen, LangChain, and FAISS, using specialized SDE, PM, and QA agents to generate architecture, API, database, and product insights from uploaded repositories.",
+          "chars": 209,
           "skills": [
             "autogen",
             "langchain",
             "faiss",
             "vector search",
-            "rag",
-            "gpt-4"
+            "multi-agent systems",
+            "code analysis",
+            "fastapi"
           ],
           "variants": [
             "ai-llm"
           ],
           "lockedMetrics": [],
           "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "reporesearchai-ingestion-chat",
+          "text": "Implemented GitHub URL and ZIP ingestion, semantic code search, configurable analysis depth, authentication, and context-aware repository chat with FastAPI, SQLAlchemy, Streamlit, and SQLite.",
+          "chars": 191,
+          "skills": [
+            "fastapi",
+            "sqlalchemy",
+            "streamlit",
+            "sqlite",
+            "semantic search",
+            "github integration",
+            "authentication"
+          ],
+          "variants": [
+            "ai-llm",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "jobtrack-ai-application-tracker",
+      "org": "JobTrack",
+      "role": "AI Job Application Tracker",
+      "dates": "Active",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/Job_Tracker",
+      "variants": [
+        "ai-llm",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "jobtrack-electron-tracker",
+          "text": "Built an Electron and React desktop job tracker with local JSON storage through secure IPC, workspaces, bulk actions, deadline alerts, and one-click capture from job boards.",
+          "chars": 173,
+          "skills": [
+            "electron",
+            "react",
+            "ipc",
+            "local storage",
+            "desktop applications",
+            "browser automation",
+            "job tracking"
+          ],
+          "variants": [
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "jobtrack-ai-resume-pipeline",
+          "text": "Integrated a deterministic AI resume and cover-letter pipeline using Claude, prompt caching, structured bullet selection, ATS keyword coverage, LaTeX rendering, and Tectonic PDF compilation.",
+          "chars": 190,
+          "skills": [
+            "anthropic api",
+            "claude",
+            "prompt caching",
+            "structured outputs",
+            "ats",
+            "latex",
+            "tectonic",
+            "electron"
+          ],
+          "variants": [
+            "ai-llm",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
           "rewritable": true
         }
       ]
@@ -850,7 +934,7 @@
       "role": "Healthcare Assistant",
       "dates": "",
       "location": "",
-      "link": "https://github.com/heena5498/carebridge-ai",
+      "link": "https://github.com/vineetagarwal54/carebridge-ai",
       "variants": [
         "ai-llm",
         "fullstack"
@@ -957,26 +1041,28 @@
     },
     {
       "id": "collabdraw",
-      "org": "CollabDraw",
+      "org": "CollabDrawAI",
       "role": "Collaborative Whiteboard",
       "dates": "",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/CollabDrawAI",
       "variants": [
         "fullstack"
       ],
       "bullets": [
         {
           "id": "collabdraw-realtime-whiteboard",
-          "text": "Created a real-time collaborative whiteboard with Next.js 15, TypeScript, WebSocket, PostgreSQL, Prisma, and a monorepo architecture.",
-          "chars": 133,
+          "text": "Built a real-time collaborative whiteboard with room-based sessions and live synchronization using Next.js 15, TypeScript, WebSocket, PostgreSQL, Prisma, HTML5 Canvas, and Turborepo.",
+          "chars": 182,
           "skills": [
             "next.js",
             "typescript",
             "websocket",
             "postgresql",
             "prisma",
-            "monorepo"
+            "html5 canvas",
+            "turborepo",
+            "real-time collaboration"
           ],
           "variants": [
             "fullstack"
@@ -985,6 +1071,27 @@
             "15"
           ],
           "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "collabdraw-monorepo-services",
+          "text": "Separated the frontend, REST API, WebSocket service, database client, shared UI, and common types into reusable monorepo packages with JWT authentication.",
+          "chars": 154,
+          "skills": [
+            "monorepo",
+            "express",
+            "websocket",
+            "jwt",
+            "prisma",
+            "shared packages",
+            "rest apis"
+          ],
+          "variants": [
+            "fullstack",
+            "cloud-backend"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
           "rewritable": true
         }
       ]
@@ -995,7 +1102,7 @@
       "role": "WebRTC Meeting Application",
       "dates": "",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/MeetSpace",
       "variants": [
         "fullstack",
         "mobile"
@@ -1003,14 +1110,17 @@
       "bullets": [
         {
           "id": "meetspace-video-meetings",
-          "text": "Developed a WebRTC meeting application with peer-to-peer video, screen sharing, recording, React, TypeScript, and Express.",
-          "chars": 122,
+          "text": "Developed a multi-participant WebRTC meeting application with peer-to-peer video, screen sharing, chat, and recording using React, TypeScript, Node.js, Express, Socket.IO, and PeerJS.",
+          "chars": 183,
           "skills": [
             "webrtc",
             "peer-to-peer",
             "react",
             "typescript",
+            "node.js",
             "express",
+            "socket.io",
+            "peerjs",
             "screen sharing",
             "recording"
           ],
@@ -1027,27 +1137,33 @@
     {
       "id": "activity-logger",
       "org": "Activity Logger",
-      "role": "Mobile Activity Application",
+      "role": "Activity Tracking REST API",
       "dates": "",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/ActivityLogger",
       "variants": [
-        "mobile",
-        "fullstack"
+        "cloud-backend",
+        "fullstack",
+        "mobile"
       ],
       "bullets": [
         {
-          "id": "activity-logger-mobile",
-          "text": "Built a mobile activity logging application with React Native, Node.js, and SQL.",
-          "chars": 80,
+          "id": "activity-logger-rest-api",
+          "text": "Built a Node.js and Express REST API with MySQL for user management, single and batch activity logging, activity history retrieval, input validation, and structured error handling.",
+          "chars": 180,
           "skills": [
-            "react native",
             "node.js",
-            "sql"
+            "express",
+            "mysql",
+            "rest apis",
+            "input validation",
+            "error handling",
+            "batch processing"
           ],
           "variants": [
-            "mobile",
-            "fullstack"
+            "cloud-backend",
+            "fullstack",
+            "mobile"
           ],
           "lockedMetrics": [],
           "priority": 1,
@@ -1061,21 +1177,24 @@
       "role": "Domain-Specific AI Chatbot",
       "dates": "",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/AIChatbot",
       "variants": [
         "ai-llm"
       ],
       "bullets": [
         {
           "id": "plywood-ai-chatbot",
-          "text": "Built a domain-specific AI chatbot with FastAPI, OpenAI, a Hugging Face fallback, and Redis caching.",
-          "chars": 100,
+          "text": "Built a domain-specific RAG chatbot with FastAPI, OpenAI and Hugging Face fallback clients, Redis caching, guardrails, observability, and web and command-line interfaces.",
+          "chars": 170,
           "skills": [
             "fastapi",
             "openai apis",
             "hugging face",
             "redis",
-            "caching"
+            "rag",
+            "guardrails",
+            "observability",
+            "fallback routing"
           ],
           "variants": [
             "ai-llm"
@@ -1092,7 +1211,7 @@
       "role": "On-Device Vision AI for Android",
       "dates": "Active",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/Locra",
       "variants": [
         "ai-llm",
         "mobile"
@@ -1100,13 +1219,16 @@
       "bullets": [
         {
           "id": "locra-on-device-vision",
-          "text": "Developing on-device vision AI for Android in TypeScript without Wi-Fi, cloud services, or an account.",
-          "chars": 102,
+          "text": "Developing an offline-first React Native vision assistant for Android with llama.rn, keeping model execution and user image context on-device without cloud services or an account.",
+          "chars": 179,
           "skills": [
             "on-device ai",
             "computer vision",
             "android",
-            "typescript"
+            "typescript",
+            "react native",
+            "llama.rn",
+            "offline-first"
           ],
           "variants": [
             "ai-llm",
@@ -1124,7 +1246,7 @@
       "role": "Multi-Agent Orchestration Experiments",
       "dates": "",
       "location": "",
-      "link": "",
+      "link": "https://github.com/vineetagarwal54/google-adk",
       "variants": [
         "ai-llm"
       ],
@@ -1142,7 +1264,7 @@
             "ai-llm"
           ],
           "lockedMetrics": [],
-          "priority": 1,
+          "priority": 5,
           "rewritable": true
         }
       ]
