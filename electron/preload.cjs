@@ -18,13 +18,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
 contextBridge.exposeInMainWorld("resume", {
   compile: (fileName) => ipcRenderer.invoke("resume:compile", fileName),
+  status: () => ipcRenderer.invoke("resume:status"),
   keyStatus: () => ipcRenderer.invoke("resume:key-status"),
-  saveApiKey: (key, options) => ipcRenderer.invoke("resume:key-save", key, options),
-  deleteApiKey: () => ipcRenderer.invoke("resume:key-delete"),
   testApiKey: () => ipcRenderer.invoke("resume:key-test"),
+  checkTectonic: () => ipcRenderer.invoke("resume:check-tectonic"),
   analyzeJob: (job) => ipcRenderer.invoke("resume:analyze-job", job),
   generate: (job) => ipcRenderer.invoke("resume:generate", job),
+  generateCoverLetter: (input) => ipcRenderer.invoke("resume:generate-cover-letter", input),
   cancelGeneration: () => ipcRenderer.invoke("resume:cancel-generation"),
+  openPdf: (fileName) => ipcRenderer.invoke("resume:open-generated", fileName),
+  revealGenerated: (fileName) => ipcRenderer.invoke("resume:reveal-generated", fileName),
+  openOutputFolder: () => ipcRenderer.invoke("resume:open-output-folder"),
   onGenerationEvent: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on("resume:generation-event", listener);

@@ -16,7 +16,7 @@ A desktop app for tracking your job applications — built with React + Electron
 - **Export / Import** JSON backups — export is scoped to the active workspace
 - **Workspaces** _(development)_ — separate your applications into named groups (e.g. "Internships", "Full Time 2027"); switch, create, rename, reorder, and delete workspaces with full data safety
 - **Multi-select & bulk actions** _(development)_ — select multiple jobs, then bulk move to another workspace, bulk change status, or bulk delete with confirmation
-- Data is stored locally in a JSON file (via Electron's IPC bridge); no account or internet connection required
+- Job and profile data is stored locally in a JSON file via Electron IPC. AI document generation sends only the documented job and verified-content inputs to Anthropic.
 
 ---
 
@@ -39,6 +39,7 @@ A desktop app for tracking your job applications — built with React + Electron
 
 - [Node.js](https://nodejs.org/) v18 or later
 - npm v9 or later
+- [Tectonic](https://tectonic-typesetting.github.io/) on `PATH`
 
 ### Install
 
@@ -55,6 +56,26 @@ npm run electron
 ```
 
 This starts the Vite dev server and Electron together. The app opens automatically once the dev server is ready.
+
+## AI Resume and Cover Letter setup
+
+Windows setup:
+
+1. Install Node.js.
+2. Install Tectonic and ensure it is on `PATH` (`tectonic --version` should work in a new terminal).
+3. Run `npm install`.
+4. Copy `.env.example` to `.env`.
+5. Add `ANTHROPIC_API_KEY` to `.env`.
+6. Run `npm.cmd run electron`.
+7. Create a default Application Profile with at least a name and email.
+8. Save a job with its full description.
+9. Open that job and click **Generate Resume**.
+
+The `.env` file is gitignored. Never commit a real API key, and do not use a `VITE_` prefix. The key is read only by the Electron main process and is never exposed to React or browser DevTools. For packaged builds, JobTrack also accepts a `.env` beside the installed executable.
+
+Anthropic API billing is separate from Claude subscriptions. Resume selection sends the saved job description and verified content bank to Anthropic. Identity and contact information are not sent for bullet selection. Cover-letter generation also uses verified resume evidence and the job analysis; contact details are injected locally during deterministic LaTeX rendering.
+
+Generated files are written to `resume/output/` during development. Packaged builds use `Documents\JobTrack\Resumes\`, which remains writable after installation.
 
 ### Build a distributable
 
@@ -145,7 +166,7 @@ JobTrack/
 
 ## Data & Privacy
 
-All data is stored in a local JSON file on your machine — nothing is sent to any server. You can export a full backup at any time via the **Export** button and restore it with **Import**.
+Application data and generated files are stored locally. When you explicitly generate an AI resume or cover letter, JobTrack sends the saved job description, validated analysis context, and verified content bank to Anthropic. The API key remains in the Electron main process, and identity/contact fields are added locally during rendering. You can export a full job backup at any time via the **Export** button and restore it with **Import**.
 
 **Where your data lives:**
 

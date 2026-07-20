@@ -1,5 +1,11 @@
-const fs = require("fs"); const path = require("path"); const zlib = require("zlib"); const { pathToFileURL } = require("url");
-const { analyzeJob } = require("./analyzeJob.cjs"); const { generateResumeSelection } = require("./generateResumeSelection.cjs"); const { sanitizeJob } = require("./validation.cjs");
+const fs = require("fs");
+const path = require("path");
+const zlib = require("zlib");
+const { pathToFileURL } = require("url");
+const { analyzeJob } = require("./analyzeJob.cjs");
+const { generateResumeSelection } = require("./generateResumeSelection.cjs");
+const { sanitizeJob } = require("./validation.cjs");
+
 const load = (file) => import(pathToFileURL(file).href);
 const countPages = (file) => {
   const bytes = fs.readFileSync(file); const chunks = [bytes.toString("latin1")]; let cursor = 0;
@@ -10,29 +16,58 @@ const countPages = (file) => {
     try { chunks.push(zlib.inflateSync(bytes.subarray(start, compressedEnd)).toString("latin1")); } catch {}
     cursor = end + 9;
   }
-  const matches = chunks.join("\n").match(/\/Type\s*\/Page(?!s)\b/g); return matches?.length || null;
+  return chunks.join("\n").match(/\/Type\s*\/Page(?!s)\b/g)?.length || null;
 };
 
-function createOrchestrator({ rootDir, client, keyStore, getDefaultProfile, compileResumeTex }) {
-  const generateDir = path.join(rootDir, "src", "generate"); const outputDir = path.join(rootDir, "resume", "output");
+function codedError(code, message) { return Object.assign(new Error(message), { code }); }
+
+function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, compileResumeTex, paths }) {
+  const generateDir = path.join(rootDir, "src", "generate");
   return async function orchestrate({ job: rawJob, signal, progress }) {
-    const apiKey = keyStore.readKey(); if (!apiKey) throw new Error("Anthropic API key is not configured.");
-    const job = sanitizeJob(rawJob); progress?.("Analyzing requirements");
-    const [keywordModule, coverageModule, identityModule, renderModule, verifyModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification"].map((name) => load(path.join(generateDir, `${name}.js`))));
-    const profile = getDefaultProfile(); if (!profile) throw new Error("No default JobTrack Application Profile exists.");
-    const identity = identityModule.applicationProfileToIdentity(profile);
+    const apiKey = keyProvider.readKey();
+    if (!apiKey) throw codedError("KEY_NOT_CONFIGURED", "Anthropic API key is not configured.");
+    let job;
+    try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
+    progress?.("Analyzing job requirements");
+    const [keywordModule, coverageModule, identityModule, renderModule, verifyModule, pricingModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification", "modelPricing"].map((name) => load(path.join(generateDir, `${name}.js`))));
+    const profile = getDefaultProfile();
+    if (!profile) throw codedError("MISSING_PROFILE", "No default Application Profile exists.");
+    let identity; try { identity = identityModule.applicationProfileToIdentity(profile); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
     const extraction = keywordModule.extractJobKeywords(job.description);
     const analyzed = await analyzeJob({ client, apiKey, job, signal, generateDir });
+    progress?.("Selecting resume variant");
     const preliminaryCoverage = coverageModule.scoreCoverage(bank, extraction, { analysis: analyzed.analysis });
     const generated = await generateResumeSelection({ client, apiKey, bank, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, variant: analyzed.analysis.recommendedVariant, signal, generateDir, progress });
-    const templatePath = path.join(rootDir, "resume", "template", "main.tex"); if (!fs.existsSync(templatePath)) throw new Error("The resume template is missing.");
+    progress?.("Fitting content to one page");
+    const templatePath = paths.template("main.tex");
+    if (!fs.existsSync(templatePath)) throw codedError("MISSING_TEMPLATE", "The resume template is missing.");
     const rendered = renderModule.renderResume({ bank, selection: generated.selection, template: fs.readFileSync(templatePath, "utf8"), identity });
-    fs.mkdirSync(outputDir, { recursive: true }); const base = renderModule.safeResumeFileName(job.company, job.title); const texFileName = `${base}.tex`; const texPath = path.join(outputDir, texFileName); fs.writeFileSync(texPath, rendered.tex, "utf8");
-    const compiled = await compileResumeTex(texFileName); if (!compiled.ok) { const error = new Error(compiled.error.message); error.code = compiled.error.code; throw error; }
-    const pageCount = countPages(path.join(outputDir, compiled.pdfFileName));
+    paths.ensureOutputDir();
+    const base = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}`;
+    const texFileName = `${base}.tex`;
+    fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
+    progress?.("Compiling resume PDF");
+    const compiled = await compileResumeTex(texFileName);
+    if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
+    const pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
+    if (pageCount !== 1) throw codedError("VALIDATION_FAILED", `Generated resume is ${pageCount || "an unknown number of"} pages instead of one.`);
+    progress?.("Checking final keyword coverage");
     const finalVerification = verifyModule.verifyFinalResume({ bank, extraction, analysis: analyzed.analysis, finalSelection: rendered.finalSelection, budget: rendered.budget, pageCount });
-    return { analysis: analyzed.analysis, preliminaryCoverage, selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage, verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, models: { analysis: analyzed.model, selection: generated.model }, cacheUsage: generated.cacheUsage };
+    const usage = {
+      analysis: pricingModule.normalizeUsage(analyzed.model, analyzed.usage),
+      resumeSelection: pricingModule.normalizeUsage(generated.model, generated.usage),
+      coverLetter: pricingModule.normalizeUsage(generated.model, {}),
+    };
+    return {
+      job: { company: job.company, title: job.title }, analysis: analyzed.analysis, preliminaryCoverage,
+      selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
+      verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
+      models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,
+      estimatedCostUsd: pricingModule.estimateGenerationCostUsd({ analysis: usage.analysis, resumeSelection: usage.resumeSelection }),
+      outputDisplayPath: paths.displayPath,
+    };
   };
 }
+
 module.exports = { createOrchestrator, countPages };

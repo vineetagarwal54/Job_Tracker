@@ -3,6 +3,7 @@ import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG } from "../constan
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 import { cleanJobDescription } from "../utils/jobDescriptionCleaner";
 import { InfoBlock } from "./InfoBlock";
+import { missingGenerationRequirements } from "../utils/resumeGeneration";
 
 export function JobDetails({
   job,
@@ -15,6 +16,13 @@ export function JobDetails({
   onPin,
   onMoveToBottom,
   onMoveToWorkspace,
+  resumeStatus,
+  defaultProfile,
+  onGenerateResume,
+  onOpenProfiles,
+  onOpenGenerated,
+  onRevealGenerated,
+  onRemoveGenerated,
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [copied, setCopied] = useState(false);
@@ -23,6 +31,7 @@ export function JobDetails({
   const pc = PRIORITY_CONFIG[job.priority] || PRIORITY_CONFIG["Medium"];
   const deadlineSoon = isDeadlineSoon(job.deadline);
   const deadlinePast = isDeadlinePast(job.deadline);
+  const resumeMissing = missingGenerationRequirements({ status: resumeStatus, profile: defaultProfile, job, active: false });
 
   const copyJd = () => {
     // Re-clean on copy so manually-pasted HTML doesn't leak into the clipboard
@@ -40,6 +49,7 @@ export function JobDetails({
           Job Description {job.jd ? "" : "(empty)"}
         </button>
         <button className={`tab-btn ${activeTab === "status" ? "active" : ""}`} onClick={() => setActiveTab("status")}>Status</button>
+        <button className={`tab-btn ${activeTab === "ai-resume" ? "active" : ""}`} onClick={() => setActiveTab("ai-resume")}>AI Resume</button>
       </div>
 
       <div style={{ padding: "18px 26px 22px" }}>
@@ -168,7 +178,21 @@ export function JobDetails({
             )}
           </div>
         )}
+
+        {activeTab === "ai-resume" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <button className="btn" disabled={resumeMissing.length > 0} onClick={() => onGenerateResume("resume")} style={{ background: resumeMissing.length ? "#24243a" : "#6366f1", color: resumeMissing.length ? "#5a6070" : "#fff", padding: "10px 18px", borderRadius: "8px", fontWeight: 700 }}>Generate Resume</button>
+              {resumeMissing.length > 0 && <span style={{ color: "#f87171", fontSize: "12px" }}>Required: {resumeMissing.join(", ")}.</span>}
+              {resumeMissing.some(item => item.includes("profile")) && <button className="btn" onClick={onOpenProfiles} style={{ background: "#1a1a2e", color: "#a5b4fc", padding: "8px 12px", borderRadius: "7px" }}>Open Application Profiles</button>}
+            </div>
+            <div style={{ marginTop: "18px", fontSize: "12px", color: "#5a6070", fontWeight: 700 }}>GENERATED DOCUMENTS</div>
+            {(job.generatedDocuments || []).length === 0 ? <div style={{ color: "#5a6070", marginTop: "8px", fontSize: "13px" }}>No generated documents yet.</div> : [...job.generatedDocuments].reverse().map(document => <div key={document.id} style={{ display: "flex", alignItems: "center", gap: "8px", borderTop: "1px solid #1a1a2e", padding: "10px 0", flexWrap: "wrap" }}><span style={{ color: "#a5b4fc", minWidth: "90px" }}>{document.type}</span><span style={{ color: "#7a8494", fontSize: "12px", flex: 1 }}>{new Date(document.createdAt).toLocaleString()} · {document.pdfFileName}</span><button className="btn" onClick={() => onOpenGenerated(document.pdfFileName)} style={historyButton}>Open</button><button className="btn" onClick={() => onRevealGenerated(document.pdfFileName)} style={historyButton}>Reveal</button><button className="btn" onClick={() => onGenerateResume(document.type)} style={historyButton}>Regenerate</button><button className="btn" onClick={() => onRemoveGenerated(document.id)} style={{ ...historyButton, color: "#f87171" }}>Remove</button></div>)}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const historyButton = { background: "#1a1a2e", color: "#94a3b8", padding: "6px 9px", borderRadius: "6px", fontSize: "11px" };

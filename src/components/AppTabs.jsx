@@ -4,6 +4,7 @@ export function AppTabs({ activeView, onChange }) {
   const tabs = [
     { id: "jobs", label: "Jobs" },
     { id: "profiles", label: "Application Profiles" },
+    { id: "ai-resume", label: "AI Resume" },
   ];
 
   return (

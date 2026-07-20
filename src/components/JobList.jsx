@@ -24,6 +24,13 @@ export function JobList({
   onPin,
   onMoveToBottom,
   onMoveToWorkspace,
+  resumeStatus,
+  defaultProfile,
+  onGenerateResume,
+  onOpenProfiles,
+  onOpenGenerated,
+  onRevealGenerated,
+  onRemoveGenerated,
 }) {
   const [expandedId, setExpandedId] = useState(null);
   const [dragId, setDragId] = useState(null);
@@ -120,6 +127,13 @@ export function JobList({
                 onPin={() => { onPin(job.id); setExpandedId(null); }}
                 onMoveToBottom={() => { onMoveToBottom(job.id); setExpandedId(null); }}
                 onMoveToWorkspace={(wsId) => { onMoveToWorkspace(job.id, wsId); setExpandedId(null); }}
+                resumeStatus={resumeStatus}
+                defaultProfile={defaultProfile}
+                onGenerateResume={(type) => onGenerateResume(job, type)}
+                onOpenProfiles={onOpenProfiles}
+                onOpenGenerated={onOpenGenerated}
+                onRevealGenerated={onRevealGenerated}
+                onRemoveGenerated={(documentId) => onRemoveGenerated(job.id, documentId)}
               />
             )}
           </div>

@@ -15,6 +15,7 @@ import { Toast } from "./components/Toast";
 import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 import { AppTabs } from "./components/AppTabs";
 import { ApplicationProfilesPage } from "./components/ApplicationProfilesPage";
+import { AiResumePage } from "./components/AiResumePage";
 
 const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline"];
 
@@ -29,10 +30,26 @@ export default function JobTracker() {
     moveJobsToWorkspace, bulkUpdateJobs, bulkDeleteJobs,
     applicationProfiles,
     addProfile, updateProfile, deleteProfile, setDefaultProfile,
+    addGeneratedDocument, removeGeneratedDocument,
   } = useJobs();
 
   // Top-level view: "jobs" (existing tracker) or "profiles" (new autofill profiles).
   const [activeView, setActiveView] = useState("jobs");
+  const [resumeStatus, setResumeStatus] = useState(null);
+  const [requestedResumeJob, setRequestedResumeJob] = useState(null);
+  const defaultProfile = applicationProfiles.find(profile => profile.isDefault) || null;
+
+  const refreshResumeStatus = useCallback(async () => {
+    if (!window.resume?.status) return;
+    try { setResumeStatus(await window.resume.status()); } catch { setResumeStatus({ api: { configured: false }, tectonic: { available: false }, profile: { ready: false, missing: ["status unavailable"] } }); }
+  }, []);
+
+  useEffect(() => { refreshResumeStatus(); }, [refreshResumeStatus, applicationProfiles]);
+
+  const generateResumeForJob = useCallback((job, type = "resume") => {
+    setRequestedResumeJob({ jobId: job.id, type, nonce: Date.now() });
+    setActiveView("ai-resume");
+  }, []);
 
   const filters = useFilters();
 
@@ -221,6 +238,17 @@ export default function JobTracker() {
           onDelete={deleteProfile}
           onSetDefault={setDefaultProfile}
         />
+      ) : activeView === "ai-resume" ? (
+        <AiResumePage
+          jobs={jobs}
+          defaultProfile={defaultProfile}
+          status={resumeStatus}
+          onRefreshStatus={refreshResumeStatus}
+          requestedJob={requestedResumeJob}
+          onOpenProfiles={() => setActiveView("profiles")}
+          onAddHistory={addGeneratedDocument}
+          onRemoveHistory={removeGeneratedDocument}
+        />
       ) : (
         <>
       <Header
@@ -292,6 +320,13 @@ export default function JobTracker() {
         onPin={pinJob}
         onMoveToBottom={moveJobBottom}
         onMoveToWorkspace={handleSingleMoveToWorkspace}
+        resumeStatus={resumeStatus}
+        defaultProfile={defaultProfile}
+        onGenerateResume={generateResumeForJob}
+        onOpenProfiles={() => setActiveView("profiles")}
+        onOpenGenerated={(fileName) => window.resume?.openPdf(fileName)}
+        onRevealGenerated={(fileName) => window.resume?.revealGenerated(fileName)}
+        onRemoveGenerated={removeGeneratedDocument}
       />
 
       {formState && (

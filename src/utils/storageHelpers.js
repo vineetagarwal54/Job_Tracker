@@ -34,7 +34,7 @@ function normalizeAppData(data) {
   return {
     workspaces: data.workspaces ?? [],
     activeWorkspaceId: data.activeWorkspaceId ?? null,
-    jobs: data.jobs ?? [],
+    jobs: (data.jobs ?? []).map(job => ({ ...job, generatedDocuments: Array.isArray(job.generatedDocuments) ? job.generatedDocuments : [] })),
     applicationProfiles: data.applicationProfiles ?? [],
   };
 }

@@ -4,7 +4,7 @@ export function applicationProfileToIdentity(profile) {
   if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
     throw new Error("A default JobTrack Application Profile is required.");
   }
-  const name = [clean(profile.firstName), clean(profile.lastName)].filter(Boolean).join(" ");
+  const name = clean(profile.fullName) || [clean(profile.firstName), clean(profile.lastName)].filter(Boolean).join(" ");
   const email = clean(profile.email);
   if (!name) throw new Error("The default Application Profile is missing a first or last name.");
   if (!email) throw new Error("The default Application Profile is missing an email address.");

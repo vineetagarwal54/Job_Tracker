@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { sampleJobs } from "../constants";
 import { loadAppData, persistAppData, downloadJobsAsJson, pickJobsFile } from "../utils/storageHelpers";
 
@@ -13,6 +13,7 @@ export function useJobs() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
+  const appDataRef = useRef(appData);
 
   const { workspaces, activeWorkspaceId, jobs, applicationProfiles } = appData;
 
@@ -21,16 +22,19 @@ export function useJobs() {
       try {
         const loaded = await loadAppData();
         if (loaded) {
+          appDataRef.current = loaded;
           setAppData(loaded);
         } else {
           // First-ever launch: seed with sample jobs in a default workspace.
           const ws = { id: Date.now(), name: DEFAULT_WORKSPACE_NAME };
-          setAppData({
+          const seeded = {
             workspaces: [ws],
             activeWorkspaceId: ws.id,
             jobs: sampleJobs.map(j => ({ ...j, workspaceId: ws.id })),
             applicationProfiles: [],
-          });
+          };
+          appDataRef.current = seeded;
+          setAppData(seeded);
         }
       } catch (err) {
         console.error("Failed to load app data:", err);
@@ -45,7 +49,10 @@ export function useJobs() {
       setToast({ message: "Can't save: unresolved load error. Restart the app or check your data folder.", type: "error" });
       return;
     }
-    const next = { ...appData, ...updates };
+    const current = appDataRef.current;
+    const resolvedUpdates = typeof updates === "function" ? updates(current) : updates;
+    const next = { ...current, ...resolvedUpdates };
+    appDataRef.current = next;
     setAppData(next);
     try {
       await persistAppData(next);
@@ -53,7 +60,7 @@ export function useJobs() {
       console.error("Failed to save:", err);
       setToast({ message: "Failed to save changes. Try exporting a backup.", type: "error" });
     }
-  }, [appData, loadError]);
+  }, [loadError]);
 
   // Job CRUD -----------------------------------------------------------------
 
@@ -226,6 +233,14 @@ export function useJobs() {
     });
   }, [applicationProfiles, save]);
 
+  const addGeneratedDocument = useCallback((jobId, document) => {
+    save(current => ({ jobs: current.jobs.map(job => job.id === jobId ? { ...job, generatedDocuments: [...(job.generatedDocuments || []), document] } : job) }));
+  }, [save]);
+
+  const removeGeneratedDocument = useCallback((jobId, documentId) => {
+    save(current => ({ jobs: current.jobs.map(job => job.id === jobId ? { ...job, generatedDocuments: (job.generatedDocuments || []).filter(document => document.id !== documentId) } : job) }));
+  }, [save]);
+
   // Import / export -----------------------------------------------------------
 
   const exportJobs = useCallback(() => {
@@ -283,5 +298,6 @@ export function useJobs() {
     moveJobsToWorkspace, bulkUpdateJobs, bulkDeleteJobs,
     applicationProfiles,
     addProfile, updateProfile, deleteProfile, setDefaultProfile,
+    addGeneratedDocument, removeGeneratedDocument,
   };
 }
