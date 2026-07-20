@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("resume", {
   cancelGeneration: () => ipcRenderer.invoke("resume:cancel-generation"),
   openPdf: (fileName) => ipcRenderer.invoke("resume:open-generated", fileName),
   revealGenerated: (fileName) => ipcRenderer.invoke("resume:reveal-generated", fileName),
+  saveCopy: (input) => ipcRenderer.invoke("resume:save-copy", input),
   openOutputFolder: () => ipcRenderer.invoke("resume:open-output-folder"),
   onGenerationEvent: (callback) => {
     const listener = (_event, payload) => callback(payload);

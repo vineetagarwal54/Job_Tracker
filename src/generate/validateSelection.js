@@ -1,3 +1,5 @@
+import { technologiesIn, acronymsIn, compoundsIn } from "./protectedTerms.js";
+
 const FORBIDDEN_CLAIM_PATTERNS = [
   /cuda\s+(?:kernel|kernels|authoring|optimization)/i,
   /(?:fused|fuse|fusion)\s+(?:rmsnorm|linear|cuda|kernel)/i,
@@ -33,18 +35,72 @@ function numbersIn(text) {
   return new Set((text.match(NUMBER_PATTERN) || []).map((number) => number.toLowerCase()));
 }
 
-function validateBulletText(bullet, text) {
+// Returns a reason string when `text` is an invalid rendering of `bullet`, or
+// null when it is acceptable. Non-throwing so it can drive both hard validation
+// and graceful rewrite reversion (task Phase 5).
+export function rewriteViolation(bullet, text) {
   for (const metric of bullet.lockedMetrics) {
-    if (!text.includes(metric)) fail(`rewrite of '${bullet.id}' removed locked metric '${metric}'`);
+    if (!text.includes(metric)) return `removed locked metric '${metric}'`;
   }
-  if (!bullet.rewritable && text !== bullet.text) fail(`'${bullet.id}' is not rewritable`);
+  if (!bullet.rewritable && text !== bullet.text) return "is not rewritable";
   const sourceNumbers = numbersIn(bullet.text);
   for (const number of numbersIn(text)) {
-    if (!sourceNumbers.has(number)) fail(`rewrite of '${bullet.id}' introduced number '${number}'`);
+    if (!sourceNumbers.has(number)) return `introduced number '${number}'`;
   }
   for (const pattern of FORBIDDEN_CLAIM_PATTERNS) {
-    if (pattern.test(text)) fail(`'${bullet.id}' contains a forbidden CUDA-authoring claim`);
+    if (pattern.test(text)) return "contains a forbidden CUDA-authoring claim";
   }
+  // Rewrite-only protections (task Phases 5 and 6). A rewrite must not
+  // introduce an unsupported technology, and must preserve any acronym or
+  // technical compound present in the source.
+  if (text !== bullet.text) {
+    const sourceTech = technologiesIn(bullet.text);
+    for (const tech of technologiesIn(text)) {
+      if (!sourceTech.has(tech)) return `introduced unsupported technology '${tech}'`;
+    }
+    for (const acronym of acronymsIn(bullet.text)) {
+      if (!acronymsIn(text).includes(acronym)) return `dropped acronym '${acronym}'`;
+    }
+    for (const compound of compoundsIn(bullet.text)) {
+      if (!compoundsIn(text).includes(compound)) return `dropped technical compound '${compound}'`;
+    }
+  }
+  return null;
+}
+
+function validateBulletText(bullet, text) {
+  const violation = rewriteViolation(bullet, text);
+  if (violation) fail(`rewrite of '${bullet.id}' ${violation}`);
+}
+
+// Deterministically reverts any rewrite that violates a rewrite rule back to the
+// verified original bullet text (task Phase 5: "reject the rewrite, use the
+// original bullet"). Returns { selection, reverted } and never throws for a bad
+// rewrite; the strict validateSelection afterward is a belt-and-suspenders gate.
+export function sanitizeSelectionRewrites(bank, selection) {
+  const indexed = indexEntries(bank);
+  const reverted = [];
+  const fixEntry = (entry) => ({
+    ...entry,
+    bullets: (entry.bullets || []).map((selected) => {
+      if (typeof selected.rewrittenText !== "string") return selected;
+      const indexedBullet = indexed.bullets.get(selected.id);
+      if (!indexedBullet) return selected;
+      const violation = rewriteViolation(indexedBullet.bullet, selected.rewrittenText);
+      if (!violation) return selected;
+      reverted.push({ id: selected.id, reason: violation });
+      const { rewrittenText, ...rest } = selected;
+      return rest;
+    }),
+  });
+  return {
+    selection: {
+      ...selection,
+      experience: (selection.experience || []).map(fixEntry),
+      projects: (selection.projects || []).map(fixEntry),
+    },
+    reverted,
+  };
 }
 
 function actionVerb(text) {

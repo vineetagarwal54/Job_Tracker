@@ -23,7 +23,7 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
     messages: [{ role: "user", content: JSON.stringify({ job: safeJob, analysis, selectedEvidence: evidence, requirements: "150 to 350 words. Exactly two body paragraphs. No invented facts or numbers." }) }],
   } });
   progress?.("Validating cover letter claims");
-  return { content: validateCoverLetter(parseJsonText(response.text, "Cover letter", { stopReason: response.stopReason }), bank), usage: response.usage || {}, model: MODELS.writing };
+  return { content: validateCoverLetter(parseJsonText(response.text, "Cover letter", { stopReason: response.stopReason }), bank, { jobDescription: safeJob.description }), usage: response.usage || {}, model: MODELS.writing };
 }
 
 module.exports = { generateCoverLetter };

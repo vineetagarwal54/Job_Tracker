@@ -2,6 +2,7 @@ import { escapeLatex, escapeLatexWithProtectedTerms } from "./latexEscape.js";
 import { budgetSelection } from "./lineBudget.js";
 import { validateSelection } from "./validateSelection.js";
 import { validateRendererIdentity } from "./profileIdentity.js";
+import { selectSummary } from "./summaryVariants.js";
 
 function latexLink(url) {
   const visible = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -95,7 +96,7 @@ export function renderResume({ bank, selection, template, identity }) {
   }
 
   \\tinysection{Summary}
-  ${escapeLatexWithProtectedTerms(bank.summary.text)}
+  ${escapeLatexWithProtectedTerms(selectSummary(bank, selection.variant))}
 
   \\section{Skills}
 

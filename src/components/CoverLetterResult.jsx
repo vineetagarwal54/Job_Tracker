@@ -5,7 +5,9 @@ export function CoverLetterResult({ result, onOpen, onReveal, onOpenFolder }) {
     <div style={{ marginTop: "6px", color: "#c8cdd5" }}>{result.content?.wordCount} words · {result.pageCount} page · estimated cost ${Number(result.estimatedCostUsd || 0).toFixed(4)}</div>
     <div style={{ marginTop: "6px", color: "#7a8494", fontSize: "12px" }}>{result.model} · {result.pdfFileName}</div>
     <div style={{ marginTop: "6px", color: "#7a8494", fontSize: "12px" }}>{result.usage?.coverLetter?.inputTokens || 0} input · {result.usage?.coverLetter?.outputTokens || 0} output · {result.usage?.coverLetter?.cacheCreationInputTokens || 0} cache write · {result.usage?.coverLetter?.cacheReadInputTokens || 0} cache read tokens</div>
+    {result.atsWarning && <div style={{ marginTop: "8px", fontSize: "12px", color: "#94a3b8", lineHeight: 1.5 }}>{result.atsWarning}</div>}
     <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap" }}>
+      <button className="btn" onClick={() => window.resume?.saveCopy?.({ fileName: result.pdfFileName, suggestedName: result.suggestedFileName })} style={{ ...button, background: "#6366f1", color: "#fff" }}>Save Cover Letter</button>
       <button className="btn" onClick={() => onOpen(result.pdfFileName)} style={button}>Open Cover Letter</button>
       <button className="btn" onClick={() => onReveal(result.pdfFileName)} style={button}>Reveal Cover Letter</button>
       <button className="btn" onClick={onOpenFolder} style={button}>Open Output Folder</button>

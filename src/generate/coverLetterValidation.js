@@ -1,3 +1,5 @@
+import { findGenericPhrases } from "./coverLetterHumanization.js";
+
 const FIELDS = ["version", "opening", "bodyParagraphs", "closing"];
 const FORBIDDEN = [
   /cuda\s+(?:kernel|kernels|authoring|optimization)/i,
@@ -12,7 +14,7 @@ function allBankNumbers(bank) {
   return new Set([...bank.experience, ...bank.projects].flatMap((entry) => entry.bullets).flatMap((bullet) => bullet.text.match(NUMBERS) || []).map((value) => value.toLowerCase()));
 }
 
-export function validateCoverLetter(value, bank) {
+export function validateCoverLetter(value, bank, options = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw Object.assign(new Error("Cover letter response must be an object."), { code: "VALIDATION_FAILED" });
   for (const key of Object.keys(value)) if (!FIELDS.includes(key)) throw Object.assign(new Error(`Cover letter contains unknown field '${key}'.`), { code: "VALIDATION_FAILED" });
   for (const key of FIELDS) if (!Object.hasOwn(value, key)) throw Object.assign(new Error(`Cover letter is missing '${key}'.`), { code: "VALIDATION_FAILED" });
@@ -28,6 +30,8 @@ export function validateCoverLetter(value, bank) {
   for (const pattern of FORBIDDEN) if (pattern.test(text)) throw Object.assign(new Error("Cover letter contains a forbidden claim or separator."), { code: "VALIDATION_FAILED" });
   const allowedNumbers = allBankNumbers(bank);
   for (const number of text.match(NUMBERS) || []) if (!allowedNumbers.has(number.toLowerCase())) throw Object.assign(new Error(`Cover letter introduced unverified number '${number}'.`), { code: "VALIDATION_FAILED" });
+  const generic = findGenericPhrases(text, { jobDescription: options.jobDescription });
+  if (generic.length) throw Object.assign(new Error(`Cover letter contains generic AI phrasing: ${generic.join(", ")}.`), { code: "VALIDATION_FAILED" });
   return { version: 1, opening: paragraphs[0], bodyParagraphs: paragraphs.slice(1, 3), closing: paragraphs[3], wordCount: words };
 }
 

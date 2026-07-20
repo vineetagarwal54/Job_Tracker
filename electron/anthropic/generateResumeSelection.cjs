@@ -52,15 +52,33 @@ async function generateResumeSelection({ client, apiKey, bank, job, analysis, ex
   const { identity: _committedIdentity, ...promptBank } = bank;
   const stable = `${SELECTION_SYSTEM}\nCONTENT BANK:\n${JSON.stringify(promptBank)}`;
   const dynamic = JSON.stringify({ job, analysis, deterministicKeywords: extraction, preliminaryCoverage: coverage, selectedVariant: variant, instruction: "Return about 18 ranked bullets. Select only bullets tagged for the selected variant." });
-  const response = await client.request({ apiKey, signal, stream: true, timeoutMs: 240000, body: { model: MODEL, max_tokens: 10000, system: [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }], output_config: { format: { type: "json_schema", schema: selectionSchemaForVariant(bank, variant) } }, messages: [{ role: "user", content: dynamic }] } });
+  const response = await client.request({ apiKey, signal, stream: true, timeoutMs: 240000, body: { model: MODEL, max_tokens: 16000, system: [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }], output_config: { format: { type: "json_schema", schema: selectionSchemaForVariant(bank, variant) } }, messages: [{ role: "user", content: dynamic }] } });
   progress?.("Rewriting selected bullets");
-  const selection = canonicalizeSelection(bank, parseJsonText(response.text, "Sonnet selection", { stopReason: response.stopReason }), variant);
+  let selection = canonicalizeSelection(bank, parseJsonText(response.text, "Sonnet selection", { stopReason: response.stopReason }), variant);
   if (selection.variant !== variant) throw Object.assign(new Error(`Sonnet returned variant '${selection.variant}' instead of '${variant}'.`), { code: "VALIDATION_FAILED" });
   const bulletIndex = new Map([...bank.experience, ...bank.projects].flatMap((entry) => entry.bullets.map((bullet) => [bullet.id, bullet])));
   for (const item of [...(selection.experience || []), ...(selection.projects || [])].flatMap((entry) => entry.bullets || [])) {
     const bullet = bulletIndex.get(item.id); if (bullet && !bullet.variants.includes(variant)) throw Object.assign(new Error(`Sonnet selected cross-variant bullet '${item.id}' without permission.`), { code: "VALIDATION_FAILED" });
   }
-  const [{ validateSelection }, { budgetSelection }] = await Promise.all([import(pathToFileURL(path.join(generateDir, "validateSelection.js")).href), import(pathToFileURL(path.join(generateDir, "lineBudget.js")).href)]);
+  const [{ validateSelection, sanitizeSelectionRewrites }, { budgetSelection }, mandatory, maturity] = await Promise.all([
+    import(pathToFileURL(path.join(generateDir, "validateSelection.js")).href),
+    import(pathToFileURL(path.join(generateDir, "lineBudget.js")).href),
+    import(pathToFileURL(path.join(generateDir, "mandatoryContent.js")).href),
+    import(pathToFileURL(path.join(generateDir, "projectMaturity.js")).href),
+  ]);
+  // Deterministically inject the mandatory floor after the model's own picks
+  // have been variant-checked (mandatory entries the model could not select,
+  // e.g. Xelpmoc on an ai-llm resume, are guaranteed here; skills resolve to
+  // the mandatory-plus-variant set), then drop exploratory optional projects
+  // now that the stronger mandatory project (Locra) is present.
+  selection = mandatory.ensureMandatoryContent(bank, selection, variant);
+  selection = maturity.filterExploratoryProjects(selection);
+  // Reject rewrites that violate a rewrite rule (dropped acronym/compound,
+  // introduced number/technology, non-rewritable edit) by reverting them to the
+  // verified original bullet text (Phase 5), rather than aborting generation.
+  selection = sanitizeSelectionRewrites(bank, selection).selection;
+  const mandatorySkills = mandatory.validateMandatorySkills(bank, selection.skillGroupIds);
+  if (!mandatorySkills.valid) throw Object.assign(new Error(`Mandatory skills missing: ${mandatorySkills.errors.join("; ")}`), { code: "VALIDATION_FAILED" });
   let validated;
   try { validated = validateSelection(bank, selection, { requireUniqueActionVerbs: false }); }
   catch (error) { error.code = error.code || "VALIDATION_FAILED"; throw error; }

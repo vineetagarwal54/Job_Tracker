@@ -1,4 +1,9 @@
-const TECHNICAL_TERMS = ["TensorRT-LLM", "full-stack", "end-to-end", "CI/CD", "4-bit"];
+import { TECH_COMPOUNDS } from "./protectedTerms.js";
+
+// Wrap protected technical compounds in \mbox so a line break cannot split a
+// hyphenated keyword (a parser can rejoin "TensorRT-LLM" as "TensorRTLLM").
+// Longest-first so "TensorRT-LLM" is handled before any shorter overlap.
+const TECHNICAL_TERMS = [...TECH_COMPOUNDS].sort((a, b) => b.length - a.length);
 
 export function escapeLatex(value) {
   return String(value ?? "").replace(/[&%$#_{}~^\\]/g, (character) => {

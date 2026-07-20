@@ -208,6 +208,27 @@ function registerResumeIpc() {
   ipcMain.handle("resume:open-generated", async (_event, fileName) => { try { const file = paths.resolveGeneratedFile(fileName, ".pdf"); if (!fs.existsSync(file)) throw Object.assign(new Error(), { code: "INVALID_OUTPUT_PATH" }); const message = await shell.openPath(file); return message ? { ok: false, error: { code: "INVALID_OUTPUT_PATH", message: "The generated PDF could not be opened." } } : { ok: true }; } catch (error) { return { ok: false, error: serializeResumeError(error) }; } });
   ipcMain.handle("resume:reveal-generated", (_event, fileName) => { try { const file = paths.resolveGeneratedFile(fileName); if (!fs.existsSync(file)) throw Object.assign(new Error(), { code: "INVALID_OUTPUT_PATH" }); shell.showItemInFolder(file); return { ok: true }; } catch (error) { return { ok: false, error: serializeResumeError(error) }; } });
   ipcMain.handle("resume:open-output-folder", async () => { paths.ensureOutputDir(); const message = await shell.openPath(paths.outputDir); return message ? { ok: false, error: { code: "INVALID_OUTPUT_PATH", message: "The output folder could not be opened." } } : { ok: true }; });
+  // Native "Save a Copy" (Phase 10): copy a generated PDF to a user-chosen
+  // location, defaulting to the OS Downloads folder with a clean, timestamp-free
+  // suggested filename. The internal source file is validated to stay inside the
+  // output directory; the destination comes from the OS dialog.
+  ipcMain.handle("resume:save-copy", async (event, input) => {
+    try {
+      const source = paths.resolveGeneratedFile(input?.fileName, ".pdf");
+      if (!fs.existsSync(source)) throw Object.assign(new Error("The generated PDF does not exist."), { code: "INVALID_OUTPUT_PATH" });
+      const rawName = String(input?.suggestedName || "Resume.pdf");
+      let suggested = path.basename(rawName).replace(/[\\/:*?"<>|]+/g, "_");
+      if (!/\.pdf$/i.test(suggested)) suggested += ".pdf";
+      const defaultPath = path.join(app.getPath("downloads"), suggested);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const result = await dialog.showSaveDialog(win, { title: "Save a Copy", defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+      await fs.promises.copyFile(source, result.filePath);
+      return { ok: true, savedPath: result.filePath };
+    } catch (error) {
+      return { ok: false, error: serializeResumeError(error) };
+    }
+  });
 }
 
 function writeNativeMessage(message) {

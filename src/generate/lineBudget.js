@@ -1,3 +1,6 @@
+import { dedupeAccomplishments } from "./accomplishmentClusters.js";
+import { isMandatoryEntry, reservationRank, MANDATORY_SKILL_GROUP_IDS } from "./mandatoryContent.js";
+
 export const RESUME_LINE_BUDGET = Object.freeze({
   charactersPerBulletLine: 119,
   linePitchPt: 11.96,
@@ -7,6 +10,11 @@ export const RESUME_LINE_BUDGET = Object.freeze({
   availableVariableLines: 33,
   experienceHeadingLines: 2,
   projectHeadingLines: 1,
+  // Number of skill rows folded into fixedOverheadLines. Each side of the
+  // two-column skills block holds ceil(groups/2) rows; the measured overhead
+  // assumed the mandatory floor. Extra groups beyond this cost real lines and
+  // must not be treated as free (task Phase 7).
+  referenceSkillRows: Math.ceil(MANDATORY_SKILL_GROUP_IDS.length / 2),
 });
 
 export function estimateBulletLines(chars) {
@@ -18,30 +26,52 @@ export function openingActionVerb(text) {
   return match ? match[1].toLowerCase() : "";
 }
 
+function headingLinesFor(section) {
+  return section === "experience"
+    ? RESUME_LINE_BUDGET.experienceHeadingLines
+    : RESUME_LINE_BUDGET.projectHeadingLines;
+}
+
+// Extra skill rows beyond the measured floor cost real vertical space.
+function skillRowPenalty(skillGroupIds) {
+  const count = Array.isArray(skillGroupIds) ? skillGroupIds.length : 0;
+  const rows = Math.ceil(count / 2);
+  return Math.max(0, rows - RESUME_LINE_BUDGET.referenceSkillRows);
+}
+
+// Deterministically fits a ranked, validated selection to the one-page budget
+// while guaranteeing every mandatory employer and the mandatory project keep at
+// least one bullet. Order of operations:
+//   1. Remove duplicate accomplishments (clusters + similarity fallback).
+//   2. Reserve one bullet for each mandatory entry (forced past budget/verb
+//      checks so mandatory content can never be dropped by trimming).
+//   3. Fill remaining space in ranked order, skipping duplicate action verbs
+//      and stopping at the budget. Only nonmandatory-additional and optional
+//      bullets are ever excluded for space.
 export function budgetSelection(resolvedSelection) {
-  const includedEntries = new Map();
-  const excluded = [];
-  const includedVerbs = new Set();
+  const { kept, removed } = dedupeAccomplishments(resolvedSelection.rankedBullets);
+  const excluded = removed.map((entry) => ({ ...entry, requiredLines: 0 }));
+
+  const available =
+    RESUME_LINE_BUDGET.availableVariableLines - skillRowPenalty(resolvedSelection.skillGroupIds);
+
+  const includedEntries = new Map(); // key -> { section, entry, bullets: [] }
+  const usedVerbs = new Set();
+  const consumed = new Set(); // bullet ids already placed
   let usedLines = 0;
 
-  for (const item of resolvedSelection.rankedBullets) {
-    const verb = openingActionVerb(item.text);
-    if (verb && includedVerbs.has(verb)) {
-      excluded.push({ id: item.bullet.id, entryId: item.entry.id, section: item.section, reason: `duplicate action verb: ${verb}`, requiredLines: 0 });
-      continue;
-    }
+  const place = (item, force) => {
     const key = `${item.section}:${item.entry.id}`;
+    const verb = openingActionVerb(item.text);
     const firstForEntry = !includedEntries.has(key);
-    const headingLines = firstForEntry
-      ? item.section === "experience"
-        ? RESUME_LINE_BUDGET.experienceHeadingLines
-        : RESUME_LINE_BUDGET.projectHeadingLines
-      : 0;
+    if (!force && verb && usedVerbs.has(verb)) {
+      return { ok: false, reason: `duplicate action verb: ${verb}`, requiredLines: 0 };
+    }
+    const headingLines = firstForEntry ? headingLinesFor(item.section) : 0;
     const bulletLines = estimateBulletLines(item.text.length);
     const requiredLines = headingLines + bulletLines;
-    if (usedLines + requiredLines > RESUME_LINE_BUDGET.availableVariableLines) {
-      excluded.push({ id: item.bullet.id, entryId: item.entry.id, section: item.section, reason: "line budget exhausted", requiredLines });
-      continue;
+    if (!force && usedLines + requiredLines > available) {
+      return { ok: false, reason: "line budget exhausted", requiredLines };
     }
     if (firstForEntry) {
       includedEntries.set(key, { section: item.section, entry: item.entry, bullets: [] });
@@ -49,11 +79,54 @@ export function budgetSelection(resolvedSelection) {
     }
     includedEntries.get(key).bullets.push({ ...item, estimatedLines: bulletLines });
     usedLines += bulletLines;
-    if (verb) includedVerbs.add(verb);
+    consumed.add(item.bullet.id);
+    if (verb) usedVerbs.add(verb);
+    return { ok: true };
+  };
+
+  // Phase A: reserve one bullet per mandatory entry, in page-reservation order.
+  const mandatoryEntryKeys = [];
+  for (const item of kept) {
+    if (!isMandatoryEntry(item.entry.id)) continue;
+    const key = `${item.section}:${item.entry.id}`;
+    if (!mandatoryEntryKeys.includes(key)) mandatoryEntryKeys.push(key);
+  }
+  mandatoryEntryKeys.sort((a, b) => {
+    const [sa, ea] = a.split(/:(.+)/);
+    const [sb, eb] = b.split(/:(.+)/);
+    return reservationRank(sa, ea) - reservationRank(sb, eb);
+  });
+  for (const key of mandatoryEntryKeys) {
+    const candidates = kept.filter(
+      (item) => `${item.section}:${item.entry.id}` === key && !consumed.has(item.bullet.id)
+    );
+    // Prefer the highest-ranked candidate whose action verb is still free so
+    // the guaranteed bullet does not force a verb collision when avoidable.
+    const preferred = candidates.find((item) => {
+      const verb = openingActionVerb(item.text);
+      return !verb || !usedVerbs.has(verb);
+    });
+    const chosen = preferred || candidates[0];
+    if (chosen) place(chosen, true);
+  }
+
+  // Phase B: fill the remaining budget in ranked order.
+  for (const item of kept) {
+    if (consumed.has(item.bullet.id)) continue;
+    const result = place(item, false);
+    if (!result.ok) {
+      excluded.push({
+        id: item.bullet.id,
+        entryId: item.entry.id,
+        section: item.section,
+        reason: result.reason,
+        requiredLines: result.requiredLines,
+      });
+    }
   }
 
   if (resolvedSelection.rankedBullets.length > 0 && includedEntries.size === 0) {
-    const error = new Error("Resume validation failed: duplicate action verb handling produced no valid bullets.");
+    const error = new Error("Resume validation failed: no valid bullets survived fitting.");
     error.code = "VALIDATION_FAILED";
     throw error;
   }
@@ -62,7 +135,7 @@ export function budgetSelection(resolvedSelection) {
     included: Array.from(includedEntries.values()),
     excluded,
     usedLines,
-    availableLines: RESUME_LINE_BUDGET.availableVariableLines,
-    remainingLines: RESUME_LINE_BUDGET.availableVariableLines - usedLines,
+    availableLines: available,
+    remainingLines: available - usedLines,
   };
 }

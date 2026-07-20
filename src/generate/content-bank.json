@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "updated": "2026-07-19"
+    "updated": "2026-07-20"
   },
   "identity": {
     "name": "Vineet Agarwal",
@@ -20,7 +20,13 @@
       "ai-llm",
       "cloud-backend",
       "fullstack"
-    ]
+    ],
+    "byVariant": {
+      "ai-llm": "Software engineering graduate student with 2+ years of production experience focused on multi-agent AI systems and LLM inference optimization, from agent orchestration with LangChain, LangGraph, and Bedrock to speculative decoding and multi-framework inference benchmarking on GPU workloads.",
+      "cloud-backend": "Software engineering graduate student with 2+ years of production experience building cloud-native backends and REST APIs on AWS, from high-traffic API performance work to agentic GenAI workflow orchestration with Amazon Bedrock.",
+      "fullstack": "Software engineering graduate student with 2+ years of production experience across full-stack and product engineering, from React and React Native frontends to FastAPI, Node.js, and AWS backends serving real users.",
+      "mobile": "Software engineering graduate student with 2+ years of production experience in React Native and on-device AI, from shipping mobile screens and video performance work to offline-first vision inference on Android."
+    }
   },
   "education": [
     {
@@ -194,6 +200,7 @@
       "bullets": [
         {
           "id": "servbeyond-rag-manual-lookup",
+          "cluster": "servbeyond-rag",
           "text": "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95% answer accuracy across 100 users.",
           "chars": 188,
           "skills": [
@@ -215,6 +222,7 @@
         },
         {
           "id": "servbeyond-agentic-workflows",
+          "cluster": "servbeyond-enterprise-integration",
           "text": "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST plus SOAP integration into a normalized data layer.",
           "chars": 171,
           "skills": [
@@ -234,6 +242,7 @@
         },
         {
           "id": "servbeyond-documentation-rag",
+          "cluster": "servbeyond-rag",
           "text": "Delivered an internal documentation assistant with LangChain and OpenAI APIs for 100 users.",
           "chars": 91,
           "skills": [
@@ -252,6 +261,7 @@
         },
         {
           "id": "servbeyond-normalized-integrations",
+          "cluster": "servbeyond-enterprise-integration",
           "text": "Integrated Salesforce, ServiceNow, and AWS workflows with a normalized data layer through REST and SOAP interfaces.",
           "chars": 115,
           "skills": [
@@ -271,6 +281,7 @@
         },
         {
           "id": "servbeyond-bedrock-orchestration",
+          "cluster": "servbeyond-enterprise-integration",
           "text": "Orchestrated enterprise GenAI workflows with Amazon Bedrock across Salesforce, ServiceNow, and AWS.",
           "chars": 99,
           "skills": [
@@ -336,6 +347,7 @@
         },
         {
           "id": "runara-framework-benchmark",
+          "cluster": "runara-inference-benchmark",
           "text": "Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on RTX Pro 6000 Blackwell GPUs from 1K to 128K context, profiling TTFT, throughput, KV cache growth, and multi-user scalability.",
           "chars": 195,
           "skills": [
@@ -393,6 +405,7 @@
         },
         {
           "id": "runara-inference-profiling",
+          "cluster": "runara-inference-benchmark",
           "text": "Profiled TTFT, throughput, KV cache growth, and multi-user scalability across vLLM, SGLang, and TensorRT-LLM.",
           "chars": 109,
           "skills": [
@@ -425,6 +438,7 @@
       "bullets": [
         {
           "id": "svipes-react-native-screens",
+          "cluster": "svipes-rn-screens",
           "text": "Shipped 50+ React Native screens with Redux Toolkit and cut video playback stutter 70% through async loading and client-side caching.",
           "chars": 133,
           "skills": [
@@ -445,6 +459,7 @@
         },
         {
           "id": "svipes-video-module-refactor",
+          "cluster": "svipes-video-performance",
           "text": "Refactored the video module with async loading and caching, reducing stutter by 40% to 70% and improving load time by 1.3 seconds.",
           "chars": 130,
           "skills": [
@@ -467,6 +482,7 @@
         },
         {
           "id": "svipes-mobile-state-management",
+          "cluster": "svipes-rn-screens",
           "text": "Developed React Native screens using Redux Toolkit for a mobile application.",
           "chars": 76,
           "skills": [
@@ -482,6 +498,7 @@
         },
         {
           "id": "svipes-client-caching",
+          "cluster": "svipes-video-performance",
           "text": "Applied client-side caching and async loading to improve mobile video playback performance.",
           "chars": 91,
           "skills": [
@@ -499,6 +516,7 @@
         },
         {
           "id": "svipes-video-load-time",
+          "cluster": "svipes-video-performance",
           "text": "Improved video load time by 1.3 seconds through async loading and client-side caching.",
           "chars": 86,
           "skills": [
@@ -531,6 +549,7 @@
       "bullets": [
         {
           "id": "xelpmoc-api-performance",
+          "cluster": "xelpmoc-api-performance",
           "text": "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding Redis caching.",
           "chars": 171,
           "skills": [
@@ -553,6 +572,7 @@
         },
         {
           "id": "xelpmoc-sql-joins-indexing",
+          "cluster": "xelpmoc-api-performance",
           "text": "Refactored SQL joins and indexed high-traffic tables to reduce API response time from 75 seconds to under 10 seconds.",
           "chars": 117,
           "skills": [
@@ -573,6 +593,7 @@
         },
         {
           "id": "xelpmoc-redis-throughput",
+          "cluster": "xelpmoc-api-performance",
           "text": "Added a Redis caching layer that increased API throughput 4x.",
           "chars": 61,
           "skills": [
@@ -592,6 +613,7 @@
         },
         {
           "id": "xelpmoc-tourism-platform",
+          "cluster": "xelpmoc-tourism",
           "text": "Architected RESTful backend services for a tourism platform serving 10K+ daily bookings, cutting production defects 40% and accelerating feature delivery 25%.",
           "chars": 158,
           "skills": [
@@ -613,6 +635,7 @@
         },
         {
           "id": "xelpmoc-tourism-rest-services",
+          "cluster": "xelpmoc-tourism",
           "text": "Created RESTful services for a tourism platform serving 10K+ daily bookings.",
           "chars": 76,
           "skills": [
@@ -688,6 +711,7 @@
         },
         {
           "id": "xelpmoc-production-defects",
+          "cluster": "xelpmoc-tourism",
           "text": "Cut production defects 40% and accelerated feature delivery 25% for a tourism platform.",
           "chars": 87,
           "skills": [
@@ -707,6 +731,7 @@
         },
         {
           "id": "xelpmoc-high-traffic-data",
+          "cluster": "xelpmoc-api-performance",
           "text": "Optimized high-traffic data access with SQL indexing and Redis caching.",
           "chars": 71,
           "skills": [
@@ -737,6 +762,7 @@
       "bullets": [
         {
           "id": "iiit-multilingual-extraction",
+          "cluster": "iiit-nlp-extraction",
           "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, lifting NLP classification accuracy from 78% to 93%.",
           "chars": 146,
           "skills": [
@@ -759,6 +785,7 @@
         },
         {
           "id": "iiit-python-selenium",
+          "cluster": "iiit-nlp-extraction",
           "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium.",
           "chars": 93,
           "skills": [
@@ -778,6 +805,7 @@
         },
         {
           "id": "iiit-nlp-accuracy",
+          "cluster": "iiit-nlp-extraction",
           "text": "Improved NLP classification accuracy by 15% through multilingual data extraction.",
           "chars": 81,
           "skills": [
@@ -796,6 +824,7 @@
         },
         {
           "id": "iiit-classification-lift",
+          "cluster": "iiit-nlp-extraction",
           "text": "Lifted NLP classification accuracy from 78% to 93% with Python and Selenium automation.",
           "chars": 87,
           "skills": [
@@ -1236,6 +1265,65 @@
           ],
           "lockedMetrics": [],
           "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "locra-vlm-inference",
+          "text": "Running vision-language model inference locally through llama.rn so image understanding happens entirely on the device with no network calls.",
+          "chars": 141,
+          "skills": [
+            "on-device ai",
+            "vision-language model",
+            "computer vision",
+            "llama.rn",
+            "inference",
+            "offline-first"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "locra-model-storage",
+          "text": "Handling local model download, storage, and lifecycle on the device so the assistant keeps working fully offline after the first setup.",
+          "chars": 135,
+          "skills": [
+            "on-device ai",
+            "model storage",
+            "offline-first",
+            "android",
+            "react native"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "locra-mobile-architecture",
+          "text": "Architecting the Android client as a TypeScript React Native app over a native inference bridge for production-oriented on-device AI.",
+          "chars": 133,
+          "skills": [
+            "react native",
+            "typescript",
+            "android",
+            "mobile architecture",
+            "on-device ai",
+            "system integration"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
           "rewritable": true
         }
       ]

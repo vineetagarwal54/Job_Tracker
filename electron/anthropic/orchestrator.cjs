@@ -5,6 +5,10 @@ const { pathToFileURL } = require("url");
 const { analyzeJob } = require("./analyzeJob.cjs");
 const { generateResumeSelection } = require("./generateResumeSelection.cjs");
 const { sanitizeJob } = require("./validation.cjs");
+const { verifyPdfAtsIntegrity } = require("../resume/pdfVerify.cjs");
+
+const ATS_WARNING =
+  "Upload this PDF as-is. Avoid Print to PDF or image conversion, which may remove the text layer used by applicant tracking systems.";
 
 const load = (file) => import(pathToFileURL(file).href);
 const countPages = (file) => {
@@ -29,7 +33,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
     let job;
     try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
     progress?.("Analyzing job requirements");
-    const [keywordModule, coverageModule, identityModule, renderModule, verifyModule, pricingModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification", "modelPricing"].map((name) => load(path.join(generateDir, `${name}.js`))));
+    const [keywordModule, coverageModule, identityModule, renderModule, verifyModule, pricingModule, pageFittingModule, fileNameModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification", "modelPricing", "pageFitting", "resumeFileName"].map((name) => load(path.join(generateDir, `${name}.js`))));
     const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
     let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     const extraction = keywordModule.extractJobKeywords(job.description);
@@ -40,16 +44,38 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
     progress?.("Fitting content to one page");
     const templatePath = paths.template("main.tex");
     if (!fs.existsSync(templatePath)) throw codedError("MISSING_TEMPLATE", "The resume template is missing.");
-    const rendered = renderModule.renderResume({ bank, selection: generated.selection, template: fs.readFileSync(templatePath, "utf8"), identity });
+    const template = fs.readFileSync(templatePath, "utf8");
     paths.ensureOutputDir();
-    const base = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}`;
-    const texFileName = `${base}.tex`;
-    fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
-    progress?.("Compiling resume PDF");
-    const compiled = await compileResumeTex(texFileName);
-    if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
-    const pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
-    if (pageCount !== 1) throw codedError("VALIDATION_FAILED", `Generated resume is ${pageCount || "an unknown number of"} pages instead of one.`);
+    const texFileName = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}.tex`;
+
+    // Compile-verify loop (Phase 8): the PDF page count is ground truth. If it
+    // exceeds one page, deterministically drop the lowest-value nonmandatory
+    // bullet and recompile. Retry up to three times; mandatory content is never
+    // removed. No extra API call is made during trimming.
+    let currentSelection = generated.selection;
+    let rendered;
+    let compiled;
+    let pageCount = null;
+    const removedForFit = [];
+    for (let attempt = 0; attempt <= 3; attempt += 1) {
+      rendered = renderModule.renderResume({ bank, selection: currentSelection, template, identity });
+      fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
+      progress?.(attempt === 0 ? "Compiling resume PDF" : `Refitting to one page (attempt ${attempt})`);
+      compiled = await compileResumeTex(texFileName);
+      if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
+      pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
+      if (pageCount === 1) break;
+      if (attempt === 3) throw codedError("VALIDATION_FAILED", `Generated resume is ${pageCount || "an unknown number of"} pages after trimming.`);
+      const trim = pageFittingModule.trimOneBullet(bank, currentSelection);
+      if (!trim) throw codedError("VALIDATION_FAILED", "Resume exceeds one page and no nonmandatory bullet can be trimmed.");
+      removedForFit.push(trim.removed);
+      currentSelection = trim.selection;
+    }
+
+    progress?.("Verifying PDF text layer");
+    const atsIntegrity = verifyPdfAtsIntegrity(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"), { expectedName: identity.name });
+    if (!atsIntegrity.valid) throw codedError("VALIDATION_FAILED", `PDF ATS integrity check failed: ${atsIntegrity.errors.join("; ")}`);
+
     progress?.("Checking final keyword coverage");
     const finalVerification = verifyModule.verifyFinalResume({ bank, extraction, analysis: analyzed.analysis, finalSelection: rendered.finalSelection, budget: rendered.budget, pageCount });
     const usage = {
@@ -61,6 +87,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       job: { company: job.company, title: job.title }, analysis: analyzed.analysis, preliminaryCoverage,
       selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
       verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
+      atsIntegrity, atsWarning: ATS_WARNING, removedForFit,
+      suggestedFileName: fileNameModule.userFacingFileName({ kind: "resume", company: job.company, role: job.title }),
       models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,
       estimatedCostUsd: pricingModule.estimateGenerationCostUsd({ analysis: usage.analysis, resumeSelection: usage.resumeSelection }),
       outputDisplayPath: paths.displayPath,
@@ -68,4 +96,4 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
   };
 }
 
-module.exports = { createOrchestrator, countPages };
+module.exports = { createOrchestrator, countPages, ATS_WARNING };
