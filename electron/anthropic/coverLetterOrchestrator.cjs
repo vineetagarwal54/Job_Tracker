@@ -18,6 +18,7 @@ function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaul
     const [identityModule, renderer, pricingModule, fileNameModule] = await Promise.all(["profileIdentity", "renderCoverLetter", "modelPricing", "resumeFileName"].map((name) => load(path.join(generateDir, `${name}.js`))));
     const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
     let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
+    identityModule.validateFinalIdentity(identity);
     if (!fs.existsSync(paths.template("cover-letter.tex"))) throw codedError("MISSING_TEMPLATE", "The cover-letter template is missing.");
     const generated = await generateCoverLetter({ client, apiKey, bank, job, analysis, selection, signal, generateDir, progress });
     progress?.("Preparing cover letter PDF");
@@ -32,7 +33,7 @@ function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaul
     const atsIntegrity = verifyPdfAtsIntegrity(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"), { expectedName: identity.name, headings: [] });
     if (!atsIntegrity.valid) throw codedError("VALIDATION_FAILED", `Cover letter PDF text-layer check failed: ${atsIntegrity.errors.join("; ")}`);
     const usage = pricingModule.normalizeUsage(generated.model, generated.usage);
-    return { content: generated.content, texFileName, pdfFileName: compiled.pdfFileName, pageCount, atsIntegrity, atsWarning: ATS_WARNING, suggestedFileName: fileNameModule.userFacingFileName({ kind: "coverLetter", company: job.company, role: job.title }), model: generated.model, usage: { analysis: pricingModule.normalizeUsage("", {}), resumeSelection: pricingModule.normalizeUsage("", {}), coverLetter: usage }, estimatedCostUsd: pricingModule.estimateUsageCostUsd(usage), outputDisplayPath: paths.displayPath };
+    return { content: generated.content, humanized: generated.humanized, texFileName, pdfFileName: compiled.pdfFileName, pageCount, atsIntegrity, atsWarning: ATS_WARNING, suggestedFileName: fileNameModule.userFacingFileName({ kind: "coverLetter", company: job.company, role: job.title }), model: generated.model, usage: { analysis: pricingModule.normalizeUsage("", {}), resumeSelection: pricingModule.normalizeUsage("", {}), coverLetter: usage }, estimatedCostUsd: pricingModule.estimateUsageCostUsd(usage), outputDisplayPath: paths.displayPath };
   };
 }
 

@@ -86,7 +86,18 @@ function verifyPdfAtsIntegrity(pdfPath, options = {}) {
     if (!normalized.includes(heading.toLowerCase())) errors.push(`section heading '${heading}' not found in text layer`);
   }
 
-  return { valid: errors.length === 0, errors, pageCount, textOperatorCount: operators, textLength: normalized.length };
+  // Task Part 4: confirm specific technical terms survived intact in the
+  // extracted text (no hyphenation split). Whitespace is stripped so a phrase
+  // like "React Native" matches, while a hyphenation break ("Kuber-netes")
+  // would not.
+  const splitTerms = [];
+  for (const term of options.requiredTerms || []) {
+    const wanted = String(term).toLowerCase().replace(/\s+/g, "");
+    if (wanted && !normalized.includes(wanted)) splitTerms.push(term);
+  }
+  if (splitTerms.length) errors.push(`technical terms missing or split in text layer: ${splitTerms.join(", ")}`);
+
+  return { valid: errors.length === 0, errors, pageCount, textOperatorCount: operators, textLength: normalized.length, splitTerms };
 }
 
 module.exports = { verifyPdfAtsIntegrity, inflateAllStreams, decodeText, pageCountFrom };

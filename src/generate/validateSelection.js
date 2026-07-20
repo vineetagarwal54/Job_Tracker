@@ -1,4 +1,4 @@
-import { technologiesIn, acronymsIn, compoundsIn } from "./protectedTerms.js";
+import { technologiesIn, acronymsIn, compoundsIn, textContainsTerm } from "./protectedTerms.js";
 
 const FORBIDDEN_CLAIM_PATTERNS = [
   /cuda\s+(?:kernel|kernels|authoring|optimization)/i,
@@ -73,13 +73,30 @@ function validateBulletText(bullet, text) {
   if (violation) fail(`rewrite of '${bullet.id}' ${violation}`);
 }
 
+// True when a rewrite's justification references a real JD term/responsibility.
+// A cosmetic rewrite (changed wording with no JD-grounded reason) is rejected.
+function justificationReferencesJd(justification, jdTerms) {
+  if (typeof justification !== "string" || !justification.trim()) return false;
+  for (const term of jdTerms) {
+    if (term && textContainsTerm(justification, term)) return true;
+  }
+  return false;
+}
+
 // Deterministically reverts any rewrite that violates a rewrite rule back to the
 // verified original bullet text (task Phase 5: "reject the rewrite, use the
-// original bullet"). Returns { selection, reverted } and never throws for a bad
-// rewrite; the strict validateSelection afterward is a belt-and-suspenders gate.
-export function sanitizeSelectionRewrites(bank, selection) {
+// original bullet"). When a JD-term set is supplied, also reverts cosmetic
+// rewrites whose justification does not reference a real JD term or
+// responsibility (task Part 3). Returns { selection, reverted } and never throws.
+export function sanitizeSelectionRewrites(bank, selection, options = {}) {
+  const jdTerms = options.jdTerms instanceof Set ? options.jdTerms : (Array.isArray(options.jdTerms) ? new Set(options.jdTerms) : null);
   const indexed = indexEntries(bank);
   const reverted = [];
+  const revert = (selected, reason) => {
+    reverted.push({ id: selected.id, reason });
+    const { rewrittenText, justification, ...rest } = selected;
+    return rest;
+  };
   const fixEntry = (entry) => ({
     ...entry,
     bullets: (entry.bullets || []).map((selected) => {
@@ -87,10 +104,13 @@ export function sanitizeSelectionRewrites(bank, selection) {
       const indexedBullet = indexed.bullets.get(selected.id);
       if (!indexedBullet) return selected;
       const violation = rewriteViolation(indexedBullet.bullet, selected.rewrittenText);
-      if (!violation) return selected;
-      reverted.push({ id: selected.id, reason: violation });
-      const { rewrittenText, ...rest } = selected;
-      return rest;
+      if (violation) return revert(selected, violation);
+      // Require a valid, JD-grounded justification for any actual text change.
+      const changed = selected.rewrittenText.trim() !== indexedBullet.bullet.text.trim();
+      if (changed && jdTerms && jdTerms.size > 0 && !justificationReferencesJd(selected.justification, jdTerms)) {
+        return revert(selected, "cosmetic rewrite without a valid JD-term justification");
+      }
+      return selected;
     }),
   });
   return {
@@ -110,7 +130,7 @@ function actionVerb(text) {
 
 export function validateSelection(bank, selection, options = {}) {
   const { requireUniqueActionVerbs = true } = options;
-  assertKnownFields(selection, ["version", "variant", "educationId", "skillGroupIds", "experience", "projects"], "selection");
+  assertKnownFields(selection, ["version", "variant", "emphasis", "emphases", "educationId", "skillGroupIds", "skills", "renderedSkills", "experience", "projects"], "selection");
   if (selection.version !== 1) fail("version must be 1");
   if (!VARIANT_IDS.has(selection.variant)) fail(`unknown variant '${selection.variant}'`);
   if (!Array.isArray(bank.education) || !bank.education.some((education) => education.id === selection.educationId)) fail(`unknown education '${selection.educationId}'`);
@@ -119,6 +139,22 @@ export function validateSelection(bank, selection, options = {}) {
   for (const id of selection.skillGroupIds) {
     const group = skillGroups.get(id);
     if (!group) fail(`unknown skill group '${id}'`);
+  }
+  // Optional per-item skill selection: every referenced item must be a verified
+  // bank skill in its declared group. This is what stops the model from
+  // inventing a skill via the individual-skill contract.
+  if (selection.skills !== undefined) {
+    if (!Array.isArray(selection.skills)) fail("skills must be an array");
+    for (const entry of selection.skills) {
+      assertKnownFields(entry, ["groupId", "items"], "skills entry");
+      const group = skillGroups.get(entry.groupId);
+      if (!group) fail(`unknown skill group '${entry.groupId}' in skills`);
+      if (!Array.isArray(entry.items)) fail(`skills.items for '${entry.groupId}' must be an array`);
+      const known = new Set(group.items.map((item) => item.toLowerCase()));
+      for (const item of entry.items) {
+        if (!known.has(String(item).toLowerCase())) fail(`unknown skill '${item}' for group '${entry.groupId}'`);
+      }
+    }
   }
 
   const indexed = indexEntries(bank);
@@ -132,7 +168,7 @@ export function validateSelection(bank, selection, options = {}) {
       if (!indexedEntry || indexedEntry.section !== section) fail(`unknown ${section} entry '${selectedEntry.entryId}'`);
       if (!Array.isArray(selectedEntry.bullets) || selectedEntry.bullets.length === 0) fail(`${selectedEntry.entryId}: bullets must be a non-empty array`);
       for (const selectedBullet of selectedEntry.bullets) {
-        assertKnownFields(selectedBullet, ["id", "rewrittenText"], `${selectedEntry.entryId} bullet`);
+        assertKnownFields(selectedBullet, ["id", "rewrittenText", "justification"], `${selectedEntry.entryId} bullet`);
         const indexedBullet = indexed.bullets.get(selectedBullet.id);
         if (!indexedBullet || indexedBullet.entry.id !== selectedEntry.entryId) fail(`unknown bullet '${selectedBullet.id}' for '${selectedEntry.entryId}'`);
         if (selectedBulletIds.has(selectedBullet.id)) fail(`duplicate selected bullet '${selectedBullet.id}'`);

@@ -11,6 +11,8 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
   const onePage = result.pageCount === 1;
   const atsOk = result.atsIntegrity ? result.atsIntegrity.valid : null;
   const removed = result.removedForFit || [];
+  const warnings = result.warnings || [];
+  const renderedSkills = result.renderedSkills || result.verification?.renderedSkills || [];
 
   const save = async () => {
     setSaveMsg(null);
@@ -32,6 +34,21 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Badge ok={true} neutral>Must-have coverage {coverage.mustHave?.percentage ?? 0}%</Badge>
         {removed.length > 0 && <Badge ok={null} warn>Trimmed {removed.length} bullet{removed.length > 1 ? "s" : ""} to fit</Badge>}
       </div>
+
+      {warnings.length > 0 && (
+        <div style={{ marginTop: "14px", background: "#1a1608", border: "1px solid #4a3f15", borderRadius: "8px", padding: "12px 14px" }}>
+          <div style={{ color: "#facc15", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {warnings.length} {warnings.length === 1 ? "note" : "notes"} · resume was still generated
+          </div>
+          <ul style={{ margin: "8px 0 0", paddingLeft: "18px", color: "#e2d9b8", fontSize: "12px", lineHeight: 1.55 }}>
+            {warnings.map((warning, index) => (
+              <li key={index} style={{ marginTop: index ? "4px" : 0, color: warning.severity === "warning" ? "#fcd34d" : "#cbd5e1" }}>
+                {warning.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div style={{ marginTop: "12px", fontSize: "12px", color: "#94a3b8", lineHeight: 1.5 }}>
         {result.atsWarning || "Upload this PDF as-is. Avoid Print to PDF or image conversion, which may remove the text layer used by applicant tracking systems."}
@@ -56,6 +73,9 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Missing keywords" value={values(coverage.uncoveredKeywords)} />
         <Detail label="Missing must-haves" value={values(coverage.mustHave?.missing)} />
         <Detail label="Covered must-haves" value={values(coverage.mustHave?.covered)} />
+        <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
+        <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
+        <Detail label="Generation mode" value={result.fallback?.selection ? `Deterministic fallback from verified bank${result.fallback?.reason ? ` (${result.fallback.reason})` : ""}` : result.fallback?.analysis ? "Model selection with fallback analysis" : "Model selection"} />
         <Detail label="Included bullets" value={included.join(", ")} />
         <Detail label="Excluded bullets" value={excluded.map(item => `${item.id} (${item.reason})`).join(", ") || "None"} />
         <Detail label="Trimmed to fit" value={removed.map(item => `${item.bulletId} (${item.entryId})`).join(", ") || "None"} />

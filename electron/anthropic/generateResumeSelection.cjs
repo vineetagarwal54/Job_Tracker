@@ -42,16 +42,18 @@ function selectionSchemaForVariant(bank, variant) {
   const allowedSkillGroupIds = bank.skillGroups.map((group) => group.id);
   const experienceEntryIds = bank.experience.filter((entry) => entry.bullets.some((bullet) => bullet.variants.includes(variant))).map((entry) => entry.id);
   const projectEntryIds = bank.projects.filter((entry) => entry.bullets.some((bullet) => bullet.variants.includes(variant))).map((entry) => entry.id);
-  const variantBulletRef = { type: "object", additionalProperties: false, properties: { id: { type: "string", enum: allowedBulletIds }, rewrittenText: { type: "string" } }, required: ["id"] };
+  const allowedSkillItems = [...new Set(bank.skillGroups.flatMap((group) => group.items))];
+  const variantBulletRef = { type: "object", additionalProperties: false, properties: { id: { type: "string", enum: allowedBulletIds }, rewrittenText: { type: "string" }, justification: { type: "string" } }, required: ["id"] };
   const entryRefFor = (entryIds) => ({ type: "object", additionalProperties: false, properties: { entryId: { type: "string", enum: entryIds }, bullets: { type: "array", minItems: 1, items: variantBulletRef } }, required: ["entryId", "bullets"] });
-  return { type: "object", additionalProperties: false, properties: { version: { type: "integer", enum: [1] }, variant: { type: "string", enum: [variant] }, educationId: { type: "string", enum: allowedEducationIds }, skillGroupIds: { type: "array", minItems: 1, items: { type: "string", enum: allowedSkillGroupIds } }, experience: { type: "array", items: entryRefFor(experienceEntryIds) }, projects: { type: "array", items: entryRefFor(projectEntryIds) } }, required: ["version", "variant", "educationId", "skillGroupIds", "experience", "projects"] };
+  const skillsRef = { type: "array", items: { type: "object", additionalProperties: false, properties: { groupId: { type: "string", enum: allowedSkillGroupIds }, items: { type: "array", items: { type: "string", enum: allowedSkillItems } } }, required: ["groupId", "items"] } };
+  return { type: "object", additionalProperties: false, properties: { version: { type: "integer", enum: [1] }, variant: { type: "string", enum: [variant] }, educationId: { type: "string", enum: allowedEducationIds }, skillGroupIds: { type: "array", minItems: 1, items: { type: "string", enum: allowedSkillGroupIds } }, skills: skillsRef, experience: { type: "array", items: entryRefFor(experienceEntryIds) }, projects: { type: "array", items: entryRefFor(projectEntryIds) } }, required: ["version", "variant", "educationId", "skillGroupIds", "experience", "projects"] };
 }
 
-async function generateResumeSelection({ client, apiKey, bank, job, analysis, extraction, coverage, variant, signal, generateDir, progress }) {
+async function generateResumeSelection({ client, apiKey, bank, job, analysis, extraction, coverage, variant, emphasis = null, emphases = null, signal, generateDir, progress }) {
   progress?.("Ranking verified experience");
   const { identity: _committedIdentity, ...promptBank } = bank;
   const stable = `${SELECTION_SYSTEM}\nCONTENT BANK:\n${JSON.stringify(promptBank)}`;
-  const dynamic = JSON.stringify({ job, analysis, deterministicKeywords: extraction, preliminaryCoverage: coverage, selectedVariant: variant, instruction: "Return about 18 ranked bullets. Select only bullets tagged for the selected variant." });
+  const dynamic = JSON.stringify({ job, analysis, deterministicKeywords: extraction, preliminaryCoverage: coverage, selectedVariant: variant, instruction: "Return about 18 ranked bullets. Select only bullets tagged for the selected variant. For any bullet you rewrite, include 'justification' naming the exact job-description term or responsibility that motivated the change; cosmetic rewrites without a JD justification are reverted to the verified original. Also return 'skills': for each relevant skillGroup, list the specific individual items (copied verbatim from that group's verified items only) that the job description calls for, ordered by importance. Never invent a skill and never copy an item into a group it does not belong to; deterministic code enforces mandatory categories and items." });
   const response = await client.request({ apiKey, signal, stream: true, timeoutMs: 240000, body: { model: MODEL, max_tokens: 16000, system: [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }], output_config: { format: { type: "json_schema", schema: selectionSchemaForVariant(bank, variant) } }, messages: [{ role: "user", content: dynamic }] } });
   progress?.("Rewriting selected bullets");
   let selection = canonicalizeSelection(bank, parseJsonText(response.text, "Sonnet selection", { stopReason: response.stopReason }), variant);
@@ -60,36 +62,13 @@ async function generateResumeSelection({ client, apiKey, bank, job, analysis, ex
   for (const item of [...(selection.experience || []), ...(selection.projects || [])].flatMap((entry) => entry.bullets || [])) {
     const bullet = bulletIndex.get(item.id); if (bullet && !bullet.variants.includes(variant)) throw Object.assign(new Error(`Sonnet selected cross-variant bullet '${item.id}' without permission.`), { code: "VALIDATION_FAILED" });
   }
-  const [{ validateSelection, sanitizeSelectionRewrites }, { budgetSelection }, mandatory, maturity] = await Promise.all([
-    import(pathToFileURL(path.join(generateDir, "validateSelection.js")).href),
-    import(pathToFileURL(path.join(generateDir, "lineBudget.js")).href),
-    import(pathToFileURL(path.join(generateDir, "mandatoryContent.js")).href),
-    import(pathToFileURL(path.join(generateDir, "projectMaturity.js")).href),
-  ]);
-  // Deterministically inject the mandatory floor after the model's own picks
-  // have been variant-checked (mandatory entries the model could not select,
-  // e.g. Xelpmoc on an ai-llm resume, are guaranteed here; skills resolve to
-  // the mandatory-plus-variant set), then drop exploratory optional projects
-  // now that the stronger mandatory project (Locra) is present.
-  selection = mandatory.ensureMandatoryContent(bank, selection, variant);
-  selection = maturity.filterExploratoryProjects(selection);
-  // Reject rewrites that violate a rewrite rule (dropped acronym/compound,
-  // introduced number/technology, non-rewritable edit) by reverting them to the
-  // verified original bullet text (Phase 5), rather than aborting generation.
-  selection = sanitizeSelectionRewrites(bank, selection).selection;
-  const mandatorySkills = mandatory.validateMandatorySkills(bank, selection.skillGroupIds);
-  if (!mandatorySkills.valid) throw Object.assign(new Error(`Mandatory skills missing: ${mandatorySkills.errors.join("; ")}`), { code: "VALIDATION_FAILED" });
-  let validated;
-  try { validated = validateSelection(bank, selection, { requireUniqueActionVerbs: false }); }
-  catch (error) { error.code = error.code || "VALIDATION_FAILED"; throw error; }
-  let budget;
-  try { budget = budgetSelection(validated); }
-  catch (error) { error.code = error.code || "VALIDATION_FAILED"; throw error; }
-  const includedIds = new Set(budget.included.flatMap((entry) => entry.bullets.map((item) => item.bullet.id)));
-  const finalSelection = { ...selection, experience: selection.experience.map((entry) => ({ ...entry, bullets: entry.bullets.filter((item) => includedIds.has(item.id)) })).filter((entry) => entry.bullets.length), projects: selection.projects.map((entry) => ({ ...entry, bullets: entry.bullets.filter((item) => includedIds.has(item.id)) })).filter((entry) => entry.bullets.length) };
-  try { validateSelection(bank, finalSelection, { requireUniqueActionVerbs: true }); }
-  catch (error) { error.code = error.code || "VALIDATION_FAILED"; throw error; }
+  const { finalizeSelection } = await import(pathToFileURL(path.join(generateDir, "finalizeSelection.js")).href);
+  // Deterministically inject the mandatory floor, drop exploratory projects,
+  // revert invalid rewrites, resolve individual JD-specific skills, and fit the
+  // one-page budget. Shared with the deterministic fallback path so both
+  // produce identically validated selections.
+  const finalized = finalizeSelection(bank, selection, { variant, extraction, analysis, emphasis, emphases });
   progress?.("Validating factual claims");
-  return { selection, finalSelection, budget, usage: response.usage || null, cacheUsage: response.usage ? { cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? null, cacheReadInputTokens: response.usage.cache_read_input_tokens ?? null } : null, model: MODEL };
+  return { selection: finalized.selection, finalSelection: finalized.finalSelection, budget: finalized.budget, usage: response.usage || null, cacheUsage: response.usage ? { cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? null, cacheReadInputTokens: response.usage.cache_read_input_tokens ?? null } : null, model: MODEL, usedFallback: false };
 }
 module.exports = { MODEL, SELECTION_SCHEMA, selectionSchemaForVariant, generateResumeSelection };

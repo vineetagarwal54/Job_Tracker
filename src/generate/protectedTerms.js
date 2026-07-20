@@ -40,6 +40,7 @@ export const ALIASES = Object.freeze({
   llm: ["llm", "llms", "large language model", "large language models"],
   "ci/cd": ["ci/cd", "cicd"],
   "tensorrt-llm": ["tensorrt-llm", "tensorrt llm"],
+  linux: ["linux", "unix"],
 });
 
 const ALIAS_LOOKUP = (() => {
@@ -88,6 +89,14 @@ export const TECH_COMPOUNDS = Object.freeze([
   "TensorRT-LLM", "4-bit", "8-bit", "end-to-end", "full-stack", "multi-agent",
   "real-time", "open-source", "cross-platform", "high-traffic", "low-latency",
   "client-side", "peer-to-peer", "CI/CD",
+]);
+
+// Multi-word technical phrases that must not be visually split across a line
+// break (task Part 4). Wrapped in \mbox at render time so they stay whole; each
+// is short enough not to overflow the column.
+export const PROTECTED_PHRASES = Object.freeze([
+  "React Native", "speculative decoding", "vision-language model",
+  "Amazon Bedrock", "Hugging Face", "on-device",
 ]);
 
 // Technologies recognized for the "a rewrite may not introduce an unsupported

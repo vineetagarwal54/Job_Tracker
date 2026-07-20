@@ -2,6 +2,7 @@ import { scoreCoverage } from "./coverageScoring.js";
 import { validateSelection } from "./validateSelection.js";
 import { verifyNoDuplicateAccomplishments } from "./accomplishmentClusters.js";
 import { validateMandatoryEntries, validateMandatorySkills } from "./mandatoryContent.js";
+import { missingJobSkills } from "./skillSelection.js";
 
 function codedFail(message) {
   throw Object.assign(new Error(message), { code: "VALIDATION_FAILED" });
@@ -16,7 +17,15 @@ export function verifyFinalResume({ bank, extraction, analysis, finalSelection, 
 
   const mandatoryEntries = validateMandatoryEntries(finalSelection);
   if (!mandatoryEntries.valid) codedFail(`Mandatory content missing from final resume: ${mandatoryEntries.errors.join("; ")}`);
-  const mandatorySkills = validateMandatorySkills(bank, finalSelection.skillGroupIds);
+  // Mandatory skill CATEGORIES are validated against the rendered skills so the
+  // check reflects the actually-shipped document. Mandatory ITEMS
+  // (AWS/Docker/Kubernetes) are checked against the rendered items too.
+  const renderedSkills = Array.isArray(finalSelection.renderedSkills) ? finalSelection.renderedSkills : null;
+  const skillGroupIds = renderedSkills ? renderedSkills.map((group) => group.id) : finalSelection.skillGroupIds;
+  const skillBankView = renderedSkills
+    ? { ...bank, skillGroups: renderedSkills.map((group) => ({ ...group })) }
+    : bank;
+  const mandatorySkills = validateMandatorySkills(skillBankView, skillGroupIds);
   if (!mandatorySkills.valid) codedFail(`Mandatory skills missing from final resume: ${mandatorySkills.errors.join("; ")}`);
   const duplicates = verifyNoDuplicateAccomplishments(validated.rankedBullets);
   if (!duplicates.valid) codedFail(`Duplicate accomplishments remain: ${duplicates.errors.join("; ")}`);
@@ -27,12 +36,16 @@ export function verifyFinalResume({ bank, extraction, analysis, finalSelection, 
     analysis,
     bulletIds,
     bulletTexts,
-    skillGroupIds: finalSelection.skillGroupIds,
+    skillGroupIds,
+    renderedSkills: renderedSkills || undefined,
   });
+  const missingSkills = missingJobSkills({ extraction, analysis, renderedSkills: renderedSkills || [], bulletTexts });
   return {
     coverage,
     pageCount,
     includedBulletIds: bulletIds,
+    renderedSkills,
+    missingSkills,
     excluded: budget.excluded,
     duplicateActionVerbs: false,
     duplicateAccomplishments: false,

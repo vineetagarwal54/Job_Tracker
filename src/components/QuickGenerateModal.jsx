@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDocumentGeneration } from "../hooks/useDocumentGeneration";
-import { quickGenerationHistoryEntry } from "../utils/resumeGeneration";
+import { quickGenerationHistoryEntry, coverLetterSources } from "../utils/resumeGeneration";
 import { GenerateDocumentsModal } from "./GenerateDocumentsModal";
 import { ResumeGenerationResult } from "./ResumeGenerationResult";
 import { CoverLetterResult } from "./CoverLetterResult";
@@ -38,7 +38,7 @@ export function QuickGenerateModal({ open, status, onClose, onAddHistory }) {
   const job = { company: form.company || "Untitled", title: form.title || "Role", description: form.description };
   return <>
     {!choiceOpen && <div style={overlay}><div style={modal}><div style={title}>Quick Generate</div><div style={muted}>Generate documents without creating a saved job.</div><label style={label}>COMPANY (OPTIONAL)</label><input className="form-input" value={form.company} onChange={e => update("company", e.target.value)} /><label style={label}>ROLE (OPTIONAL)</label><input className="form-input" value={form.title} onChange={e => update("title", e.target.value)} /><label style={label}>JOB DESCRIPTION</label><textarea className="form-input" value={form.description} onChange={e => update("description", e.target.value)} style={{ minHeight: "220px", resize: "vertical" }} /><div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "16px" }}><button className="btn" onClick={close} style={secondary}>Close</button><button className="btn" onClick={() => setChoiceOpen(true)} disabled={!form.description.trim()} style={{ ...primary, opacity: form.description.trim() ? 1 : .5 }}>Continue</button></div></div></div>}
-    <GenerateDocumentsModal open={choiceOpen} job={job} generation={generation} onClose={close}><div style={{ marginTop: "16px" }}><ResumeGenerationResult result={generation.resumeResult} onOpen={file => window.resume.openPdf(file)} onReveal={file => window.resume.revealGenerated(file)} onOpenFolder={() => window.resume.openOutputFolder()} onGenerateAgain={() => { generation.reset(); }} /><CoverLetterResult result={generation.coverLetterResult} onOpen={file => window.resume.openPdf(file)} onReveal={file => window.resume.revealGenerated(file)} onOpenFolder={() => window.resume.openOutputFolder()} /></div></GenerateDocumentsModal>
+    <GenerateDocumentsModal open={choiceOpen} job={job} generation={generation} resumeSources={coverLetterSources({ liveResult: generation.resumeResult, liveJob: job })} onClose={close}><div style={{ marginTop: "16px" }}><ResumeGenerationResult result={generation.resumeResult} onOpen={file => window.resume.openPdf(file)} onReveal={file => window.resume.revealGenerated(file)} onOpenFolder={() => window.resume.openOutputFolder()} onGenerateAgain={() => { generation.reset(); }} /><CoverLetterResult result={generation.coverLetterResult} onOpen={file => window.resume.openPdf(file)} onReveal={file => window.resume.revealGenerated(file)} onOpenFolder={() => window.resume.openOutputFolder()} /></div></GenerateDocumentsModal>
   </>;
 }
 

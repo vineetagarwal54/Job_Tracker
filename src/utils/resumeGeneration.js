@@ -9,10 +9,11 @@ export const RESUME_ERROR_MESSAGES = {
   INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the Application Profile or content bank.",
   MISSING_JOB_DESCRIPTION: "Save the full job description before generating.", MALFORMED_RESPONSE: "Anthropic returned an unreadable response.",
   VALIDATION_FAILED: "Generated content did not pass factual validation.",
+  IDENTITY_INVALID: "The resume identity is incomplete or malformed. Check your name, phone, email, and links.",
 };
 
 export function messageForResumeError(error) {
-  if (["VALIDATION_FAILED", "MALFORMED_RESPONSE"].includes(error?.code) && error?.message) return error.message;
+  if (["VALIDATION_FAILED", "MALFORMED_RESPONSE", "IDENTITY_INVALID"].includes(error?.code) && error?.message) return error.message;
   return RESUME_ERROR_MESSAGES[error?.code] || error?.message || "Document generation failed.";
 }
 
@@ -42,7 +43,37 @@ export function documentHistoryEntry(type, result) {
     texFileName: result.texFileName,
     mustHaveCoverage: type === "resume" ? Number(result.finalCoverage?.mustHave?.percentage || 0) : 0,
     estimatedCostUsd: Number(result.estimatedCostUsd || 0),
+    // Persist the verified evidence for a generated resume so a later
+    // cover-letter-only generation can reuse it without regenerating the resume.
+    ...(type === "resume" && result.selection && result.analysis
+      ? { source: { analysis: result.analysis, selection: result.selection } }
+      : {}),
   };
+}
+
+// The resumes available as a cover-letter source: any generated resume that
+// carries its stored evidence, most recent first. `liveResult` is the resume
+// just generated this session (also usable immediately).
+export function coverLetterSources({ documents = [], liveResult = null, liveJob = null } = {}) {
+  const sources = [];
+  if (liveResult?.selection && liveResult?.analysis) {
+    sources.push({
+      id: "live",
+      label: `Just generated: ${liveJob?.company || liveResult.job?.company || "resume"}`,
+      analysis: liveResult.analysis,
+      selection: liveResult.selection,
+    });
+  }
+  for (const document of documents) {
+    if (document?.type !== "resume" || !document?.source?.selection || !document?.source?.analysis) continue;
+    sources.push({
+      id: document.id,
+      label: `${document.company || "Resume"} · ${new Date(document.createdAt).toLocaleDateString()}`,
+      analysis: document.source.analysis,
+      selection: document.source.selection,
+    });
+  }
+  return sources;
 }
 
 export function quickGenerationHistoryEntry(job, type, result) {

@@ -26,6 +26,10 @@ export function renderCoverLetter({ bank, content, identity, job, date = new Dat
 \\addtolength{\\topmargin}{-0.65in}
 \\addtolength{\\textheight}{1.3in}
 \\pagestyle{empty}
+\\hyphenpenalty=10000
+\\exhyphenpenalty=10000
+\\tolerance=2000
+\\emergencystretch=2em
 \\newcommand{\\documentTitle}[2]{\\begin{center}{\\Huge\\color{accentTitle} #1}\\vspace{6pt}{\\color{accentLine}\\hrule}\\vspace{4pt}\\footnotesize{#2}\\vspace{4pt}{\\color{accentLine}\\hrule}\\end{center}}
 \\begin{document}
 \\documentTitle{${escapeLatex(safeIdentity.name)}}{${contacts.join(" | ")}}

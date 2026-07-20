@@ -37,6 +37,44 @@ export function bankIdentityToIdentity(bank) {
   return validateRendererIdentity(bank?.identity);
 }
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const URL_RE = /^https?:\/\/\S+$/i;
+
+// Validates the FINAL rendered identity (task Part 4). Name, a complete
+// ten-digit US phone, and a well-formed email are required; a malformed value
+// throws a specific IDENTITY_INVALID error. Profile links are validated for
+// URL format when present and reported as warnings when missing, so a resume is
+// never blocked purely for an absent LinkedIn/GitHub/portfolio link.
+export function validateFinalIdentity(identity) {
+  const errors = [];
+  const warnings = [];
+  if (!identity || typeof identity !== "object") {
+    const error = new Error("Runtime resume identity is missing.");
+    error.code = "IDENTITY_INVALID";
+    throw error;
+  }
+  if (!clean(identity.name)) errors.push("candidate name is missing");
+  const email = clean(identity.email);
+  if (!email) errors.push("email is missing");
+  else if (!EMAIL_RE.test(email)) errors.push(`email '${email}' is malformed`);
+  const phoneDigits = clean(identity.phone).replace(/\D/g, "");
+  if (!phoneDigits) errors.push("phone number is missing");
+  else if (phoneDigits.length !== 10) errors.push(`phone number must contain ten digits (found ${phoneDigits.length})`);
+  const links = identity.links || {};
+  for (const key of ["linkedin", "github", "portfolio"]) {
+    const value = clean(links[key]);
+    if (!value) warnings.push(`${key} link is not set`);
+    else if (!URL_RE.test(value)) errors.push(`${key} link '${value}' is not a valid URL`);
+  }
+  if (errors.length) {
+    const error = new Error(`Resume identity is invalid: ${errors.join("; ")}.`);
+    error.code = "IDENTITY_INVALID";
+    error.identityErrors = errors;
+    throw error;
+  }
+  return { valid: true, warnings };
+}
+
 export function resolveResumeIdentity({ profile, bank }) {
   try {
     return applicationProfileToIdentity(profile);

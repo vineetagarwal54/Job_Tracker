@@ -14,6 +14,9 @@ const TOKENS = [
   "javascript", "typescript", "java", "go", "aws", "docker", "kubernetes",
   "sql", "redis", "postgresql", "mongodb", "fastapi", "pytorch", "tensorflow",
   "cuda", "linux", "git", "graphql", "webrtc", "websocket", "llm", "rag",
+  // Security and networking acronyms: unambiguous technical tokens the generic
+  // word pass would miss (too short) or mis-bucket. Low false-positive risk.
+  "jwt", "rbac", "sso", "iam", "oauth", "grpc", "http", "tcp/ip", "microservices",
 ];
 const STOP = new Set(
   "a an and are as at be by for from in into is it of on or our that the their this to using we will with you your years year experience required preferred plus strong ability knowledge".split(

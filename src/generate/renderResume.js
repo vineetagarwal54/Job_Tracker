@@ -3,14 +3,16 @@ import { budgetSelection } from "./lineBudget.js";
 import { validateSelection } from "./validateSelection.js";
 import { validateRendererIdentity } from "./profileIdentity.js";
 import { selectSummary } from "./summaryVariants.js";
+import { resolveRenderedSkills } from "./skillSelection.js";
+import { buildRankingContext } from "./bulletRanking.js";
 
 function latexLink(url) {
   const visible = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
   return `\\href{${escapeLatex(url)}}{${escapeLatex(visible)}}`;
 }
 
-function formatSkills(bank, skillGroupIds) {
-  const groups = skillGroupIds.map((id) => bank.skillGroups.find((group) => group.id === id));
+function formatSkills(renderedGroups) {
+  const groups = renderedGroups;
   const midpoint = Math.ceil(groups.length / 2);
   const column = (items) => items.map((group) =>
     `  \\textbf{${escapeLatex(group.label)}}\\enspace ${escapeLatexWithProtectedTerms(group.items.join(", "))} \\\\[\\skillRowSep]`
@@ -51,6 +53,10 @@ function finalSelectionFromBudget(selection, budget) {
     experience: [],
     projects: [],
   };
+  if (selection.skills) next.skills = selection.skills;
+  if (selection.renderedSkills) next.renderedSkills = selection.renderedSkills;
+  if (selection.emphasis) next.emphasis = selection.emphasis;
+  if (selection.emphases) next.emphases = selection.emphases;
   for (const item of budget.included) {
     next[item.section].push({
       entryId: item.entry.id,
@@ -68,12 +74,29 @@ export function safeResumeFileName(company, role) {
   return base || "resume";
 }
 
-export function renderResume({ bank, selection, template, identity }) {
+export function renderResume({ bank, selection, template, identity, jdContext = null }) {
   const runtimeIdentity = validateRendererIdentity(identity);
   const initialSelection = validateSelection(bank, selection, { requireUniqueActionVerbs: false });
-  const budget = budgetSelection(initialSelection);
+  const rankingContext = (jdContext?.extraction || jdContext?.analysis || selection.emphases)
+    ? buildRankingContext({ extraction: jdContext?.extraction, analysis: jdContext?.analysis, emphases: selection.emphases })
+    : null;
+  const budget = budgetSelection(initialSelection, rankingContext);
   const finalSelection = finalSelectionFromBudget(selection, budget);
   validateSelection(bank, finalSelection, { requireUniqueActionVerbs: true });
+
+  // Individual skill selection: prefer skills already resolved upstream (so the
+  // line budget and coverage saw the exact rendered categories); otherwise
+  // resolve here. Passing no JD context keeps the full verified item lists.
+  const renderedSkills = (selection.renderedSkills && selection.renderedSkills.length)
+    ? selection.renderedSkills
+    : resolveRenderedSkills(bank, {
+        skillGroupIds: selection.skillGroupIds,
+        selectedSkills: selection.skills || [],
+        variant: selection.variant,
+        extraction: jdContext?.extraction || null,
+        analysis: jdContext?.analysis || null,
+      }).groups;
+  finalSelection.renderedSkills = renderedSkills;
 
   const preambleEnd = template.indexOf("\\begin{document}");
   if (preambleEnd === -1) throw new Error("Template is missing \\begin{document}.");
@@ -96,11 +119,11 @@ export function renderResume({ bank, selection, template, identity }) {
   }
 
   \\tinysection{Summary}
-  ${escapeLatexWithProtectedTerms(selectSummary(bank, selection.variant))}
+  ${escapeLatexWithProtectedTerms(selectSummary(bank, selection.variant, selection.emphasis))}
 
   \\section{Skills}
 
-${formatSkills(bank, selection.skillGroupIds)}
+${formatSkills(renderedSkills)}
 
   \\section{Experience}
 
@@ -118,5 +141,5 @@ ${projects}
 \\end{document}
 `;
 
-  return { tex: `${preamble}${body}`, budget, finalSelection };
+  return { tex: `${preamble}${body}`, budget, finalSelection, renderedSkills };
 }

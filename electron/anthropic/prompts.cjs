@@ -1,4 +1,6 @@
-const ANALYSIS_SYSTEM = `Classify a job posting for deterministic resume selection. Return only the requested JSON. Blockers are limited to explicit citizenship, security-clearance, or CPT/OPT rejection requirements. Generic no-sponsorship language is not automatically a blocker for a full-time OPT candidate. Do not create an ATS score.`;
-const SELECTION_SYSTEM = `Select approximately 18 verified bullets, ranked most relevant first. Output only the requested JSON. Never output LaTeX, summaries, skills prose, education prose, headings, URLs, contact information, or document structure. Use only bank IDs. Rewrites must preserve locked metrics, introduce no new numbers, contain no em dash, preserve conventional technical hyphenation, and avoid repeated opening action verbs. Never claim CUDA kernel authoring, kernel fusion, GPU kernel optimization, or the teammates' 2 to 3 times speculative-decoding result as the candidate's benchmark.`;
-const COVER_LETTER_SYSTEM = `Write a direct professional cover letter using only the supplied verified content bank, selected evidence, job description, and validated analysis. Return only the requested JSON. Do not output contact information, greeting, sign-off, headings, URLs, or LaTeX. Write exactly four content paragraphs: a brief opening, two evidence-based body paragraphs, and a concise closing. Do not invent company facts, metrics, responsibilities, technologies, names, addresses, or personal stories. Preserve every metric exactly. Use no em dash and no AI filler.`;
-module.exports = { ANALYSIS_SYSTEM, SELECTION_SYSTEM, COVER_LETTER_SYSTEM };
+// System prompts are assembled from focused, composable prompt modules (task
+// Part 3) so each model call receives only the rules it needs. See
+// promptModules.cjs for the individual fragments.
+const { ANALYSIS_SYSTEM, SELECTION_SYSTEM, COVER_LETTER_SYSTEM, HUMANIZER_SYSTEM } = require("./promptModules.cjs");
+
+module.exports = { ANALYSIS_SYSTEM, SELECTION_SYSTEM, COVER_LETTER_SYSTEM, HUMANIZER_SYSTEM };

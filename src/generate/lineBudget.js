@@ -1,5 +1,11 @@
-import { dedupeAccomplishments } from "./accomplishmentClusters.js";
+import { dedupeAccomplishments, tokenSimilarity } from "./accomplishmentClusters.js";
 import { isMandatoryEntry, reservationRank, MANDATORY_SKILL_GROUP_IDS } from "./mandatoryContent.js";
+import { bulletRankScore, entryBulletLimit } from "./bulletRanking.js";
+
+// Two same-entry bullets whose token overlap meets this bar describe the same
+// accomplishment even without a shared cluster id. Used to stop overlapping
+// bullets from a mandatory project (e.g. Locra) both appearing.
+const SAME_ENTRY_OVERLAP = 0.42;
 
 export const RESUME_LINE_BUDGET = Object.freeze({
   charactersPerBulletLine: 119,
@@ -48,17 +54,36 @@ function skillRowPenalty(skillGroupIds) {
 //   3. Fill remaining space in ranked order, skipping duplicate action verbs
 //      and stopping at the budget. Only nonmandatory-additional and optional
 //      bullets are ever excluded for space.
-export function budgetSelection(resolvedSelection) {
+export function budgetSelection(resolvedSelection, ctx = null) {
   const { kept, removed } = dedupeAccomplishments(resolvedSelection.rankedBullets);
   const excluded = removed.map((entry) => ({ ...entry, requiredLines: 0 }));
 
   const available =
     RESUME_LINE_BUDGET.availableVariableLines - skillRowPenalty(resolvedSelection.skillGroupIds);
 
+  // Composite JD-aware rank drives fill and trim order (task Part 2). Without a
+  // ranking context the model's own ranked order is preserved (backward compat).
+  const emphasisSet = ctx?.emphasisSet || new Set();
+  const rankOrder = ctx
+    ? kept
+        .map((item, index) => ({ item, index, score: bulletRankScore(item, ctx) }))
+        .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+        .map((entry) => entry.item)
+    : kept;
+
   const includedEntries = new Map(); // key -> { section, entry, bullets: [] }
   const usedVerbs = new Set();
   const consumed = new Set(); // bullet ids already placed
   let usedLines = 0;
+
+  // Skip a same-entry bullet that overlaps one already placed for that entry,
+  // even without a shared cluster id (prevents duplicated mandatory-project
+  // angles from both appearing).
+  const overlapsExisting = (item) => {
+    const existing = includedEntries.get(`${item.section}:${item.entry.id}`);
+    if (!existing) return false;
+    return existing.bullets.some((placed) => tokenSimilarity(placed.text, item.text) >= SAME_ENTRY_OVERLAP);
+  };
 
   const place = (item, force) => {
     const key = `${item.section}:${item.entry.id}`;
@@ -66,6 +91,18 @@ export function budgetSelection(resolvedSelection) {
     const firstForEntry = !includedEntries.has(key);
     if (!force && verb && usedVerbs.has(verb)) {
       return { ok: false, reason: `duplicate action verb: ${verb}`, requiredLines: 0 };
+    }
+    // Distribution limits and same-entry overlap prevention apply only when a
+    // JD ranking context is active; ctx-less renders (samples, legacy tests)
+    // keep the original fill-to-budget behavior.
+    if (ctx && !force && !firstForEntry) {
+      const count = includedEntries.get(key).bullets.length;
+      if (count >= entryBulletLimit(item.entry.id, emphasisSet)) {
+        return { ok: false, reason: "entry bullet limit reached", requiredLines: 0 };
+      }
+      if (overlapsExisting(item)) {
+        return { ok: false, reason: "overlaps an existing bullet for this entry", requiredLines: 0 };
+      }
     }
     const headingLines = firstForEntry ? headingLinesFor(item.section) : 0;
     const bulletLines = estimateBulletLines(item.text.length);
@@ -86,7 +123,7 @@ export function budgetSelection(resolvedSelection) {
 
   // Phase A: reserve one bullet per mandatory entry, in page-reservation order.
   const mandatoryEntryKeys = [];
-  for (const item of kept) {
+  for (const item of rankOrder) {
     if (!isMandatoryEntry(item.entry.id)) continue;
     const key = `${item.section}:${item.entry.id}`;
     if (!mandatoryEntryKeys.includes(key)) mandatoryEntryKeys.push(key);
@@ -97,11 +134,11 @@ export function budgetSelection(resolvedSelection) {
     return reservationRank(sa, ea) - reservationRank(sb, eb);
   });
   for (const key of mandatoryEntryKeys) {
-    const candidates = kept.filter(
+    // Candidates are already in composite-rank order, so the highest-ranked
+    // free-verb bullet is reserved for each mandatory entry.
+    const candidates = rankOrder.filter(
       (item) => `${item.section}:${item.entry.id}` === key && !consumed.has(item.bullet.id)
     );
-    // Prefer the highest-ranked candidate whose action verb is still free so
-    // the guaranteed bullet does not force a verb collision when avoidable.
     const preferred = candidates.find((item) => {
       const verb = openingActionVerb(item.text);
       return !verb || !usedVerbs.has(verb);
@@ -110,8 +147,10 @@ export function budgetSelection(resolvedSelection) {
     if (chosen) place(chosen, true);
   }
 
-  // Phase B: fill the remaining budget in ranked order.
-  for (const item of kept) {
+  // Phase B: fill the remaining budget in composite-rank order. Because mandatory
+  // professional-experience bullets outrank weak optional-project bullets, the
+  // top-up naturally strengthens real experience before adding filler.
+  for (const item of rankOrder) {
     if (consumed.has(item.bullet.id)) continue;
     const result = place(item, false);
     if (!result.ok) {

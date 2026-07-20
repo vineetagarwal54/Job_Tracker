@@ -6,6 +6,8 @@
 // appear in the company/job-description context, and (b) revalidates that a
 // humanized draft did not change any fact relative to the pre-humanized draft.
 
+import { technologiesIn } from "./protectedTerms.js";
+
 // Generic phrases the humanizer flags. Matched case-insensitively as phrases.
 export const GENERIC_PHRASES = Object.freeze([
   "i am excited to apply",
@@ -38,10 +40,12 @@ export function findGenericPhrases(text, options = {}) {
 }
 
 // Fact tokens that must be identical between the pre- and post-humanization
-// drafts: every number/metric and every recognized technology.
+// drafts: every number/metric and every recognized technology. Humanization may
+// change wording only, never these facts.
 function factSignature(text) {
   const numbers = (normalize(text).match(/\b\d+(?:\.\d+)?(?:%|[a-z]+)?\b/g) || []).sort();
-  return numbers.join("|");
+  const technologies = [...technologiesIn(text)].sort();
+  return `${numbers.join("|")}::${technologies.join("|")}`;
 }
 
 // Revalidates a humanized cover letter against the pre-humanized version. If the
@@ -53,7 +57,7 @@ export function validateHumanizedCoverLetter(original, humanized, options = {}) 
   const originalText = [original.opening, ...(original.bodyParagraphs || []), original.closing].join(" ");
   const humanizedText = [humanized.opening, ...(humanized.bodyParagraphs || []), humanized.closing].join(" ");
   if (factSignature(originalText) !== factSignature(humanizedText)) {
-    errors.push("humanized cover letter changed a numeric fact");
+    errors.push("humanized cover letter changed a fact (number or technology)");
   }
   const generic = findGenericPhrases(humanizedText, options);
   if (generic.length) errors.push(`humanized cover letter contains generic phrasing: ${generic.join(", ")}`);

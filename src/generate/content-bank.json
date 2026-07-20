@@ -26,6 +26,15 @@
       "cloud-backend": "Software engineering graduate student with 2+ years of production experience building cloud-native backends and REST APIs on AWS, from high-traffic API performance work to agentic GenAI workflow orchestration with Amazon Bedrock.",
       "fullstack": "Software engineering graduate student with 2+ years of production experience across full-stack and product engineering, from React and React Native frontends to FastAPI, Node.js, and AWS backends serving real users.",
       "mobile": "Software engineering graduate student with 2+ years of production experience in React Native and on-device AI, from shipping mobile screens and video performance work to offline-first vision inference on Android."
+    },
+    "byEmphasis": {
+      "enterprise-ai": "Software engineering graduate student with 2+ years of production experience building and shipping enterprise AI tools, from a RAG assistant that cut 25 hours of manual lookup per week and reached 95% answer accuracy for 100 users to agentic GenAI workflows across Salesforce, ServiceNow, and AWS with Amazon Bedrock.",
+      "agentic-rag": "Software engineering graduate student with 2+ years of production experience in multi-agent and RAG systems, from LangChain, LangGraph, and AutoGen agent orchestration to a production RAG assistant reaching 95% answer accuracy for 100 users.",
+      "ai-product": "Software engineering graduate student with 2+ years of production experience building user-facing AI products, from a documentation RAG assistant serving 100 users to offline-first on-device vision inference and conversational healthcare support.",
+      "data-engineering": "Software engineering graduate student with 2+ years of production experience across data and retrieval pipelines, from multilingual data extraction that lifted NLP classification accuracy from 78% to 93% to RAG retrieval over internal documentation for 100 users.",
+      "systems-infra": "Software engineering graduate student with 2+ years of production experience building high-traffic backends on AWS, from cutting API response time from 75 seconds to under 10 seconds and increasing throughput 4x to autoscaling containerized services on EKS.",
+      "networking": "Software engineering graduate student with 2+ years of production experience building real-time and networked backend systems, from a WebRTC interview platform supporting 100+ concurrent sessions with sub-200ms latency to REST and WebSocket services on AWS.",
+      "security": "Software engineering graduate student with 2+ years of production experience building secure, cloud-native backends on AWS, from CAS SSO with JWT and RBAC authorization to REST APIs serving real users."
     }
   },
   "education": [
@@ -175,12 +184,77 @@
         "OOP",
         "System Design",
         "Microservices",
+        "Software Architecture",
         "Agile/Scrum",
         "Monorepos"
       ],
       "variants": [
         "cloud-backend",
         "fullstack",
+        "academic"
+      ]
+    },
+    {
+      "id": "networking",
+      "label": "Networking",
+      "items": [
+        "REST",
+        "WebSocket",
+        "WebRTC",
+        "GraphQL",
+        "HTTP"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "ai-llm"
+      ]
+    },
+    {
+      "id": "security",
+      "label": "Security & Auth",
+      "items": [
+        "JWT",
+        "RBAC",
+        "SSO",
+        "IAM",
+        "Input Validation"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack"
+      ]
+    },
+    {
+      "id": "operating-systems",
+      "label": "Operating Systems",
+      "items": [
+        "Linux",
+        "Android"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "ai-llm",
+        "academic"
+      ]
+    },
+    {
+      "id": "developer-tools",
+      "label": "Developer Tools",
+      "items": [
+        "Git",
+        "GitHub Actions",
+        "Selenium",
+        "Monorepos"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "ai-llm",
         "academic"
       ]
     }

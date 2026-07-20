@@ -1,6 +1,9 @@
 import { findGenericPhrases } from "./coverLetterHumanization.js";
 
 const FIELDS = ["version", "opening", "bodyParagraphs", "closing"];
+// wordCount is a derived field this validator adds; tolerate it so re-validating
+// an already-validated draft (e.g. before rendering) is idempotent.
+const ALLOWED_FIELDS = [...FIELDS, "wordCount"];
 const FORBIDDEN = [
   /cuda\s+(?:kernel|kernels|authoring|optimization)/i,
   /(?:fused|fuse|fusion)\s+(?:rmsnorm|linear|cuda|kernel)/i,
@@ -16,7 +19,7 @@ function allBankNumbers(bank) {
 
 export function validateCoverLetter(value, bank, options = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw Object.assign(new Error("Cover letter response must be an object."), { code: "VALIDATION_FAILED" });
-  for (const key of Object.keys(value)) if (!FIELDS.includes(key)) throw Object.assign(new Error(`Cover letter contains unknown field '${key}'.`), { code: "VALIDATION_FAILED" });
+  for (const key of Object.keys(value)) if (!ALLOWED_FIELDS.includes(key)) throw Object.assign(new Error(`Cover letter contains unknown field '${key}'.`), { code: "VALIDATION_FAILED" });
   for (const key of FIELDS) if (!Object.hasOwn(value, key)) throw Object.assign(new Error(`Cover letter is missing '${key}'.`), { code: "VALIDATION_FAILED" });
   if (value.version !== 1 || typeof value.opening !== "string" || typeof value.closing !== "string" || !Array.isArray(value.bodyParagraphs) || value.bodyParagraphs.length !== 2 || !value.bodyParagraphs.every((item) => typeof item === "string")) {
     throw Object.assign(new Error("Cover letter response has an invalid structure."), { code: "VALIDATION_FAILED" });

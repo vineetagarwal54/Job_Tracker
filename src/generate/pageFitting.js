@@ -21,8 +21,9 @@ function bankBulletPriority(bank, entryId, bulletId) {
 // Picks the lowest-value removable bullet across a selection and removes it.
 // Removable = a bullet that is not the last remaining bullet of a mandatory
 // entry. Optional-entry bullets are preferred over extra mandatory bullets;
-// within that, the weakest (highest priority number) loses first.
-export function trimOneBullet(bank, selection) {
+// within that, the lowest FINAL JD rank loses first (falling back to static
+// content-bank priority when no ranking is supplied).
+export function trimOneBullet(bank, selection, rankScores = null) {
   const candidates = [];
   for (const section of ["experience", "projects"]) {
     for (const entry of selection[section] || []) {
@@ -37,6 +38,7 @@ export function trimOneBullet(bank, selection) {
           bulletId: bullet.id,
           mandatory,
           priority: bankBulletPriority(bank, entry.entryId, bullet.id),
+          rank: rankScores && rankScores.has(bullet.id) ? rankScores.get(bullet.id) : null,
         });
       }
     }
@@ -45,7 +47,8 @@ export function trimOneBullet(bank, selection) {
   candidates.sort((a, b) => {
     // Optional bullets first (mandatory === false sorts before true).
     if (a.mandatory !== b.mandatory) return a.mandatory ? 1 : -1;
-    // Then weakest priority (larger number) first.
+    // Then lowest final JD rank first; fall back to weakest static priority.
+    if (a.rank !== null && b.rank !== null && a.rank !== b.rank) return a.rank - b.rank;
     return b.priority - a.priority;
   });
   const victim = candidates[0];

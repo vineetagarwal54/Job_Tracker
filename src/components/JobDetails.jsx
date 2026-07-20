@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG } from "../constants";
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 import { cleanJobDescription } from "../utils/jobDescriptionCleaner";
-import { documentHistoryEntry, missingGenerationRequirements } from "../utils/resumeGeneration";
+import { documentHistoryEntry, missingGenerationRequirements, coverLetterSources } from "../utils/resumeGeneration";
 import { useDocumentGeneration } from "../hooks/useDocumentGeneration";
 import { InfoBlock } from "./InfoBlock";
 import { GenerateDocumentsModal } from "./GenerateDocumentsModal";
@@ -22,7 +22,12 @@ export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, wor
   const pc = PRIORITY_CONFIG[job.priority] || PRIORITY_CONFIG.Medium;
   const resumeMissing = missingGenerationRequirements({ status: resumeStatus, job, active: generation.active });
   const documentJob = { company: job.company || "Untitled", title: job.role || "Role", description: job.jd };
+  const resumeSources = coverLetterSources({ documents: (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company })), liveResult: generation.resumeResult, liveJob: documentJob });
   const openGenerate = () => { generation.reset(); setShowGenerateModal(true); };
+  const saveBoth = () => {
+    if (generation.resumeResult) window.resume?.saveCopy?.({ fileName: generation.resumeResult.pdfFileName, suggestedName: generation.resumeResult.suggestedFileName });
+    if (generation.coverLetterResult) window.resume?.saveCopy?.({ fileName: generation.coverLetterResult.pdfFileName, suggestedName: generation.coverLetterResult.suggestedFileName });
+  };
   const copyJd = () => { navigator.clipboard.writeText(cleanJobDescription(job.jd)); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   return <div style={{ background: "#0e0e18", borderBottom: "1px solid #151520", borderLeft: `3px solid ${sc.dot}`, borderRadius: "0 0 8px 8px" }}>
@@ -43,12 +48,13 @@ export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, wor
       {(generation.resumeResult || generation.coverLetterResult || generation.error || generation.coverLetterError) && <div style={{ marginTop: "20px" }}>
         {generation.error && <div style={errorBox}>{generation.error}</div>}
         {generation.coverLetterError && <div style={{ ...errorBox, color: "#fbbf24", borderColor: "#5a4a20", background: "#241d0e" }}>Resume completed. Cover letter: {generation.coverLetterError}</div>}
+        {generation.resumeResult && generation.coverLetterResult && <button className="btn" onClick={saveBoth} style={{ background: "#6366f1", color: "#fff", padding: "9px 16px", borderRadius: "8px", fontWeight: 700, marginBottom: "12px" }}>Save Both</button>}
         <ResumeGenerationResult result={generation.resumeResult} onOpen={onOpenGenerated} onReveal={onRevealGenerated} onOpenFolder={() => window.resume.openOutputFolder()} onGenerateAgain={openGenerate} />
         <CoverLetterResult result={generation.coverLetterResult} onOpen={onOpenGenerated} onReveal={onRevealGenerated} onOpenFolder={() => window.resume.openOutputFolder()} />
       </div>}
       <History documents={job.generatedDocuments || []} onOpen={onOpenGenerated} onReveal={onRevealGenerated} onRegenerate={openGenerate} onRemove={onRemoveGenerated} />
     </div>
-    <GenerateDocumentsModal open={showGenerateModal} job={documentJob} generation={generation} onClose={() => setShowGenerateModal(false)} />
+    <GenerateDocumentsModal open={showGenerateModal} job={documentJob} generation={generation} resumeSources={resumeSources} onClose={() => setShowGenerateModal(false)} />
   </div>;
 }
 

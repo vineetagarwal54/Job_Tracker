@@ -52,6 +52,15 @@
 \raggedbottom
 \raggedright
 
+% Disable automatic hyphenation so technical terms are never split at a line
+% break (which would also corrupt ATS text extraction). \exhyphenpenalty blocks
+% breaks at existing hyphens too (hyphenated compounds). \emergencystretch
+% keeps the raggedright lines from overflowing when a long word cannot break.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\tolerance=2000
+\emergencystretch=2em
+
 % ATS Readability (pdfTeX only; XeTeX embeds Unicode mapping natively)
 \ifdefined\pdfglyphtounicode
   \input{glyphtounicode}
