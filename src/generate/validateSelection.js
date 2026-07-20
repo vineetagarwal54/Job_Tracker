@@ -59,8 +59,11 @@ export function validateSelection(bank, selection, options = {}) {
   if (!VARIANT_IDS.has(selection.variant)) fail(`unknown variant '${selection.variant}'`);
   if (!Array.isArray(bank.education) || !bank.education.some((education) => education.id === selection.educationId)) fail(`unknown education '${selection.educationId}'`);
   if (!Array.isArray(selection.skillGroupIds) || selection.skillGroupIds.length === 0) fail("skillGroupIds must be a non-empty array");
-  const skillIds = new Set(bank.skillGroups.map((group) => group.id));
-  for (const id of selection.skillGroupIds) if (!skillIds.has(id)) fail(`unknown skill group '${id}'`);
+  const skillGroups = new Map(bank.skillGroups.map((group) => [group.id, group]));
+  for (const id of selection.skillGroupIds) {
+    const group = skillGroups.get(id);
+    if (!group) fail(`unknown skill group '${id}'`);
+  }
 
   const indexed = indexEntries(bank);
   const rankedBullets = [];

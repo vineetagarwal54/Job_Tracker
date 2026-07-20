@@ -39,10 +39,10 @@ async function parseSse(response) {
 }
 
 function createAnthropicClient({ fetchImpl = globalThis.fetch, maxRetries = 2, timeoutMs = 60000 } = {}) {
-  async function request({ apiKey, body, stream = false, signal }) {
+  async function request({ apiKey, body, stream = false, signal, timeoutMs: requestTimeoutMs = timeoutMs }) {
     if (!apiKey) throw new AnthropicApiError("Anthropic API key is not configured.", { code: "KEY_NOT_CONFIGURED" });
     for (let attempt = 0; ; attempt++) {
-      const linked = linkedController(signal, timeoutMs);
+      const linked = linkedController(signal, requestTimeoutMs);
       try {
         const response = await fetchImpl(API_URL, { method: "POST", headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" }, body: JSON.stringify({ ...body, stream }), signal: linked.controller.signal });
         if (!response.ok) { const error = await errorFromResponse(response); if (error.retryable && attempt < maxRetries) { linked.cleanup(); await delay(Math.min(4000, 500 * 2 ** attempt), signal); continue; } throw error; }

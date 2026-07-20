@@ -12,6 +12,7 @@ export const RESUME_ERROR_MESSAGES = {
 };
 
 export function messageForResumeError(error) {
+  if (["VALIDATION_FAILED", "MALFORMED_RESPONSE"].includes(error?.code) && error?.message) return error.message;
   return RESUME_ERROR_MESSAGES[error?.code] || error?.message || "Document generation failed.";
 }
 

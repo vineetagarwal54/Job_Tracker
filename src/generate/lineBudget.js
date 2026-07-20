@@ -13,12 +13,23 @@ export function estimateBulletLines(chars) {
   return Math.ceil(chars / RESUME_LINE_BUDGET.charactersPerBulletLine);
 }
 
+export function openingActionVerb(text) {
+  const match = String(text || "").trim().match(/^([A-Za-z]+)/);
+  return match ? match[1].toLowerCase() : "";
+}
+
 export function budgetSelection(resolvedSelection) {
   const includedEntries = new Map();
   const excluded = [];
+  const includedVerbs = new Set();
   let usedLines = 0;
 
   for (const item of resolvedSelection.rankedBullets) {
+    const verb = openingActionVerb(item.text);
+    if (verb && includedVerbs.has(verb)) {
+      excluded.push({ id: item.bullet.id, entryId: item.entry.id, section: item.section, reason: `duplicate action verb: ${verb}`, requiredLines: 0 });
+      continue;
+    }
     const key = `${item.section}:${item.entry.id}`;
     const firstForEntry = !includedEntries.has(key);
     const headingLines = firstForEntry
@@ -38,6 +49,13 @@ export function budgetSelection(resolvedSelection) {
     }
     includedEntries.get(key).bullets.push({ ...item, estimatedLines: bulletLines });
     usedLines += bulletLines;
+    if (verb) includedVerbs.add(verb);
+  }
+
+  if (resolvedSelection.rankedBullets.length > 0 && includedEntries.size === 0) {
+    const error = new Error("Resume validation failed: duplicate action verb handling produced no valid bullets.");
+    error.code = "VALIDATION_FAILED";
+    throw error;
   }
 
   return {

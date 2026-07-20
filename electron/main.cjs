@@ -150,7 +150,10 @@ function serializeResumeError(error) {
     KEY_NOT_CONFIGURED: "Add ANTHROPIC_API_KEY to the root .env file and restart JobTrack.", authentication_error: "Anthropic rejected the configured API key.", permission_error: "The configured Anthropic key does not have permission for this request.", rate_limit_error: "Anthropic rate limit reached. Try again shortly.", TIMEOUT: "The Anthropic request timed out.", NETWORK_ERROR: "JobTrack could not reach Anthropic.", CANCELLED: "Generation cancelled.", GENERATION_ACTIVE: "Another generation is already active.", TECTONIC_NOT_FOUND: "Tectonic was not found on PATH.", COMPILATION_FAILED: "Tectonic could not compile the generated document.", MISSING_TEMPLATE: "The document template is missing.", INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the Application Profile or content bank.", MISSING_JOB_DESCRIPTION: "Save a full job description before generating.", MALFORMED_RESPONSE: "Anthropic returned an unreadable response.", VALIDATION_FAILED: error?.message || "Generated content failed factual validation.",
   };
   const code = error?.code || "RESUME_ERROR";
-  return { code, message: safeMessages[code] || "Resume generation failed.", status: error?.status || null, retryable: Boolean(error?.retryable) };
+  const detail = typeof error?.message === "string" ? error.message.trim() : "";
+  const validationMessage = detail ? (detail.startsWith("Resume validation failed:") ? detail : `Resume validation failed: ${detail}`) : safeMessages.VALIDATION_FAILED;
+  const malformedMessage = detail || safeMessages.MALFORMED_RESPONSE;
+  return { code, message: code === "VALIDATION_FAILED" ? validationMessage : code === "MALFORMED_RESPONSE" ? malformedMessage : safeMessages[code] || "Resume generation failed.", status: error?.status || null, retryable: Boolean(error?.retryable) };
 }
 
 function registerResumeIpc() {

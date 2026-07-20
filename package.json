@@ -28,7 +28,7 @@
     "preview": "vite preview",
     "electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "vite build && electron-builder",
-    "verify:ai-resume": "node electron/verifyAiResumeFeature.cjs && node src/generate/verifyPhases3to5.js && node electron/anthropic/verifyApiClient.cjs && node src/generate/renderSampleResume.js && node src/generate/verifySampleResume.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/verifyGeneratedPdfs.cjs",
+    "verify:ai-resume": "node electron/verifyAiResumeFeature.cjs && node src/generate/verifyPhases3to5.js && node src/generate/verifyJobAnalysisContract.js && node src/generate/verifyDuplicateVerbBudget.js && node electron/anthropic/verifyApiClient.cjs && node src/generate/renderSampleResume.js && node src/generate/verifySampleResume.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/verifyGeneratedPdfs.cjs",
     "postinstall": "electron-builder install-app-deps || true"
   },
   "build": {
