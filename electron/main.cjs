@@ -11,6 +11,7 @@ const { MODELS } = require("./anthropic/models.cjs");
 const { resolveAnthropicEnvironment } = require("./config/environment.cjs");
 const { createResumePaths } = require("./resume/paths.cjs");
 const { checkTectonic, compileGeneratedTex } = require("./resume/compiler.cjs");
+const { extractPdfText } = require("./resume/pdfVerify.cjs");
 
 // ── File-based storage ────────────────────────────────────────
 // Stores all data in the OS-appropriate userData directory:
@@ -253,6 +254,17 @@ function registerResumeIpc() {
         } catch (error) { failures.push(error.message); }
       }
       return { ok: failures.length === 0, partial: saved.length > 0 && failures.length > 0, savedPaths: saved, error: failures.length ? { code: "SAVE_PARTIAL", message: failures.join("; ") } : undefined };
+    } catch (error) { return { ok: false, error: serializeResumeError(error) }; }
+  });
+  ipcMain.handle("resume:pick-local-pdf", async (event) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const picked = await dialog.showOpenDialog(win, { title: "Choose local resume PDF", properties: ["openFile"], filters: [{ name: "PDF", extensions: ["pdf"] }] });
+      if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+      const filePath = picked.filePaths[0];
+      const text = extractPdfText(filePath);
+      if (text.length < 40) return { ok: false, error: { code: "PDF_TEXT_UNAVAILABLE", message: "This PDF has no readable text. Choose a text-based resume PDF, not an image-only scan." } };
+      return { ok: true, source: { id: `local:${filePath}`, type: "local-pdf", label: `Local PDF: ${path.basename(filePath)}`, pdfFileName: path.basename(filePath), resumeText: text } };
     } catch (error) { return { ok: false, error: serializeResumeError(error) }; }
   });
 }

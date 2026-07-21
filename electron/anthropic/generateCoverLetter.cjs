@@ -10,17 +10,17 @@ const { parseJsonText, sanitizeJob } = require("./validation.cjs");
 //   3. Humanize the draft (second model pass).
 //   4. Validate facts, numbers, technologies, and meaning again.
 //   5. Fall back to the first valid draft if humanization changed a fact.
-async function generateCoverLetter({ client, apiKey, bank, job, analysis, selection, signal, generateDir, progress }) {
+async function generateCoverLetter({ client, apiKey, bank, job, analysis, selection, resumeText = "", signal, generateDir, progress }) {
   const { COVER_LETTER_SCHEMA, validateCoverLetter } = await import(pathToFileURL(path.join(generateDir, "coverLetterValidation.js")).href);
   const { validateJobAnalysis } = await import(pathToFileURL(path.join(generateDir, "jobAnalysisValidation.js")).href);
   const { validateSelection } = await import(pathToFileURL(path.join(generateDir, "validateSelection.js")).href);
   const { validateHumanizedCoverLetter } = await import(pathToFileURL(path.join(generateDir, "coverLetterHumanization.js")).href);
   const safeJob = sanitizeJob(job);
   validateJobAnalysis(analysis);
-  const verifiedSelection = validateSelection(bank, selection, { requireUniqueActionVerbs: true });
+  const verifiedSelection = resumeText ? null : validateSelection(bank, selection, { requireUniqueActionVerbs: true });
   const { identity: _identity, ...safeBank } = bank;
   const stable = `${COVER_LETTER_SYSTEM}\nVERIFIED CONTENT BANK:\n${JSON.stringify(safeBank)}`;
-  const evidence = verifiedSelection.rankedBullets.map((item) => ({ id: item.bullet.id, text: item.text }));
+  const evidence = resumeText ? [{ id: "local-pdf", text: String(resumeText) }] : verifiedSelection.rankedBullets.map((item) => ({ id: item.bullet.id, text: item.text }));
 
   // Pass 1: factual first draft.
   progress?.("Drafting evidence-based cover letter");
@@ -32,7 +32,7 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
     messages: [{ role: "user", content: JSON.stringify({ job: safeJob, analysis, selectedEvidence: evidence, requirements: "150 to 320 words in exactly four paragraphs. No invented facts or numbers; use only supplied evidence. Return claimEvidence with every factual sentence and its one or more evidence IDs." }) }],
   } });
   progress?.("Validating cover letter claims");
-  const draft = validateCoverLetter(parseJsonText(draftResponse.text, "Cover letter", { stopReason: draftResponse.stopReason }), bank, { jobDescription: safeJob.description });
+  const draft = validateCoverLetter(parseJsonText(draftResponse.text, "Cover letter", { stopReason: draftResponse.stopReason }), bank, { jobDescription: safeJob.description, evidenceText: resumeText });
   const evidenceIds = new Set(evidence.map((item) => item.id));
   if (draft.claimEvidence.some((claim) => claim.evidenceIds.some((id) => !evidenceIds.has(id)))) throw Object.assign(new Error("Cover letter cited evidence outside the selected resume."), { code: "VALIDATION_FAILED" });
 
@@ -51,7 +51,7 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
       messages: [{ role: "user", content: JSON.stringify({ draft: { version: 1, opening: draft.opening, bodyParagraphs: draft.bodyParagraphs, closing: draft.closing, claimEvidence: draft.claimEvidence }, jobDescription: safeJob.description, requirements: "Keep every number, technology, ownership, responsibility, scope, employer/project association, production status, customer count, leadership claim, team size, and outcome identical. Change wording only; preserve claimEvidence exactly. Return four paragraphs and 150 to 320 words." }) }],
     } });
     accumulateUsage(usageTotals, humanizeResponse.usage);
-    const candidate = validateCoverLetter(parseJsonText(humanizeResponse.text, "Humanized cover letter", { stopReason: humanizeResponse.stopReason }), bank, { jobDescription: safeJob.description });
+    const candidate = validateCoverLetter(parseJsonText(humanizeResponse.text, "Humanized cover letter", { stopReason: humanizeResponse.stopReason }), bank, { jobDescription: safeJob.description, evidenceText: resumeText });
     const check = validateHumanizedCoverLetter(draft, candidate, { jobDescription: safeJob.description });
     if (check.valid) {
       content = candidate;

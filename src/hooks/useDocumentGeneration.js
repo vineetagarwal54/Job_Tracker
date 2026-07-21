@@ -106,7 +106,7 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
   // the cover letter draws only on the source selection and verified bank.
   const generateCoverLetterOnly = useCallback(async ({ job, source }) => {
     if (activeRef.current) { setCoverLetterError(messageForResumeError({ code: "GENERATION_ACTIVE" })); return null; }
-    if (!source?.selection || !source?.analysis) { setCoverLetterError("Select a generated resume to base the cover letter on."); return null; }
+    if (!source?.resumeText && (!source?.selection || !source?.analysis)) { setCoverLetterError("Select a generated resume or readable local PDF to base the cover letter on."); return null; }
     const normalizedJob = normalizeJob(job);
     const requirements = missingGenerationRequirements({ status, job: normalizedJob, active: false });
     if (requirements.length) { setCoverLetterError(`Required: ${requirements.join(", ")}.`); return null; }
@@ -123,7 +123,7 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
     try {
       let analysis = source.analysis;
       try { const analyzed = await window.resume.analyzeJob(normalizedJob); if (analyzed?.ok && analyzed.analysis) analysis = analyzed.analysis; } catch { /* keep source analysis */ }
-      const response = await window.resume.generateCoverLetter({ job: normalizedJob, analysis, selection: source.selection });
+      const response = await window.resume.generateCoverLetter({ job: normalizedJob, analysis, selection: source.selection, resumeText: source.resumeText || "" });
       if (!response?.ok) {
         if (response?.error?.code === "CANCELLED") { setMode("choice"); setProgress(""); }
         else setCoverLetterError(messageForResumeError(response?.error));

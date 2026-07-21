@@ -33,7 +33,7 @@ export function subscribeToGeneration(resumeApi, callback) {
   return typeof cleanup === "function" ? cleanup : () => {};
 }
 
-export function documentHistoryEntry(type, result) {
+export function documentHistoryEntry(type, result, job = null, sourceResume = null) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type,
@@ -48,6 +48,7 @@ export function documentHistoryEntry(type, result) {
     ...(type === "resume" && result.selection && result.analysis
       ? { source: { analysis: result.analysis, selection: result.selection, bulletEvidence: result.selection.rankedBullets || [], renderedSkills: result.renderedSkills || [], company: result.job?.company || "", role: result.job?.title || "", createdAt: new Date().toISOString(), pdfFileName: result.pdfFileName } }
       : {}),
+    ...(type === "cover-letter" ? { jobDescription: String(job?.description || job?.jd || ""), company: String(job?.company || ""), role: String(job?.title || job?.role || ""), sourceResumeId: sourceResume?.id || null, sourceResumeFileName: sourceResume?.pdfFileName || null, humanized: Boolean(result.humanized), origin: "cover-letter" } : { origin: "generated" }),
   };
 }
 
@@ -93,6 +94,17 @@ export function allCoverLetterSources({ jobs = [], generationHistory = [], liveR
     ...jobs.flatMap((job) => (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company, title: job.role }))),
     ...generationHistory,
   ];
-  return coverLetterSources({ documents, liveResult, liveJob })
-    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  return normalizeCoverLetterSources(coverLetterSources({ documents, liveResult, liveJob }));
+}
+
+export function normalizeCoverLetterSources(sources = []) {
+  const seen = new Set();
+  return sources
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .filter((source) => {
+      const key = source.id || source.pdfFileName;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }

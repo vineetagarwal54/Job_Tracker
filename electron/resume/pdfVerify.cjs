@@ -100,4 +100,16 @@ function verifyPdfAtsIntegrity(pdfPath, options = {}) {
   return { valid: errors.length === 0, errors, pageCount, textOperatorCount: operators, textLength: normalized.length, splitTerms };
 }
 
-module.exports = { verifyPdfAtsIntegrity, inflateAllStreams, decodeText, pageCountFrom };
+// Local-only extraction for a user-selected resume. Tectonic PDFs use
+// ToUnicode maps; simple PDFs may expose literal text streams, so retain both
+// paths. An empty result is deliberately treated as unreadable/image-only.
+function extractPdfText(pdfPath) {
+  if (!fs.existsSync(pdfPath)) return "";
+  const bytes = fs.readFileSync(pdfPath);
+  const blob = inflateAllStreams(bytes);
+  const unicode = decodeText(blob);
+  const literal = [...blob.matchAll(/\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*(?:Tj|')/g)].map((m) => m[1].replace(/\\([()\\])/g, "$1")).join(" ");
+  return `${unicode} ${literal}`.replace(/\s+/g, " ").trim();
+}
+
+module.exports = { verifyPdfAtsIntegrity, extractPdfText, inflateAllStreams, decodeText, pageCountFrom };

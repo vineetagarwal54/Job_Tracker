@@ -3,13 +3,15 @@ import { useState } from "react";
 export function GenerateDocumentsModal({ open, job, generation, resumeSources = [], onClose, children }) {
   const [view, setView] = useState("choice");
   const [sourceId, setSourceId] = useState(resumeSources[0]?.id || "");
+  const [localSource, setLocalSource] = useState(null);
+  const [localError, setLocalError] = useState("");
   const [jd, setJd] = useState(job?.description || "");
   if (!open) return null;
   const isGenerating = generation.active;
   const completed = (generation.resumeResult || generation.coverLetterResult) && !isGenerating;
   const choose = (documentChoice) => generation.generate({ job, documentChoice });
   const startCoverOnly = () => {
-    const source = resumeSources.find((item) => item.id === sourceId) || resumeSources[0];
+    const source = sourceId === localSource?.id ? localSource : resumeSources.find((item) => item.id === sourceId) || resumeSources[0];
     generation.generateCoverLetterOnly({ job: { ...job, description: jd || job?.description }, source });
   };
   const close = () => { setView("choice"); onClose(); };
@@ -31,15 +33,17 @@ export function GenerateDocumentsModal({ open, job, generation, resumeSources = 
         {!isGenerating && !completed && view === "cover-only" && (
           <>
             <div style={title}>Cover Letter Only</div>
-            {resumeSources.length === 0 ? (
+            {resumeSources.length === 0 && !localSource ? (
               <div style={{ ...muted, color: "#fbbf24" }}>Generate a resume first. A cover letter reuses a generated resume's verified evidence.</div>
             ) : (
               <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
                 <label style={fieldLabel}>Base it on this resume
                   <select className="form-select" value={sourceId} onChange={(event) => setSourceId(event.target.value)} style={{ width: "100%", marginTop: "6px" }}>
                     {resumeSources.map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
+                    {localSource && <option key={localSource.id} value={localSource.id}>{localSource.label}</option>}
                   </select>
                 </label>
+                <div><button className="btn" onClick={async () => { const result = await window.resume?.pickLocalPdf?.(); if (result?.ok) { setLocalSource(result.source); setSourceId(result.source.id); setLocalError(""); } else if (!result?.canceled) setLocalError(result?.error?.message || "Could not read the selected PDF."); }} style={secondaryButton}>Choose local PDF resume</button>{localError && <div style={{ color: "#f87171", fontSize: "12px", marginTop: "7px" }}>{localError}</div>}</div>
                 <label style={fieldLabel}>Job description
                   <textarea value={jd} onChange={(event) => setJd(event.target.value)} rows={7} style={textarea} placeholder="Paste the job description for the cover letter" />
                 </label>

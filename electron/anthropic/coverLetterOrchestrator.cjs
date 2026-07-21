@@ -11,7 +11,7 @@ const codedError = (code, message) => Object.assign(new Error(message), { code }
 
 function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, compileResumeTex, paths }) {
   const generateDir = path.join(rootDir, "src", "generate");
-  return async function orchestrateCoverLetter({ job: rawJob, analysis, selection, signal, progress }) {
+  return async function orchestrateCoverLetter({ job: rawJob, analysis, selection, resumeText = "", signal, progress }) {
     const apiKey = keyProvider.readKey();
     if (!apiKey) throw codedError("KEY_NOT_CONFIGURED", "Anthropic API key is not configured.");
     const job = sanitizeJob(rawJob);
@@ -20,7 +20,8 @@ function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaul
     let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
     identityModule.validateFinalIdentity(identity);
     if (!fs.existsSync(paths.template("cover-letter.tex"))) throw codedError("MISSING_TEMPLATE", "The cover-letter template is missing.");
-    const generated = await generateCoverLetter({ client, apiKey, bank, job, analysis, selection, signal, generateDir, progress });
+    if (!resumeText && (!analysis || !selection)) throw codedError("VALIDATION_FAILED", "Select a generated resume or a readable local PDF.");
+    const generated = await generateCoverLetter({ client, apiKey, bank, job, analysis: analysis || { roleFamily: "general-swe", mustHaveKeywords: [], niceToHaveKeywords: [], responsibilities: [], blockers: [], recommendedVariant: "fullstack", seniority: "entry", reasoningSummary: "Local PDF resume evidence." }, selection, resumeText, signal, generateDir, progress });
     progress?.("Preparing cover letter PDF");
     const tex = renderer.renderCoverLetter({ bank, content: generated.content, identity, job });
     paths.ensureOutputDir();

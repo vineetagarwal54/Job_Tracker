@@ -75,6 +75,9 @@ function coverClient() {
       filler,
     ],
     closing: filler,
+    claimEvidence: [
+      { sentence: "Delivered a documentation assistant for 100 users and cut API response time from 75 seconds to under 10 seconds.", evidenceIds: ["servbeyond-rag-manual-lookup", "xelpmoc-api-performance"] },
+    ],
   };
   const humanized = { ...draft, opening: `Direct opening line here. ${"note ".repeat(42).trim()}` };
   return {

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG } from "../constants";
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 import { cleanJobDescription } from "../utils/jobDescriptionCleaner";
-import { documentHistoryEntry, missingGenerationRequirements, coverLetterSources } from "../utils/resumeGeneration";
+import { documentHistoryEntry, missingGenerationRequirements, coverLetterSources, normalizeCoverLetterSources } from "../utils/resumeGeneration";
 import { useDocumentGeneration } from "../hooks/useDocumentGeneration";
 import { InfoBlock } from "./InfoBlock";
 import { GenerateDocumentsModal } from "./GenerateDocumentsModal";
@@ -15,14 +15,14 @@ export function JobDetails({ job, canReorder, isFirstOverall, isLastOverall, wor
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const generation = useDocumentGeneration({
     status: resumeStatus,
-    onResumeComplete: useCallback((result) => onAddGenerated(documentHistoryEntry("resume", result)), [onAddGenerated]),
-    onCoverLetterComplete: useCallback((result) => onAddGenerated(documentHistoryEntry("cover-letter", result)), [onAddGenerated]),
+    onResumeComplete: useCallback((result, generatedJob) => onAddGenerated(documentHistoryEntry("resume", result, generatedJob)), [onAddGenerated]),
+    onCoverLetterComplete: useCallback((result, generatedJob) => onAddGenerated(documentHistoryEntry("cover-letter", result, generatedJob)), [onAddGenerated]),
   });
   const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG.Applied;
   const pc = PRIORITY_CONFIG[job.priority] || PRIORITY_CONFIG.Medium;
   const resumeMissing = missingGenerationRequirements({ status: resumeStatus, job, active: generation.active });
   const documentJob = { company: job.company || "Untitled", title: job.role || "Role", description: job.jd };
-  const resumeSources = [...coverLetterSources({ documents: (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company })), liveResult: generation.resumeResult, liveJob: documentJob }), ...globalResumeSources.filter((source) => source.id !== "live")];
+  const resumeSources = normalizeCoverLetterSources([...coverLetterSources({ documents: (job.generatedDocuments || []).map((document) => ({ ...document, company: job.company })), liveResult: generation.resumeResult, liveJob: documentJob }), ...globalResumeSources]);
   const openGenerate = () => { generation.reset(); setShowGenerateModal(true); };
   const [saveBothMessage, setSaveBothMessage] = useState("");
   const saveBoth = async () => {

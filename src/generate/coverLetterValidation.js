@@ -13,8 +13,8 @@ const FORBIDDEN = [
 const LATEX = /\\(?:documentclass|begin|end|section|href|textbf|input|include|usepackage)\b|\$\$|\\\[/i;
 const NUMBERS = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
 
-function allBankNumbers(bank) {
-  return new Set([...bank.experience, ...bank.projects].flatMap((entry) => entry.bullets).flatMap((bullet) => bullet.text.match(NUMBERS) || []).map((value) => value.toLowerCase()));
+function allBankNumbers(bank, evidenceText = "") {
+  return new Set([...bank.experience, ...bank.projects].flatMap((entry) => entry.bullets).flatMap((bullet) => bullet.text.match(NUMBERS) || []).concat(String(evidenceText).match(NUMBERS) || []).map((value) => value.toLowerCase()));
 }
 
 export function validateCoverLetter(value, bank, options = {}) {
@@ -31,7 +31,7 @@ export function validateCoverLetter(value, bank, options = {}) {
   if (words < 150 || words > 320) throw Object.assign(new Error(`Cover letter must contain 150 to 320 words; received ${words}.`), { code: "VALIDATION_FAILED" });
   if (LATEX.test(text)) throw Object.assign(new Error("Cover letter response contains LaTeX commands."), { code: "VALIDATION_FAILED" });
   for (const pattern of FORBIDDEN) if (pattern.test(text)) throw Object.assign(new Error("Cover letter contains a forbidden claim or separator."), { code: "VALIDATION_FAILED" });
-  const allowedNumbers = allBankNumbers(bank);
+  const allowedNumbers = allBankNumbers(bank, options.evidenceText);
   for (const number of text.match(NUMBERS) || []) if (!allowedNumbers.has(number.toLowerCase())) throw Object.assign(new Error(`Cover letter introduced unverified number '${number}'.`), { code: "VALIDATION_FAILED" });
   const generic = findGenericPhrases(text, { jobDescription: options.jobDescription });
   if (generic.length) throw Object.assign(new Error(`Cover letter contains generic AI phrasing: ${generic.join(", ")}.`), { code: "VALIDATION_FAILED" });

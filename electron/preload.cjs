@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("resume", {
   revealGenerated: (fileName) => ipcRenderer.invoke("resume:reveal-generated", fileName),
   saveCopy: (input) => ipcRenderer.invoke("resume:save-copy", input),
   saveBoth: (input) => ipcRenderer.invoke("resume:save-both", input),
+  pickLocalPdf: () => ipcRenderer.invoke("resume:pick-local-pdf"),
   openOutputFolder: () => ipcRenderer.invoke("resume:open-output-folder"),
   onGenerationEvent: (callback) => {
     const listener = (_event, payload) => callback(payload);
