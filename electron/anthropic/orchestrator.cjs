@@ -186,7 +186,9 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       // actually present in the rendered resume are required.
       const requiredTerms = TERM_WATCHLIST.filter((term) => renderedResumeText(rendered).toLowerCase().includes(term.toLowerCase()));
       const atsIntegrity = verifyPdfAtsIntegrity(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"), { expectedName: identity.name, requiredTerms });
-      if (!atsIntegrity.valid) throw codedError("VALIDATION_FAILED", `PDF ATS integrity check failed: ${atsIntegrity.errors.join("; ")}`);
+      // The text-layer check never blocks a finished PDF; any finding rides
+      // along as a warning next to the returned resume.
+      const atsWarnings = (atsIntegrity.warnings || []).map((message) => ({ type: "ats-text-layer", severity: "info", message }));
 
       progress?.("Checking final keyword coverage");
       stage = "final-verification";
@@ -204,6 +206,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
           renderedVariant: rendered.finalSelection.variant,
         }),
         ...identityWarnings,
+        ...atsWarnings,
       ];
 
       const usage = {

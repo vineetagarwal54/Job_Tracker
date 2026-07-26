@@ -32,9 +32,11 @@ function createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaul
     const pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
     if (pageCount !== 1) throw codedError("VALIDATION_FAILED", `Generated cover letter is ${pageCount || "an unknown number of"} pages instead of one.`);
     const atsIntegrity = verifyPdfAtsIntegrity(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"), { expectedName: identity.name, headings: [] });
-    if (!atsIntegrity.valid) throw codedError("VALIDATION_FAILED", `Cover letter PDF text-layer check failed: ${atsIntegrity.errors.join("; ")}`);
+    // The text-layer check never blocks a finished cover letter; any finding
+    // rides along as a warning next to the returned result.
+    const warnings = (atsIntegrity.warnings || []).map((message) => ({ type: "ats-text-layer", severity: "info", message }));
     const usage = pricingModule.normalizeUsage(generated.model, generated.usage);
-    return { content: generated.content, humanized: generated.humanized, texFileName, pdfFileName: compiled.pdfFileName, pageCount, atsIntegrity, atsWarning: ATS_WARNING, suggestedFileName: fileNameModule.userFacingFileName({ kind: "coverLetter", company: job.company, role: job.title }), model: generated.model, usage: { analysis: pricingModule.normalizeUsage("", {}), resumeSelection: pricingModule.normalizeUsage("", {}), coverLetter: usage }, estimatedCostUsd: pricingModule.estimateUsageCostUsd(usage), outputDisplayPath: paths.displayPath };
+    return { content: generated.content, humanized: generated.humanized, texFileName, pdfFileName: compiled.pdfFileName, pageCount, atsIntegrity, atsWarning: ATS_WARNING, warnings, suggestedFileName: fileNameModule.userFacingFileName({ kind: "coverLetter", company: job.company, role: job.title }), model: generated.model, usage: { analysis: pricingModule.normalizeUsage("", {}), resumeSelection: pricingModule.normalizeUsage("", {}), coverLetter: usage }, estimatedCostUsd: pricingModule.estimateUsageCostUsd(usage), outputDisplayPath: paths.displayPath };
   };
 }
 

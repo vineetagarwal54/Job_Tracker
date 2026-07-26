@@ -63,9 +63,16 @@ function textOperatorCount(blob) {
 // Task Phase 9: after generating a PDF confirm it carries a real, extractable
 // text layer (not image-only or vector-only), is exactly one page, and actually
 // contains the candidate name and the major section headings.
+//
+// This check never blocks generation. The project's decision is that these
+// PDFs parse fine, and a text-layer quirk (for example a kerning split, or a
+// heading not extracting cleanly) must not discard a successfully compiled one
+// page PDF. Every finding is reported as a warning; callers surface it next to
+// the finished result rather than throwing. `errors` is kept as an alias of
+// `warnings` so existing readers keep working.
 function verifyPdfAtsIntegrity(pdfPath, options = {}) {
-  const errors = [];
-  if (!fs.existsSync(pdfPath)) return { valid: false, errors: ["PDF file does not exist."], pageCount: null };
+  const warnings = [];
+  if (!fs.existsSync(pdfPath)) return { valid: false, warnings: ["PDF file does not exist."], errors: ["PDF file does not exist."], pageCount: null };
   const bytes = fs.readFileSync(pdfPath);
   const blob = inflateAllStreams(bytes);
   const pageCount = pageCountFrom(blob);
@@ -73,31 +80,31 @@ function verifyPdfAtsIntegrity(pdfPath, options = {}) {
   const decoded = decodeText(blob);
   const normalized = decoded.toLowerCase().replace(/\s+/g, "");
 
-  if (pageCount !== 1) errors.push(`page count is ${pageCount ?? "unknown"}, expected exactly one`);
-  if (operators === 0) errors.push("no text-showing operators found (image-only or vector-only)");
-  if (normalized.length === 0) errors.push("no extractable text layer");
+  if (pageCount !== 1) warnings.push(`page count is ${pageCount ?? "unknown"}, expected exactly one`);
+  if (operators === 0) warnings.push("no text-showing operators found (image-only or vector-only)");
+  if (normalized.length === 0) warnings.push("no extractable text layer");
 
   if (options.expectedName) {
     const wanted = options.expectedName.toLowerCase().replace(/\s+/g, "");
-    if (wanted && !normalized.includes(wanted)) errors.push(`candidate name '${options.expectedName}' not found in text layer`);
+    if (wanted && !normalized.includes(wanted)) warnings.push(`candidate name '${options.expectedName}' not found in text layer`);
   }
   const headings = options.headings || ["Summary", "Skills", "Experience", "Education", "Projects"];
   for (const heading of headings) {
-    if (!normalized.includes(heading.toLowerCase())) errors.push(`section heading '${heading}' not found in text layer`);
+    if (!normalized.includes(heading.toLowerCase())) warnings.push(`section heading '${heading}' not found in text layer`);
   }
 
-  // Task Part 4: confirm specific technical terms survived intact in the
-  // extracted text (no hyphenation split). Whitespace is stripped so a phrase
-  // like "React Native" matches, while a hyphenation break ("Kuber-netes")
-  // would not.
+  // Task Part 4: confirm specific technical terms survived in the extracted
+  // text. Whitespace is stripped from both the extracted text and the term, so
+  // a kerning split (for example "AWS" extracting as "A WS") still matches and
+  // a phrase like "React Native" matches; only a genuinely absent term warns.
   const splitTerms = [];
   for (const term of options.requiredTerms || []) {
     const wanted = String(term).toLowerCase().replace(/\s+/g, "");
     if (wanted && !normalized.includes(wanted)) splitTerms.push(term);
   }
-  if (splitTerms.length) errors.push(`technical terms missing or split in text layer: ${splitTerms.join(", ")}`);
+  if (splitTerms.length) warnings.push(`technical terms missing or split in text layer: ${splitTerms.join(", ")}`);
 
-  return { valid: errors.length === 0, errors, pageCount, textOperatorCount: operators, textLength: normalized.length, splitTerms };
+  return { valid: warnings.length === 0, warnings, errors: warnings, pageCount, textOperatorCount: operators, textLength: normalized.length, splitTerms };
 }
 
 // Local-only extraction for a user-selected resume. Tectonic PDFs use

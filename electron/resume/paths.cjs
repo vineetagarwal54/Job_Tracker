@@ -13,6 +13,10 @@ function createResumePaths({ app, rootDir }) {
     ? path.join(app.getPath("documents"), "JobTrack", "Resumes")
     : path.join(rootDir, "resume", "output");
   const templateDir = path.join(rootDir, "resume", "template");
+  // Persistent tectonic package cache. In a packaged app this is the real OS
+  // per-user userData directory (not a path next to the executable); the test
+  // harness's fake app resolves userData to the repo root.
+  const cacheDir = path.join(app.getPath("userData"), "tectonic-cache");
   const ensureOutputDir = () => { fs.mkdirSync(outputDir, { recursive: true }); return outputDir; };
   const resolveGeneratedFile = (fileName, extension) => {
     if (typeof fileName !== "string" || !SAFE_FILE.test(fileName) || (extension && path.extname(fileName).toLowerCase() !== extension)) {
@@ -23,7 +27,7 @@ function createResumePaths({ app, rootDir }) {
     return candidate;
   };
   const template = (fileName) => path.join(templateDir, fileName);
-  return { rootDir, outputDir, templateDir, ensureOutputDir, resolveGeneratedFile, template, displayPath: app.isPackaged ? "Documents\\JobTrack\\Resumes" : "resume\\output" };
+  return { rootDir, outputDir, templateDir, cacheDir, ensureOutputDir, resolveGeneratedFile, template, displayPath: app.isPackaged ? "Documents\\JobTrack\\Resumes" : "resume\\output" };
 }
 
 module.exports = { SAFE_FILE, isWithinDirectory, createResumePaths };
