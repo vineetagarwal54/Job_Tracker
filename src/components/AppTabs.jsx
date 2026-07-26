@@ -1,9 +1,8 @@
-// Top-level mode switcher between Jobs and Application Profiles. Sits above
+// Top-level mode switcher between Jobs and AI Resume. Sits above
 // the per-view header so each view can keep its own brand/actions row.
 export function AppTabs({ activeView, onChange }) {
   const tabs = [
     { id: "jobs", label: "Jobs" },
-    { id: "profiles", label: "Application Profiles" },
     { id: "ai-resume", label: "AI Resume" },
   ];
 

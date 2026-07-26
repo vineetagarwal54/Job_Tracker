@@ -57,6 +57,9 @@ export function JobCard({ job, canDrag, isFirst, isLast, selectMode, isSelected,
       )}
       <span className="tag" style={{ background: "#1a1a2e", color: "#818cf8", fontSize: "11px" }}>{job.resume}</span>
       <span className="tag" style={{ background: sc.bg, color: sc.color, fontSize: "11px" }}>{job.status}</span>
+      <span className="tag" style={{ background: job.jd ? "#14251d" : "#2d1010", color: job.jd ? "#4ade80" : "#f87171", fontSize: "11px" }} title={job.jd ? "Captured job description characters" : "No job description captured" }>
+        JD {String(job.jd || "").length.toLocaleString()} chars
+      </span>
 
       <div style={{ flexShrink: 0, textAlign: "right", minWidth: "90px" }}>
         {job.deadline ? (

@@ -6,7 +6,7 @@ export const RESUME_ERROR_MESSAGES = {
   TIMEOUT: "The request timed out. Try again.", NETWORK_ERROR: "Could not reach Anthropic.", CANCELLED: "Generation cancelled.",
   GENERATION_ACTIVE: "Another generation is already running.", TECTONIC_NOT_FOUND: "Install Tectonic and ensure it is on PATH.",
   COMPILATION_FAILED: "Tectonic could not compile the generated document.", MISSING_TEMPLATE: "A required document template is missing.",
-  INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the Application Profile or content bank.",
+  INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the content bank.",
   MISSING_JOB_DESCRIPTION: "Save the full job description before generating.", MALFORMED_RESPONSE: "Anthropic returned an unreadable response.",
   VALIDATION_FAILED: "Generated content did not pass factual validation.",
   IDENTITY_INVALID: "The resume identity is incomplete or malformed. Check your name, phone, email, and links.",

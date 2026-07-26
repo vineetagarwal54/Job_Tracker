@@ -18,8 +18,8 @@ The single most important thing to internalize is **Section 4**. If you get that
 
 Two things to be careful about:
 
-- Section 7's constants are current as of the XCharter render, but the **free space figure changes once the Runara correction in Section 15 is applied**, because that entry gains a third bullet. Re-measure after applying it.
-- Section 15 documents a **resolved factual conflict**. The resolution is authoritative. The correction may not yet be applied to `main.tex`; check before assuming.
+- Section 7's constants are based on a fresh XCharter render with the Runara correction applied. The measured free space is 3.15 lines, approximately 37.71pt.
+- Section 15 documents a **resolved factual conflict**. The resolution and its `main.tex` correction are applied.
 
 ---
 
@@ -90,13 +90,12 @@ electron/
 src/
   main.jsx         React entry
   JobTracker.jsx   root component, wires all state and layout
-  constants.js     enums, config objects, getEmptyForm(), getEmptyProfile(), sample data
+  constants.js     enums, config objects, getEmptyForm(), sample data
   styles.js        global CSS as a template string, injected via <style>
   components/      one component per file, PascalCase, .jsx
   hooks/           useJobs (all state), useFilters, useJobSorting
   utils/           storageHelpers, validation, deadline, bookmarklet, jobDescriptionCleaner
   generate/        NEW: content bank, keyword extraction, coverage scoring, LaTeX render, ATS check
-extension/         separate browser extension for autofill, unrelated to this feature
 resume/
   template/        main.tex, main.pdf reference render
   output/          generated .tex and .pdf, gitignored
@@ -106,7 +105,7 @@ resume/
 
 **State management.** One hook, `useJobs`, owns the entire app data blob:
 ```js
-{ workspaces, activeWorkspaceId, jobs, applicationProfiles }
+{ workspaces, activeWorkspaceId, jobs, generationHistory }
 ```
 in a single `useState`. Every mutation goes through `save(updates)`, which does `{ ...appData, ...updates }` and persists the whole blob atomically via `persistAppData`.
 
@@ -248,7 +247,7 @@ Measured against the current **XCharter** render on July 19, 2026. The earlier f
 |---|---|---|
 | Characters per bullet line | **119** | XCharter is slightly narrower than Latin Modern |
 | Line pitch | **11.96pt** | Median equals mode, so this is a clean grid |
-| Free space at page bottom | **5.15 lines (61.63pt)** | **Stale once the Runara fix lands.** See below. |
+| Free space at page bottom | **3.15 lines (approximately 37.71pt)** | Freshly measured after the Runara correction. |
 | Fixed overhead | **~27 lines (321.51pt)** | See definition below |
 | Text width | 553.7pt (7.69in) | Set by geometry, font independent |
 | Page size | 612 x 792pt (US Letter) | |
@@ -285,7 +284,7 @@ Have the measurement script emit `currentVariableLines` directly rather than der
 
 ### Pending re-measure
 
-The Section 15 correction replaces two Runara bullets with three, consuming roughly 1 of the 5.15 free lines. **Re-measure after applying it** and update this section plus `CLAUDE.md`, `AGENTS.md`, and the `main.tex` header comment.
+The Section 15 correction replaces two Runara bullets with three. The current free space measurement above includes that correction.
 
 ### How to measure
 
@@ -574,7 +573,7 @@ PHASE 0  Repo prep              CLAUDE.md, AGENTS.md, folders      Claude Code  
    ▼
 PHASE 1  Content bank           content-bank.json                  Claude Code   IN PROGRESS
    │                            Constants re-measured DONE
-   │                            main.tex CUDA correction APPLIED
+   │                            main.tex CUDA and Runara corrections APPLIED
    │                            Bank population PENDING
    ▼
         ◄── /ultraplan here ──►  Plan Phases 2 to 6 against real data
@@ -618,7 +617,7 @@ Building the UI first means spending time debugging React while the actual hard 
 - `.gitignore` updated to exclude `resume/output/`, `*.pem`, `*credentials*`
 - `CLAUDE.md` and `AGENTS.md` written with identical content
 
-Known nit: `CLAUDE.md` is itself full of em dashes. The writing rules correctly scope the no em dash rule to generated content, so this is not a logic error, but a model reading a context file dense with em dashes will drift toward them. Worth stripping.
+`CLAUDE.md` and `AGENTS.md` use comma or colon punctuation throughout their prose and remain byte identical.
 
 ### Phase 1 ordering, learned the hard way
 
@@ -694,7 +693,7 @@ Grounded in 2026 sources, applied to the actual rendered PDF.
 
 ---
 
-## 15. RESOLVED: the CUDA conflict
+## 15. RESOLVED AND APPLIED: the CUDA conflict
 
 **Resolution, confirmed by the owner on July 19, 2026: he did NOT do CUDA kernel work.** The skill's do-not-claim list is correct. He worked at the inference framework and orchestration level, not the kernel level.
 
@@ -716,9 +715,9 @@ An earlier template incorrectly attributed CUDA kernel authoring and kernel fusi
 
 **April to May 2026.** The skill was correct, `main.tex` said March and was wrong.
 
-### The correction to apply to main.tex
+### The correction applied to main.tex
 
-If this has not been applied yet, apply it before building the content bank.
+This is the applied `main.tex` content used for the current measurements.
 
 ```latex
   \headingBf{Runara.ai}{Apr 2026 -- May 2026}
@@ -839,7 +838,7 @@ If you are starting fresh, this is the minimum you need:
 
 1. **The architecture rule.** The model outputs structured JSON referencing content bank entries. JavaScript owns every byte of the `.tex`. Nothing else.
 2. **Only steps 2 and 4 call the API.** Everything else is deterministic and stays that way.
-3. **Constants:** 119 chars per bullet line, 11.96pt pitch, ~27 lines fixed overhead. Free space needs one re-measure after the Runara correction lands.
+3. **Constants:** 119 chars per bullet line, 11.96pt pitch, ~27 lines fixed overhead, 3.15 measured free lines after the Runara correction.
 4. **No CUDA kernel work.** Section 15. It is in `doNotClaim` and must never appear in the bank or any generated document.
 5. **No new npm dependencies without asking.** Including the Anthropic SDK.
 6. **Plain JavaScript. No TypeScript.**

@@ -16,7 +16,7 @@ A desktop app for tracking your job applications — built with React + Electron
 - **Export / Import** JSON backups — export is scoped to the active workspace
 - **Workspaces** _(development)_ — separate your applications into named groups (e.g. "Internships", "Full Time 2027"); switch, create, rename, reorder, and delete workspaces with full data safety
 - **Multi-select & bulk actions** _(development)_ — select multiple jobs, then bulk move to another workspace, bulk change status, or bulk delete with confirmation
-- Job and profile data is stored locally in a JSON file via Electron IPC. AI document generation sends only the documented job and verified-content inputs to Anthropic.
+- Job data is stored locally in a JSON file via Electron IPC. AI document generation sends only the documented job and verified-content inputs to Anthropic.
 
 ---
 
@@ -67,9 +67,8 @@ Windows setup:
 4. Copy `.env.example` to `.env`.
 5. Add `ANTHROPIC_API_KEY` to `.env`.
 6. Run `npm.cmd run electron`.
-7. Create a default Application Profile with at least a name and email.
-8. Save a job with its full description.
-9. Open that job and click **Generate Resume**.
+7. Save a job with its full description.
+8. Open that job and click **Generate Resume**.
 
 The `.env` file is gitignored. Never commit a real API key, and do not use a `VITE_` prefix. The key is read only by the Electron main process and is never exposed to React or browser DevTools. For packaged builds, JobTrack also accepts a `.env` beside the installed executable.
 
@@ -119,7 +118,7 @@ The bookmarklet lets you capture job details from any page in one click:
 
 **Supported job boards:** Handshake, LinkedIn, Indeed, Jobright, and company career pages
 
-The bookmarklet extracts structured data (JSON-LD), og:title, and DOM selectors to populate company, role, location, salary, and source. The job description is copied to your clipboard automatically.
+The bookmarklet uses selected page text when available, then JSON-LD, then the main visible content or densest visible text container. It cleans the captured description and sends it directly into the job form, with clipboard copy as a convenience.
 
 ---
 
@@ -132,7 +131,7 @@ JobTrack/
 │   └── preload.cjs        # Exposes storage + electronAPI to renderer
 ├── src/
 │   ├── main.jsx           # React entry point
-│   ├── JobTracker.jsx     # Root component — wires all state and layout
+│   ├── JobTracker.jsx     # Root component, wires all state and layout
 │   ├── constants.js       # Statuses, priorities, resume versions, sample data
 │   ├── styles.js          # Global CSS injected as a style tag
 │   ├── components/

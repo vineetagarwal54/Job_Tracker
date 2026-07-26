@@ -3,13 +3,18 @@ const APP_DATA_KEY = "app_data_v3";
 
 const DEFAULT_WORKSPACE_NAME = "Internships";
 
-// Returns { workspaces, activeWorkspaceId, jobs, applicationProfiles } — null
-// if no saved data exists. On first run with legacy data, transparently migrates
-// old jobs into a default "Internships" workspace so no data is lost. Older
-// saves missing newer fields (e.g. applicationProfiles) are normalized on load.
+// Returns the normalized app data blob, or null.
+// Legacy data is migrated into the workspace shape without losing jobs.
 export async function loadAppData() {
   const result = await window.storage.get(APP_DATA_KEY);
-  if (result) return normalizeAppData(JSON.parse(result.value));
+  if (result) {
+    const parsed = JSON.parse(result.value);
+    const normalized = normalizeAppData(parsed);
+    if (Object.prototype.hasOwnProperty.call(parsed, "applicationProfiles")) {
+      await window.storage.set(APP_DATA_KEY, JSON.stringify(normalized));
+    }
+    return normalized;
+  }
 
   // Migration path: legacy jobs_v2 (Electron storage)
   const legacyResult = await window.storage.get(LEGACY_KEY);
@@ -35,7 +40,6 @@ function normalizeAppData(data) {
     workspaces: data.workspaces ?? [],
     activeWorkspaceId: data.activeWorkspaceId ?? null,
     jobs: (data.jobs ?? []).map(job => ({ ...job, generatedDocuments: Array.isArray(job.generatedDocuments) ? job.generatedDocuments : [] })),
-    applicationProfiles: data.applicationProfiles ?? [],
     generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : [],
   };
 }
@@ -46,7 +50,6 @@ async function migrateLegacyJobs(oldJobs) {
     workspaces: [ws],
     activeWorkspaceId: ws.id,
     jobs: (oldJobs || []).map(j => ({ ...j, workspaceId: ws.id })),
-    applicationProfiles: [],
     generationHistory: [],
   };
   await window.storage.set(APP_DATA_KEY, JSON.stringify(migrated));

@@ -8,12 +8,13 @@
 export function getBookmarkletCode() {
   return [
     "javascript:void(function(){",
-    "var d={},h=location.hostname,jd='',ats=/greenhouse|lever|workday|ashby|bamboo|icims|taleo|smartrecruiters|jazz|breezy|paylocity|myworkday|phenom/i;",
+    "var d={},h=location.hostname,jd='',selected=((window.getSelection&&window.getSelection().toString())||'').trim(),ats=/greenhouse|lever|workday|ashby|bamboo|icims|taleo|smartrecruiters|jazz|breezy|paylocity|myworkday|phenom/i;",
 
     // ── 1. JSON-LD structured data (most reliable when present) ──
     "try{document.querySelectorAll('script[type=\"application/ld+json\"]').forEach(function(s){try{var raw=JSON.parse(s.textContent),items=Array.isArray(raw)?raw:raw['@graph']?raw['@graph']:[raw];items.forEach(function(j){if(j['@type']==='JobPosting'){d.role=d.role||j.title||'';d.company=d.company||(j.hiringOrganization&&j.hiringOrganization.name)||'';if(j.jobLocation){var a=j.jobLocation.address||j.jobLocation;if(a.addressLocality)d.location=[a.addressLocality,a.addressRegion].filter(Boolean).join(', ')}if(j.baseSalary&&j.baseSalary.value){var bv=j.baseSalary.value;d.salary=bv.minValue?'$'+bv.minValue+(bv.maxValue?'-$'+bv.maxValue:''):'$'+(bv.value||'')}jd=jd||j.description||''}})}catch(e){}})}catch(e){}",
 
     // ── 2. Source detection ──
+    "if(selected.length)jd=selected;",
     "if(h.includes('handshake'))d.source='Handshake';else if(h.includes('linkedin'))d.source='LinkedIn';else if(h.includes('indeed'))d.source='Indeed';else if(h.includes('jobright'))d.source='Other';else d.source='Company Site';",
 
     // ── 3. Parse og:title / document.title ──
@@ -45,13 +46,14 @@ export function getBookmarkletCode() {
     // ── 8. Job Description ──
     "if(!jd){var jdEl=document.querySelector('[class*=\"job-description\"],[class*=\"job_description\"],[id*=\"job-description\"],[id*=\"job_description\"],[class*=\"posting-description\"],[class*=\"job-detail\"],[class*=\"jobDetail\"]');if(jdEl&&jdEl.innerText.length>100)jd=jdEl.innerText}",
     "if(!jd||jd.length<200){var jdEl2=document.querySelector('[class*=\"description\"],[id*=\"description\"],article,[role=\"main\"]');if(jdEl2&&jdEl2.innerText.length>200)jd=jdEl2.innerText}",
+    "if(!jd||jd.length<200){var mainEl=document.querySelector('main,[role=\"main\"]');if(mainEl&&mainEl.innerText&&mainEl.innerText.length>200)jd=mainEl.innerText}",
     "if(!jd||jd.length<200){var best='';document.querySelectorAll('div,section,main').forEach(function(el){if(el.closest('nav,footer,header,[class*=\"sidebar\"],[class*=\"nav\"],[class*=\"footer\"],[class*=\"header\"]'))return;var t=el.innerText||'';if(t.length>300&&t.length>best.length&&t.length<50000)best=t});if(best.length>300)jd=best}",
 
     // ── 9. Clean JD (HTML → text) + copy to clipboard + open app ──
     // Mirrors cleanJobDescription() in utils/jobDescriptionCleaner.js
     "function cln(s){if(!s||typeof s!=='string')return'';if(/<[a-z][^>]*>/i.test(s)){s=s.replace(/<(script|style|noscript|svg)[^>]*>[\\s\\S]*?<\\/\\1>/gi,'').replace(/<\\s*br\\s*\\/?\\s*>/gi,'\\n').replace(/<\\s*li[^>]*>/gi,'\\n\\u2022 ').replace(/<\\/\\s*(p|div|h[1-6]|section|article|ul|ol|tr)\\s*>/gi,'\\n').replace(/<\\s*(p|div|h[1-6]|section|article|tr)[^>]*>/gi,'\\n').replace(/<[^>]+>/g,'');var dec=document.createElement('textarea');dec.innerHTML=s;s=dec.value}return s.replace(/\\r\\n/g,'\\n').replace(/[^\\S\\n]+/g,' ').replace(/\\n[^\\S\\n]+/g,'\\n').replace(/[^\\S\\n]+\\n/g,'\\n').replace(/\\n{3,}/g,'\\n\\n').trim()}",
     "var jdC=false;if(jd&&jd.length>50){jd=cln(jd);try{navigator.clipboard.writeText(jd.substring(0,15000));jdC=true}catch(e){}}",
-    "var p=new URLSearchParams();for(var k in d)if(d[k])p.set(k,String(d[k]).trim().substring(0,500));if(jdC)p.set('jdCopied','1');",
+    "var p=new URLSearchParams();for(var k in d)if(d[k])p.set(k,String(d[k]).trim().substring(0,500));if(jd)p.set('jd',jd.substring(0,15000));if(jdC)p.set('jdCopied','1');",
     "window.location='jobtrack://add?'+p.toString();",
     "}())",
   ].join("");

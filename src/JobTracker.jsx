@@ -14,12 +14,11 @@ import { QuickAddSetup } from "./components/QuickAddSetup";
 import { Toast } from "./components/Toast";
 import { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 import { AppTabs } from "./components/AppTabs";
-import { ApplicationProfilesPage } from "./components/ApplicationProfilesPage";
 import { AiResumePage } from "./components/AiResumePage";
 import { QuickGenerateModal } from "./components/QuickGenerateModal";
 import { allCoverLetterSources } from "./utils/resumeGeneration";
 
-const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline"];
+const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "source", "workType", "deadline", "jd"];
 
 export default function JobTracker() {
   const {
@@ -30,13 +29,11 @@ export default function JobTracker() {
     exportJobs, importJobs,
     switchWorkspace, addWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
     moveJobsToWorkspace, bulkUpdateJobs, bulkDeleteJobs,
-    applicationProfiles,
-    addProfile, updateProfile, deleteProfile, setDefaultProfile,
     addGeneratedDocument, removeGeneratedDocument,
     generationHistory, addGenerationHistoryEntry, removeGenerationHistoryEntry,
   } = useJobs();
 
-  // Top-level view: "jobs" (existing tracker) or "profiles" (new autofill profiles).
+  // Top-level view: jobs or AI resume.
   const [activeView, setActiveView] = useState("jobs");
   const [resumeStatus, setResumeStatus] = useState(null);
   const [showQuickGenerate, setShowQuickGenerate] = useState(false);
@@ -227,15 +224,7 @@ export default function JobTracker() {
 
       <AppTabs activeView={activeView} onChange={setActiveView} />
 
-      {activeView === "profiles" ? (
-        <ApplicationProfilesPage
-          profiles={applicationProfiles}
-          onAdd={addProfile}
-          onUpdate={updateProfile}
-          onDelete={deleteProfile}
-          onSetDefault={setDefaultProfile}
-        />
-      ) : activeView === "ai-resume" ? (
+      {activeView === "ai-resume" ? (
         <AiResumePage
           jobs={jobs}
           generationHistory={generationHistory}
