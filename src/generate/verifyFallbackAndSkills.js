@@ -73,7 +73,7 @@ assert(backendGroup.items[0] === "FastAPI" || backendGroup.items.includes("FastA
 
 // --- No whole-group dumping: total items are capped and clean ---
 const totalItems = skills.groups.reduce((sum, g) => sum + g.items.length, 0);
-assert(totalItems <= 32, "skills section stays within the total cap");
+assert(totalItems <= 40, "skills section stays within the total cap");
 for (const g of skills.groups) assert(g.items.length >= 1, `no empty category (${g.id})`);
 
 // --- Java must not match JavaScript; aliases (K8s/Postgres/Unix/Node) resolve ---

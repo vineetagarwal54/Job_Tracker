@@ -24,12 +24,23 @@ import {
 // Section-level ceilings. Chosen to keep the two-column Skills block compact:
 // the measured one-page budget assumes roughly the mandatory floor of rows, so
 // extra categories and long item runs cost real vertical space.
+// For an experienced candidate the Skills block should read full, not thinned:
+// each shown group fills toward a target from its own bank order (JD matched
+// items first), 8 or 9 of the 12 groups appear when relevant, and the total is
+// generous. The compile then count then trim loop remains the real one page
+// guard, so these ceilings can be comfortable.
 export const SKILL_LIMITS = Object.freeze({
-  maxTotalItems: 32,
+  maxTotalItems: 40,
   maxItemsPerGroup: 8,
-  minItemsPerGroup: 2,
+  minItemsPerGroup: 4,
+  targetItemsPerGroup: 5,
   maxGroups: 10,
 });
+
+// Legacy caps for the no-JD path (the fixed sample render and ctx-less tests).
+// The fuller-list policy above is JD-tailored only; the no-JD path keeps its
+// original section total and per-group minimum so those fixtures stay stable.
+const LEGACY_TOTAL_CAP = Object.freeze({ maxTotalItems: 32, minItemsPerGroup: 2 });
 
 function lowerSet(items) {
   return new Set((items || []).map((item) => String(item).toLowerCase()));
@@ -171,23 +182,27 @@ export function resolveRenderedSkills(bank, {
       return group.items.indexOf(a.item) - group.items.indexOf(b.item);
     });
     let items = kept.map((entry) => entry.item);
+    const jdMatchedCount = items.length;
     const signal = kept.reduce((sum, entry) => sum + Math.min(entry.score, 100), 0);
 
-    if (mandatoryGroup) {
-      // A mandatory category must always show; backfill from bank order so it
-      // never renders below the minimum or as a lone item.
-      for (const item of group.items) {
-        if (items.length >= SKILL_LIMITS.minItemsPerGroup) break;
-        if (!items.includes(item)) items.push(item);
-      }
-    } else {
-      // Optional categories are dropped unless they carry enough JD-relevant
-      // signal. A single item survives only when it is an explicit must-have.
-      const onlyMustHave = items.length === 1 && groupHasMustHave(group, buckets);
-      if (items.length < SKILL_LIMITS.minItemsPerGroup && !onlyMustHave) {
+    if (!mandatoryGroup) {
+      // An optional category appears when the JD references it at all; a single
+      // relevant item is enough to earn its place. Truly irrelevant categories
+      // are dropped so the section stays on-target.
+      if (jdMatchedCount < 1 && !groupHasMustHave(group, buckets)) {
         droppedGroups.push(id);
         continue;
       }
+    }
+
+    // Fill toward a fuller list: JD matched items first (already ordered above),
+    // then continue from the group's own bank order up to the per-group target,
+    // even for items the JD did not explicitly match. A group never renders with
+    // fewer items than its bank holds, down to the target.
+    const target = Math.min(group.items.length, Math.max(SKILL_LIMITS.targetItemsPerGroup, SKILL_LIMITS.minItemsPerGroup));
+    for (const item of group.items) {
+      if (items.length >= target) break;
+      if (!items.includes(item)) items.push(item);
     }
 
     if (items.length > SKILL_LIMITS.maxItemsPerGroup) items = items.slice(0, SKILL_LIMITS.maxItemsPerGroup);
@@ -202,7 +217,9 @@ export function resolveRenderedSkills(bank, {
   const resolved = [...resolvedMandatory, ...resolvedOptional.slice(0, optionalBudget)]
     .map(({ id, label, items }) => ({ id, label, items }));
 
-  enforceTotalCap(resolved);
+  // The fuller-list total applies to JD-tailored resumes; the no-JD fixture path
+  // keeps the legacy total so the sample render stays byte-identical.
+  enforceTotalCap(resolved, jdMode ? SKILL_LIMITS : LEGACY_TOTAL_CAP);
 
   return {
     groups: resolved,
@@ -214,10 +231,10 @@ export function resolveRenderedSkills(bank, {
 // Trims the section to the total-item ceiling, removing the weakest trailing
 // non-mandatory items first and never dropping a category below its minimum or
 // removing a mandatory skill item (AWS/Docker/Kubernetes).
-function enforceTotalCap(resolved) {
+function enforceTotalCap(resolved, limits = SKILL_LIMITS) {
   const total = () => resolved.reduce((sum, group) => sum + group.items.length, 0);
   let guard = 0;
-  while (total() > SKILL_LIMITS.maxTotalItems && guard < 200) {
+  while (total() > limits.maxTotalItems && guard < 200) {
     guard += 1;
     // Largest group with removable slack loses its last item.
     let target = null;
@@ -225,7 +242,7 @@ function enforceTotalCap(resolved) {
       const mandatory = mandatoryItemsFor(group.id);
       const removable = group.items.filter((item) => !mandatory.has(String(item).toLowerCase()));
       if (removable.length === 0) continue;
-      if (group.items.length <= SKILL_LIMITS.minItemsPerGroup) continue;
+      if (group.items.length <= limits.minItemsPerGroup) continue;
       if (!target || group.items.length > target.items.length) target = group;
     }
     if (!target) break;

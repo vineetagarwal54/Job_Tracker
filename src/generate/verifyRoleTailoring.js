@@ -66,13 +66,23 @@ for (const [key, r] of Object.entries(results)) {
   assert(validateMandatoryEntries(r.finalized.finalSelection).valid, `${key}: mandatory experience + Locra retained`);
 }
 
-// --- Bullet distribution changes by JD ---
-assert(results.inference.dist["runara-ml-inference-engineer-intern"] === 2, "inference JD gives Runara 2 bullets");
-assert((results.enterprise.dist["runara-ml-inference-engineer-intern"] || 0) === 1, "non-inference JD caps Runara at 1 bullet");
-assert(results.mobile.dist["locra"] === 2, "mobile JD gives Locra 2 bullets");
-assert((results.backend.dist["locra"] || 0) === 1, "non-mobile JD caps Locra at 1 bullet");
-// A short keyword-heavy role never dominates: Runara (a 2-month role) is capped.
-assert(results.inference.dist["runara-ml-inference-engineer-intern"] <= 2, "Runara never exceeds 2 bullets");
+// --- Bullet distribution (RULE 2/3): experience dominates, recent roles are
+// never a single line, projects stay limited to two. ---
+for (const [key, r] of Object.entries(results)) {
+  const n = (id) => r.dist[id] || 0;
+  assert(n("servbeyond-enterprise-ai-platform-intern") >= 2 && n("servbeyond-enterprise-ai-platform-intern") <= 4, `${key}: ServBeyond carries 2 to 4 bullets (got ${n("servbeyond-enterprise-ai-platform-intern")})`);
+  assert(n("runara-ml-inference-engineer-intern") >= 2 && n("runara-ml-inference-engineer-intern") <= 4, `${key}: Runara carries 2 to 4 bullets, never 1 (got ${n("runara-ml-inference-engineer-intern")})`);
+  assert(n("xelpmoc-software-engineer") >= 2 && n("xelpmoc-software-engineer") <= 3, `${key}: Xelpmoc carries 2 to 3 bullets (got ${n("xelpmoc-software-engineer")})`);
+  assert(n("locra") >= 1 && n("locra") <= 2, `${key}: Locra carries 1 to 2 bullets (got ${n("locra")})`);
+  const projCount = r.finalized.finalSelection.projects.length;
+  assert(projCount >= 1 && projCount <= 2, `${key}: at most two project entries (got ${projCount})`);
+  const expBullets = r.finalized.finalSelection.experience.reduce((sum, e) => sum + e.bullets.length, 0);
+  const projBullets = r.finalized.finalSelection.projects.reduce((sum, e) => sum + e.bullets.length, 0);
+  assert(expBullets > projBullets, `${key}: experience is the largest section (exp ${expBullets} > proj ${projBullets})`);
+}
+// A JD that centers the role raises its count toward the ceiling: an inference
+// JD fills Runara above the floor.
+assert(results.inference.dist["runara-ml-inference-engineer-intern"] >= 3, "inference JD fills Runara above its floor");
 
 // --- Dynamic skill categories appear for OS/networking ---
 const osnetGroups = results.osnet.rendered.renderedSkills.map((g) => g.id);

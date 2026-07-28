@@ -11,9 +11,9 @@ import {
   ensureMandatoryContent,
   validateMandatorySkills,
 } from "./mandatoryContent.js";
-import { filterExploratoryProjects } from "./projectMaturity.js";
+import { filterExploratoryProjects, limitToTwoProjects } from "./projectMaturity.js";
 import { resolveRenderedSkills } from "./skillSelection.js";
-import { buildRankingContext } from "./bulletRanking.js";
+import { buildRankingContext, computeAllRankScores } from "./bulletRanking.js";
 
 function coded(message) {
   return Object.assign(new Error(message), { code: "VALIDATION_FAILED" });
@@ -24,11 +24,14 @@ export function finalizeSelection(bank, rawSelection, { variant, extraction = nu
   // then drop exploratory optional projects now that Locra is present.
   let selection = ensureMandatoryContent(bank, rawSelection, variant);
   if (emphasis) selection = { ...selection, emphasis, emphases: emphases || selection.emphases };
+  const rankingContext = buildRankingContext({ extraction, analysis, emphases: emphases || selection.emphases });
   selection = filterExploratoryProjects(selection);
+  // Keep exactly two project entries (Locra plus the single highest JD-ranked
+  // other project) so experience dominates and projects stay limited.
+  selection = limitToTwoProjects(bank, selection, computeAllRankScores(bank, rankingContext));
   // Revert any rewrite that violates a rule, or any cosmetic rewrite whose
   // justification does not reference a real JD term, to the verified original
   // text instead of aborting generation.
-  const rankingContext = buildRankingContext({ extraction, analysis, emphases: emphases || selection.emphases });
   selection = sanitizeSelectionRewrites(bank, selection, { jdTerms: rankingContext.jdTerms }).selection;
 
   // Individual, JD-specific skill selection. The resolved categories replace

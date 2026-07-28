@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "updated": "2026-07-20"
+    "updated": "2026-07-27"
   },
   "identity": {
     "name": "Vineet Agarwal",
@@ -9,32 +9,31 @@
     "phone": "2403539811",
     "email": "vineetagarwal540@gmail.com",
     "links": {
-      "linkedin": "https://www.linkedin.com/in/vineet-agarwal54/",
+      "linkedin": "https://www.linkedin.com/in/vineetagarwal54/",
       "github": "https://github.com/vineetagarwal54",
       "portfolio": "https://vineet-agarwal54.vercel.app/"
     }
   },
   "summary": {
-    "text": "Software engineering graduate student with 2+ years of production experience focused on multi-agent AI systems and LLM inference optimization, from agent orchestration with LangChain, LangGraph, and Bedrock to speculative decoding and multi-framework inference benchmarking on GPU workloads.",
+    "text": "Software engineering graduate student with 2+ years of production experience across applied AI, mobile, and cloud backends, from LLM inference and multi-agent systems to React Native apps and serverless AWS.",
     "variants": [
       "ai-llm",
       "cloud-backend",
-      "fullstack"
+      "fullstack",
+      "mobile"
     ],
     "byVariant": {
       "ai-llm": "Software engineering graduate student with 2+ years of production experience focused on multi-agent AI systems and LLM inference optimization, from agent orchestration with LangChain, LangGraph, and Bedrock to speculative decoding and multi-framework inference benchmarking on GPU workloads.",
-      "cloud-backend": "Software engineering graduate student with 2+ years of production experience building cloud-native backends and REST APIs on AWS, from high-traffic API performance work to agentic GenAI workflow orchestration with Amazon Bedrock.",
-      "fullstack": "Software engineering graduate student with 2+ years of production experience across full-stack and product engineering, from React and React Native frontends to FastAPI, Node.js, and AWS backends serving real users.",
-      "mobile": "Software engineering graduate student with 2+ years of production experience in React Native and on-device AI, from shipping mobile screens and video performance work to offline-first vision inference on Android."
+      "cloud-backend": "Software engineering graduate student with 2+ years of production experience building cloud-native backends and REST APIs on AWS, from high-traffic API performance work to agentic GenAI workflow orchestration with Amazon Bedrock and serverless data pipelines.",
+      "fullstack": "Software engineering graduate student with 2+ years of production experience across full-stack and product engineering, from React and React Native frontends to FastAPI, Node.js, and AWS backends serving real users, with strong data structures and system design foundations.",
+      "mobile": "Software engineering graduate student with 2+ years of production experience in React Native and TypeScript, owning mobile features from component architecture and state management through App Store and Play Store release, with recent work in on-device vision AI and serverless AWS backends.",
+      "academic": "Software engineering graduate student at the University of Maryland with 2+ years of industry experience, strong data structures, algorithms, and distributed systems foundations, and a track record of mentoring peers in DSA and object oriented design."
     },
     "byEmphasis": {
-      "enterprise-ai": "Software engineering graduate student with 2+ years of production experience building and shipping enterprise AI tools, from a RAG assistant that cut 25 hours of manual lookup per week and reached 95% answer accuracy for 100 users to agentic GenAI workflows across Salesforce, ServiceNow, and AWS with Amazon Bedrock.",
-      "agentic-rag": "Software engineering graduate student with 2+ years of production experience in multi-agent and RAG systems, from LangChain, LangGraph, and AutoGen agent orchestration to a production RAG assistant reaching 95% answer accuracy for 100 users.",
-      "ai-product": "Software engineering graduate student with 2+ years of production experience building user-facing AI products, from a documentation RAG assistant serving 100 users to offline-first on-device vision inference and conversational healthcare support.",
-      "data-engineering": "Software engineering graduate student with 2+ years of production experience across data and retrieval pipelines, from multilingual data extraction that lifted NLP classification accuracy from 78% to 93% to RAG retrieval over internal documentation for 100 users.",
-      "systems-infra": "Software engineering graduate student with 2+ years of production experience building high-traffic backends on AWS, from cutting API response time from 75 seconds to under 10 seconds and increasing throughput 4x to autoscaling containerized services on EKS.",
-      "networking": "Software engineering graduate student with 2+ years of production experience building real-time and networked backend systems, from a WebRTC interview platform supporting 100+ concurrent sessions with sub-200ms latency to REST and WebSocket services on AWS.",
-      "security": "Software engineering graduate student with 2+ years of production experience building secure, cloud-native backends on AWS, from CAS SSO with JWT and RBAC authorization to REST APIs serving real users."
+      "enterprise-ai": "Software engineering graduate student with 2+ years of production experience building enterprise AI and platform systems, from RAG assistants over internal knowledge to agentic GenAI workflows across Salesforce, ServiceNow, and AWS.",
+      "ml-infra": "Software engineering graduate student focused on LLM inference and serving, from speculative decoding and KV cache analysis to head to head benchmarking of vLLM, SGLang, and TensorRT-LLM on Blackwell GPUs.",
+      "mobile-product": "Software engineering graduate student with 2+ years shipping production iOS and Android apps in React Native and TypeScript, with recent work running quantized vision language models fully on device.",
+      "fullstack-product": "Software engineering graduate student with 2+ years of full-stack product experience, from React and React Native to FastAPI, Node.js, and serverless AWS, comfortable owning a feature from UI to backend to deployment."
     }
   },
   "education": [
@@ -44,7 +43,7 @@
       "degree": "Master of Engineering, Computer Software Engineering, Minor in Cloud Engineering",
       "dates": "Jan 2025 to Dec 2026 (Expected)",
       "gpa": "GPA: 3.7",
-      "note": "",
+      "note": "Relevant Coursework: Software Design, Cloud Computing, Virtualization, Cloud Security, Distributed Systems",
       "variants": [
         "ai-llm",
         "cloud-backend",
@@ -52,9 +51,81 @@
         "mobile",
         "academic"
       ]
+    },
+    {
+      "id": "osmania-btech-cs",
+      "school": "Osmania University",
+      "degree": "Bachelor of Technology, Computer Science",
+      "dates": "2019 to 2023",
+      "gpa": "CGPA: 8.11",
+      "note": "",
+      "variants": [
+        "academic",
+        "fullstack"
+      ]
     }
   ],
   "skillGroups": [
+    {
+      "id": "languages",
+      "label": "Languages",
+      "items": [
+        "Python",
+        "JavaScript",
+        "TypeScript",
+        "C++",
+        "SQL",
+        "Go",
+        "Java"
+      ],
+      "variants": [
+        "ai-llm",
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "academic"
+      ]
+    },
+    {
+      "id": "dsa-algorithms",
+      "label": "Data Structures & Algorithms",
+      "items": [
+        "Data Structures",
+        "Algorithms",
+        "Complexity Analysis",
+        "Problem Solving (C++)",
+        "Object Oriented Design",
+        "Recursion & Dynamic Programming"
+      ],
+      "variants": [
+        "fullstack",
+        "cloud-backend",
+        "academic",
+        "ai-llm",
+        "mobile"
+      ]
+    },
+    {
+      "id": "system-design",
+      "label": "System Design",
+      "items": [
+        "Distributed Systems",
+        "Microservices",
+        "API Design",
+        "Data Modeling",
+        "Service Boundaries",
+        "Caching",
+        "Load Balancing",
+        "Scalability",
+        "Event-Driven Architecture"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "ai-llm",
+        "academic"
+      ]
+    },
     {
       "id": "llm-inference",
       "label": "LLM Inference & Optimization",
@@ -63,10 +134,10 @@
         "SGLang",
         "TensorRT-LLM",
         "llama.cpp",
-        "quantization",
+        "llama.rn",
         "speculative decoding",
         "KV cache",
-        "llama.rn"
+        "quantization (FP8, INT4, AWQ)"
       ],
       "variants": [
         "ai-llm"
@@ -79,26 +150,14 @@
         "LangChain",
         "LangGraph",
         "AutoGen",
+        "Google ADK",
         "RAG pipelines",
+        "multi-agent systems",
         "OpenAI APIs",
         "Amazon Bedrock",
+        "Anthropic API",
         "Hugging Face",
-        "Anthropic API"
-      ],
-      "variants": [
-        "ai-llm",
-        "cloud-backend"
-      ]
-    },
-    {
-      "id": "databases",
-      "label": "Databases",
-      "items": [
-        "PostgreSQL",
-        "MongoDB",
-        "Redis",
-        "FAISS",
-        "Pinecone"
+        "Gemini"
       ],
       "variants": [
         "ai-llm",
@@ -107,38 +166,20 @@
       ]
     },
     {
-      "id": "cloud-devops",
-      "label": "Cloud & DevOps",
+      "id": "on-device-ai",
+      "label": "On-Device AI",
       "items": [
-        "AWS",
-        "Docker",
-        "Kubernetes",
-        "CloudFormation",
-        "GitHub Actions CI/CD"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "ai-llm"
-      ]
-    },
-    {
-      "id": "languages",
-      "label": "Languages",
-      "items": [
-        "Python",
-        "JavaScript",
-        "TypeScript",
-        "C++",
-        "SQL",
-        "Go"
+        "Qwen3-VL",
+        "Whisper",
+        "vision-language models",
+        "on-device inference",
+        "offline-first",
+        "vector embeddings",
+        "hybrid retrieval"
       ],
       "variants": [
         "ai-llm",
-        "cloud-backend",
-        "fullstack",
-        "mobile",
-        "academic"
+        "mobile"
       ]
     },
     {
@@ -149,8 +190,8 @@
         "Next.js",
         "React Native",
         "Redux Toolkit",
-        "Electron",
-        "Tailwind CSS"
+        "TypeScript",
+        "Vue"
       ],
       "variants": [
         "fullstack",
@@ -166,95 +207,118 @@
         "Express",
         "Django",
         "REST APIs",
-        "WebSocket",
-        "WebRTC",
-        "Prisma"
+        "GraphQL",
+        "WebSocket"
       ],
       "variants": [
+        "cloud-backend",
+        "fullstack",
+        "ai-llm"
+      ]
+    },
+    {
+      "id": "mobile",
+      "label": "Mobile",
+      "items": [
+        "React Native",
+        "Expo",
+        "Redux Toolkit",
+        "Cross-Platform (iOS & Android)",
+        "Firebase",
+        "MMKV",
+        "Xcode",
+        "Android Studio"
+      ],
+      "variants": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "cloud-devops",
+      "label": "Cloud & DevOps",
+      "items": [
+        "AWS (Lambda, EKS, S3, DynamoDB, SQS, API Gateway, CloudFormation)",
+        "Docker",
+        "Kubernetes",
+        "GitHub Actions",
+        "CI/CD",
+        "Azure"
+      ],
+      "variants": [
+        "cloud-backend",
+        "fullstack",
+        "ai-llm",
+        "mobile"
+      ]
+    },
+    {
+      "id": "databases",
+      "label": "Databases",
+      "items": [
+        "PostgreSQL",
+        "MongoDB",
+        "MySQL",
+        "Redis",
+        "DynamoDB",
+        "SQLite",
+        "FAISS",
+        "Pinecone"
+      ],
+      "variants": [
+        "ai-llm",
         "cloud-backend",
         "fullstack",
         "mobile"
       ]
     },
     {
+      "id": "realtime",
+      "label": "Real-Time",
+      "items": [
+        "WebRTC",
+        "WebSocket",
+        "Socket.IO"
+      ],
+      "variants": [
+        "fullstack",
+        "mobile",
+        "cloud-backend"
+      ]
+    },
+    {
+      "id": "agentic-tooling",
+      "label": "AI & Agentic Tooling",
+      "items": [
+        "Claude Code",
+        "Cursor",
+        "Copilot",
+        "spec-driven development",
+        "prompt engineering"
+      ],
+      "variants": [
+        "ai-llm",
+        "fullstack",
+        "mobile",
+        "cloud-backend"
+      ]
+    },
+    {
       "id": "core-engineering",
       "label": "Core Engineering",
       "items": [
-        "Data Structures & Algorithms",
-        "OOP",
-        "System Design",
-        "Microservices",
-        "Software Architecture",
-        "Agile/Scrum",
-        "Monorepos"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "academic"
-      ]
-    },
-    {
-      "id": "networking",
-      "label": "Networking",
-      "items": [
-        "REST",
-        "WebSocket",
-        "WebRTC",
-        "GraphQL",
-        "HTTP"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "mobile",
-        "ai-llm"
-      ]
-    },
-    {
-      "id": "security",
-      "label": "Security & Auth",
-      "items": [
-        "JWT",
-        "RBAC",
-        "SSO",
-        "IAM",
-        "Input Validation"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack"
-      ]
-    },
-    {
-      "id": "operating-systems",
-      "label": "Operating Systems",
-      "items": [
-        "Linux",
-        "Android"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "mobile",
-        "ai-llm",
-        "academic"
-      ]
-    },
-    {
-      "id": "developer-tools",
-      "label": "Developer Tools",
-      "items": [
         "Git",
-        "GitHub Actions",
-        "Selenium",
-        "Monorepos"
+        "System Design",
+        "Distributed Systems",
+        "Software Architecture",
+        "Testing",
+        "Code Reviews",
+        "Agile/Scrum"
       ],
       "variants": [
+        "ai-llm",
         "cloud-backend",
         "fullstack",
         "mobile",
-        "ai-llm",
         "academic"
       ]
     }
@@ -264,7 +328,7 @@
       "id": "servbeyond-enterprise-ai-platform-intern",
       "org": "ServBeyond Solutions",
       "role": "Enterprise AI & Platform Intern",
-      "dates": "Jun 2026 to Present",
+      "dates": "Jun 2026 to Aug 2026",
       "location": "Rockville, MD",
       "variants": [
         "ai-llm",
@@ -273,10 +337,10 @@
       ],
       "bullets": [
         {
-          "id": "servbeyond-rag-manual-lookup",
+          "id": "servbeyond-rag-assistant",
           "cluster": "servbeyond-rag",
-          "text": "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95% answer accuracy across 100 users.",
-          "chars": 188,
+          "text": "Built and shipped a retrieval augmented assistant over internal documentation and portals using LangChain and OpenAI APIs, cutting roughly 25 hours of manual lookup per week at 95% answer accuracy across 100 users.",
+          "chars": 214,
           "skills": [
             "langchain",
             "openai apis",
@@ -284,21 +348,38 @@
             "retrieval augmented generation"
           ],
           "variants": [
-            "ai-llm"
+            "ai-llm",
+            "cloud-backend",
+            "fullstack"
           ],
-          "lockedMetrics": [
-            "25 hours",
-            "95%",
-            "100 users"
-          ],
+          "lockedMetrics": [],
           "priority": 1,
           "rewritable": true
         },
         {
+          "id": "servbeyond-rag-lite",
+          "cluster": "servbeyond-rag",
+          "text": "Built and shipped a retrieval augmented assistant over internal documentation and portals with LangChain and OpenAI APIs, giving internal teams instant answers instead of manual lookups.",
+          "chars": 186,
+          "skills": [
+            "langchain",
+            "openai apis",
+            "rag"
+          ],
+          "variants": [
+            "ai-llm",
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
           "id": "servbeyond-agentic-workflows",
-          "cluster": "servbeyond-enterprise-integration",
-          "text": "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST plus SOAP integration into a normalized data layer.",
-          "chars": 171,
+          "cluster": "servbeyond-integration",
+          "text": "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST plus SOAP integration into a normalized AWS data layer.",
+          "chars": 175,
           "skills": [
             "amazon bedrock",
             "agentic workflows",
@@ -315,57 +396,36 @@
           "rewritable": true
         },
         {
-          "id": "servbeyond-documentation-rag",
-          "cluster": "servbeyond-rag",
-          "text": "Delivered an internal documentation assistant with LangChain and OpenAI APIs for 100 users.",
-          "chars": 91,
-          "skills": [
-            "langchain",
-            "openai apis",
-            "rag"
-          ],
-          "variants": [
-            "ai-llm"
-          ],
-          "lockedMetrics": [
-            "100 users"
-          ],
-          "priority": 3,
-          "rewritable": true
-        },
-        {
-          "id": "servbeyond-normalized-integrations",
-          "cluster": "servbeyond-enterprise-integration",
-          "text": "Integrated Salesforce, ServiceNow, and AWS workflows with a normalized data layer through REST and SOAP interfaces.",
-          "chars": 115,
+          "id": "servbeyond-saas-poc",
+          "cluster": "servbeyond-integration",
+          "text": "Built Salesforce and ServiceNow proof of concept integrations and earned the Salesforce Platform Developer I certification while wiring enterprise systems into a shared AWS data layer.",
+          "chars": 184,
           "skills": [
             "salesforce",
             "servicenow",
             "aws",
-            "rest",
-            "soap"
+            "integration"
           ],
           "variants": [
             "cloud-backend",
             "fullstack"
           ],
           "lockedMetrics": [],
-          "priority": 4,
+          "priority": 3,
           "rewritable": true
         },
         {
-          "id": "servbeyond-bedrock-orchestration",
-          "cluster": "servbeyond-enterprise-integration",
-          "text": "Orchestrated enterprise GenAI workflows with Amazon Bedrock across Salesforce, ServiceNow, and AWS.",
-          "chars": 99,
+          "id": "servbeyond-prototyping",
+          "cluster": "servbeyond-prototyping",
+          "text": "Delivered demo grade presales prototypes in Figma and reusable component libraries that accelerated client facing proposals.",
+          "chars": 124,
           "skills": [
-            "amazon bedrock",
-            "agentic workflows",
-            "aws"
+            "figma",
+            "prototyping",
+            "component libraries"
           ],
           "variants": [
-            "ai-llm",
-            "cloud-backend"
+            "fullstack"
           ],
           "lockedMetrics": [],
           "priority": 5,
@@ -374,9 +434,9 @@
       ]
     },
     {
-      "id": "runara-ml-inference-engineer-intern",
+      "id": "runara-ml-inference-intern",
       "org": "Runara.ai",
-      "role": "ML & Inference Engineer Intern",
+      "role": "Machine Learning & Inference Engineering Intern",
       "dates": "Apr 2026 to May 2026",
       "location": "",
       "variants": [
@@ -385,29 +445,32 @@
       "bullets": [
         {
           "id": "runara-speculative-decoding",
-          "text": "Implemented speculative decoding from scratch across two GPUs in PyTorch and Hugging Face Transformers, applying the paper's probabilistic rejection sampling criterion rather than naive argmax matching.",
-          "chars": 202,
+          "cluster": "runara-specdec",
+          "text": "Implemented speculative decoding from scratch across two GPUs in PyTorch and HuggingFace Transformers, applying the probabilistic rejection sampling acceptance criterion and establishing the draft to target cost ratio under which the technique delivers real 2 to 3x throughput on large target models.",
+          "chars": 300,
           "skills": [
             "speculative decoding",
             "pytorch",
-            "hugging face transformers",
-            "gpu inference"
+            "huggingface",
+            "llm inference"
           ],
           "variants": [
             "ai-llm"
           ],
           "lockedMetrics": [],
           "priority": 1,
-          "rewritable": false
+          "rewritable": true
         },
         {
           "id": "runara-acceptance-gap",
-          "text": "Diagnosed a gap between 92% isolated draft agreement and 29% in-loop acceptance, tracing it to KV cache and verification input handling and showing argmax draft selection beats temperature sampling.",
-          "chars": 198,
+          "cluster": "runara-specdec",
+          "text": "Diagnosed a gap between 92% isolated draft agreement and 29% in-loop acceptance, tracing it to KV cache and verification input handling and showing that argmax draft selection beats temperature sampling for acceptance.",
+          "chars": 218,
           "skills": [
-            "speculative decoding",
             "kv cache",
-            "inference debugging"
+            "speculative decoding",
+            "debugging",
+            "llm inference"
           ],
           "variants": [
             "ai-llm"
@@ -417,220 +480,69 @@
             "29%"
           ],
           "priority": 2,
-          "rewritable": false
+          "rewritable": true
         },
         {
-          "id": "runara-framework-benchmark",
-          "cluster": "runara-inference-benchmark",
-          "text": "Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on RTX Pro 6000 Blackwell GPUs from 1K to 128K context, profiling TTFT, throughput, KV cache growth, and multi-user scalability.",
-          "chars": 195,
+          "id": "runara-benchmarking",
+          "cluster": "runara-benchmark",
+          "text": "Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on RTX PRO 6000 Blackwell GPUs, profiling time to first token, tokens per second, VRAM, KV cache growth, and multi-user scalability.",
+          "chars": 199,
           "skills": [
             "vllm",
             "sglang",
             "tensorrt-llm",
-            "inference benchmarking",
-            "ttft",
-            "kv cache"
+            "benchmarking",
+            "gpu"
           ],
           "variants": [
             "ai-llm"
           ],
-          "lockedMetrics": [
-            "Qwen3-Coder-480B",
-            "1K",
-            "128K"
-          ],
+          "lockedMetrics": [],
           "priority": 3,
-          "rewritable": false
+          "rewritable": true
         },
         {
-          "id": "runara-quantization-requirement",
-          "text": "Flagged that an official Qwen3-Coder FP8 checkpoint did not meet a 4-bit quantization requirement before compute was spent.",
-          "chars": 123,
+          "id": "runara-fp8-catch",
+          "cluster": "runara-benchmark",
+          "text": "Caught that the official Qwen3-Coder FP8 checkpoint did not meet a 4-bit quantization requirement and escalated before compute was spent, preventing wasted GPU hours.",
+          "chars": 166,
           "skills": [
             "quantization",
             "fp8",
-            "4-bit",
-            "qwen3-coder"
+            "gpu",
+            "llm inference"
           ],
           "variants": [
             "ai-llm"
           ],
-          "lockedMetrics": [
-            "4-bit"
-          ],
+          "lockedMetrics": [],
           "priority": 4,
-          "rewritable": false
-        },
-        {
-          "id": "runara-throughput-conditions",
-          "text": "Established draft-to-target cost conditions required for speculative decoding to improve throughput on large target models.",
-          "chars": 123,
-          "skills": [
-            "speculative decoding",
-            "inference performance analysis"
-          ],
-          "variants": [
-            "ai-llm"
-          ],
-          "lockedMetrics": [],
-          "priority": 5,
-          "rewritable": false
-        },
-        {
-          "id": "runara-inference-profiling",
-          "cluster": "runara-inference-benchmark",
-          "text": "Profiled TTFT, throughput, KV cache growth, and multi-user scalability across vLLM, SGLang, and TensorRT-LLM.",
-          "chars": 109,
-          "skills": [
-            "ttft",
-            "throughput",
-            "kv cache",
-            "vllm",
-            "sglang",
-            "tensorrt-llm"
-          ],
-          "variants": [
-            "ai-llm"
-          ],
-          "lockedMetrics": [],
-          "priority": 6,
-          "rewritable": false
+          "rewritable": true
         }
       ]
     },
     {
-      "id": "svipes-software-engineer",
-      "org": "Svipes",
-      "role": "Software Engineer",
-      "dates": "Jul 2024 to Dec 2024",
+      "id": "xelpmoc-software-developer",
+      "org": "Xelpmoc Design and Tech Limited",
+      "role": "Software Developer",
+      "dates": "Nov 2022 to Apr 2024",
       "location": "",
       "variants": [
         "mobile",
+        "cloud-backend",
         "fullstack"
       ],
       "bullets": [
         {
-          "id": "svipes-react-native-screens",
-          "cluster": "svipes-rn-screens",
-          "text": "Shipped 50+ React Native screens with Redux Toolkit and cut video playback stutter 70% through async loading and client-side caching.",
-          "chars": 133,
-          "skills": [
-            "react native",
-            "redux toolkit",
-            "async loading",
-            "caching"
-          ],
-          "variants": [
-            "mobile"
-          ],
-          "lockedMetrics": [
-            "50+",
-            "70%"
-          ],
-          "priority": 1,
-          "rewritable": true
-        },
-        {
-          "id": "svipes-video-module-refactor",
-          "cluster": "svipes-video-performance",
-          "text": "Refactored the video module with async loading and caching, reducing stutter by 40% to 70% and improving load time by 1.3 seconds.",
-          "chars": 130,
-          "skills": [
-            "react native",
-            "async loading",
-            "caching",
-            "video performance"
-          ],
-          "variants": [
-            "mobile",
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "40%",
-            "70%",
-            "1.3 seconds"
-          ],
-          "priority": 2,
-          "rewritable": true
-        },
-        {
-          "id": "svipes-mobile-state-management",
-          "cluster": "svipes-rn-screens",
-          "text": "Developed React Native screens using Redux Toolkit for a mobile application.",
-          "chars": 76,
-          "skills": [
-            "react native",
-            "redux toolkit"
-          ],
-          "variants": [
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 3,
-          "rewritable": true
-        },
-        {
-          "id": "svipes-client-caching",
-          "cluster": "svipes-video-performance",
-          "text": "Applied client-side caching and async loading to improve mobile video playback performance.",
-          "chars": 91,
-          "skills": [
-            "caching",
-            "async loading",
-            "react native",
-            "video performance"
-          ],
-          "variants": [
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 4,
-          "rewritable": true
-        },
-        {
-          "id": "svipes-video-load-time",
-          "cluster": "svipes-video-performance",
-          "text": "Improved video load time by 1.3 seconds through async loading and client-side caching.",
-          "chars": 86,
-          "skills": [
-            "async loading",
-            "caching",
-            "video performance"
-          ],
-          "variants": [
-            "mobile"
-          ],
-          "lockedMetrics": [
-            "1.3 seconds"
-          ],
-          "priority": 5,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "xelpmoc-software-engineer",
-      "org": "Xelpmoc Design and Tech Limited",
-      "role": "Software Engineer",
-      "dates": "Nov 2022 to Apr 2024",
-      "location": "",
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "mobile"
-      ],
-      "bullets": [
-        {
-          "id": "xelpmoc-api-performance",
-          "cluster": "xelpmoc-api-performance",
-          "text": "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding Redis caching.",
-          "chars": 171,
+          "id": "xelpmoc-sql-redis",
+          "cluster": "xelpmoc-backend",
+          "text": "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by restructuring SQL joins, indexing high-traffic tables, and adding a Redis caching layer.",
+          "chars": 181,
           "skills": [
             "sql",
             "redis",
-            "database indexing",
-            "api performance"
+            "performance",
+            "backend"
           ],
           "variants": [
             "cloud-backend",
@@ -645,55 +557,14 @@
           "rewritable": true
         },
         {
-          "id": "xelpmoc-sql-joins-indexing",
-          "cluster": "xelpmoc-api-performance",
-          "text": "Refactored SQL joins and indexed high-traffic tables to reduce API response time from 75 seconds to under 10 seconds.",
-          "chars": 117,
-          "skills": [
-            "sql",
-            "database indexing",
-            "api performance"
-          ],
-          "variants": [
-            "cloud-backend",
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "75 seconds",
-            "under 10 seconds"
-          ],
-          "priority": 2,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-redis-throughput",
-          "cluster": "xelpmoc-api-performance",
-          "text": "Added a Redis caching layer that increased API throughput 4x.",
-          "chars": 61,
-          "skills": [
-            "redis",
-            "caching",
-            "api performance"
-          ],
-          "variants": [
-            "cloud-backend",
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "4x"
-          ],
-          "priority": 3,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-tourism-platform",
-          "cluster": "xelpmoc-tourism",
+          "id": "xelpmoc-tourism-backend",
+          "cluster": "xelpmoc-backend",
           "text": "Architected RESTful backend services for a tourism platform serving 10K+ daily bookings, cutting production defects 40% and accelerating feature delivery 25%.",
           "chars": 158,
           "skills": [
             "rest apis",
-            "backend services",
-            "tourism platform"
+            "backend",
+            "system design"
           ],
           "variants": [
             "cloud-backend",
@@ -704,55 +575,95 @@
             "40%",
             "25%"
           ],
-          "priority": 4,
+          "priority": 2,
           "rewritable": true
         },
         {
-          "id": "xelpmoc-tourism-rest-services",
-          "cluster": "xelpmoc-tourism",
-          "text": "Created RESTful services for a tourism platform serving 10K+ daily bookings.",
-          "chars": 76,
-          "skills": [
-            "rest apis",
-            "backend services"
-          ],
-          "variants": [
-            "cloud-backend",
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "10K+"
-          ],
-          "priority": 5,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-webRTC-interviews",
-          "text": "Built a WebRTC real-time interview system supporting 100+ concurrent sessions with sub-200ms latency.",
-          "chars": 101,
+          "id": "xelpmoc-webrtc",
+          "cluster": "xelpmoc-realtime",
+          "text": "Built a real-time interview system with WebRTC and Socket.IO supporting 100+ concurrent sessions at sub-200ms latency.",
+          "chars": 118,
           "skills": [
             "webrtc",
-            "real-time systems",
-            "websocket"
+            "socket.io",
+            "real-time"
           ],
           "variants": [
             "fullstack",
-            "mobile"
+            "mobile",
+            "cloud-backend"
           ],
           "lockedMetrics": [
             "100+",
             "sub-200ms"
           ],
-          "priority": 6,
+          "priority": 3,
           "rewritable": true
         },
         {
           "id": "xelpmoc-credentials-wallet",
-          "text": "Built a React Native credentials wallet with blockchain webhooks across 30+ screens.",
-          "chars": 84,
+          "cluster": "xelpmoc-mobile",
+          "text": "Built and shipped a production iOS and Android credentials wallet app and implemented 15+ blockchain webhooks enabling real-time verification workflows.",
+          "chars": 152,
           "skills": [
             "react native",
-            "blockchain webhooks",
+            "ios",
+            "android",
+            "webhooks"
+          ],
+          "variants": [
+            "mobile",
+            "fullstack"
+          ],
+          "lockedMetrics": [
+            "15+"
+          ],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-firebase-twilio",
+          "cluster": "xelpmoc-mobile",
+          "text": "Integrated Firebase and Twilio for push notifications and secure user communication, improving real-time engagement across iOS and Android.",
+          "chars": 139,
+          "skills": [
+            "firebase",
+            "twilio",
+            "push notifications"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-release-cycles",
+          "cluster": "xelpmoc-mobile",
+          "text": "Led mobile release cycles in Xcode and Android Studio, resolving critical UI defects and deploying stable updates to the App Store and Play Store.",
+          "chars": 146,
+          "skills": [
+            "xcode",
+            "android studio",
+            "react native",
+            "releases"
+          ],
+          "variants": [
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "xelpmoc-senior-living",
+          "cluster": "xelpmoc-mobile",
+          "text": "Developed twin React Native apps for a senior-living network, improving operational coordination by more than 35% through real-time task sync and notifications.",
+          "chars": 160,
+          "skills": [
+            "react native",
+            "real-time",
             "mobile"
           ],
           "variants": [
@@ -760,161 +671,168 @@
             "fullstack"
           ],
           "lockedMetrics": [
-            "30+"
-          ],
-          "priority": 7,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-senior-living-apps",
-          "text": "Delivered twin production applications for a senior living network that improved coordination efficiency by 35%.",
-          "chars": 112,
-          "skills": [
-            "production applications",
-            "product engineering"
-          ],
-          "variants": [
-            "fullstack",
-            "mobile"
-          ],
-          "lockedMetrics": [
             "35%"
           ],
-          "priority": 8,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-production-defects",
-          "cluster": "xelpmoc-tourism",
-          "text": "Cut production defects 40% and accelerated feature delivery 25% for a tourism platform.",
-          "chars": 87,
-          "skills": [
-            "backend services",
-            "product engineering"
-          ],
-          "variants": [
-            "cloud-backend",
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "40%",
-            "25%"
-          ],
-          "priority": 9,
-          "rewritable": true
-        },
-        {
-          "id": "xelpmoc-high-traffic-data",
-          "cluster": "xelpmoc-api-performance",
-          "text": "Optimized high-traffic data access with SQL indexing and Redis caching.",
-          "chars": 71,
-          "skills": [
-            "sql",
-            "database indexing",
-            "redis",
-            "caching"
-          ],
-          "variants": [
-            "cloud-backend"
-          ],
-          "lockedMetrics": [],
-          "priority": 10,
+          "priority": 5,
           "rewritable": true
         }
       ]
     },
     {
-      "id": "iiit-hyderabad-software-intern",
-      "org": "IIIT Hyderabad",
-      "role": "Software Intern",
-      "dates": "Jun 2022 to Aug 2022",
+      "id": "svipes-react-native-developer",
+      "org": "Svipes",
+      "role": "React Native Developer",
+      "dates": "Jul 2024 to Dec 2024",
       "location": "",
       "variants": [
-        "academic",
-        "ai-llm"
+        "mobile",
+        "fullstack"
       ],
       "bullets": [
         {
-          "id": "iiit-multilingual-extraction",
-          "cluster": "iiit-nlp-extraction",
-          "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, lifting NLP classification accuracy from 78% to 93%.",
-          "chars": 146,
+          "id": "svipes-screens",
+          "cluster": "svipes-mobile",
+          "text": "Built 50+ cross-platform mobile screens with React Native and Redux Toolkit, delivering modular UI systems that improved development velocity and consistency across iOS and Android releases.",
+          "chars": 190,
           "skills": [
-            "python",
-            "selenium",
-            "nlp",
-            "data extraction"
+            "react native",
+            "redux toolkit",
+            "cross-platform"
           ],
           "variants": [
-            "academic",
-            "ai-llm"
+            "mobile",
+            "fullstack"
           ],
           "lockedMetrics": [
-            "5+",
-            "78%",
-            "93%"
+            "50+"
           ],
           "priority": 1,
           "rewritable": true
         },
         {
-          "id": "iiit-python-selenium",
-          "cluster": "iiit-nlp-extraction",
-          "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium.",
-          "chars": 93,
+          "id": "svipes-video-perf",
+          "cluster": "svipes-mobile",
+          "text": "Reduced video playback stutter by 70% and improved load time by 1.3 seconds through async loading and client-side caching.",
+          "chars": 122,
           "skills": [
-            "python",
-            "selenium",
-            "data extraction"
+            "react native",
+            "performance",
+            "caching"
           ],
           "variants": [
-            "academic",
-            "ai-llm"
+            "mobile",
+            "fullstack"
           ],
           "lockedMetrics": [
-            "5+"
+            "70%",
+            "1.3 seconds"
           ],
           "priority": 2,
           "rewritable": true
         },
         {
-          "id": "iiit-nlp-accuracy",
-          "cluster": "iiit-nlp-extraction",
-          "text": "Improved NLP classification accuracy by 15% through multilingual data extraction.",
-          "chars": 81,
+          "id": "svipes-design-collab",
+          "cluster": "svipes-mobile",
+          "text": "Partnered with designers to implement responsive and adaptive React Native UI flows, tightening consistency across screens and release cycles.",
+          "chars": 142,
           "skills": [
-            "nlp",
-            "data extraction"
+            "react native",
+            "responsive ui"
           ],
           "variants": [
-            "academic",
-            "ai-llm"
+            "mobile"
           ],
-          "lockedMetrics": [
-            "15%"
-          ],
+          "lockedMetrics": [],
           "priority": 3,
           "rewritable": true
-        },
+        }
+      ]
+    },
+    {
+      "id": "iiit-hyderabad-intern",
+      "org": "IIIT Hyderabad",
+      "role": "Summer Intern",
+      "dates": "Jun 2022 to Aug 2022",
+      "location": "",
+      "variants": [
+        "ai-llm",
+        "academic",
+        "fullstack"
+      ],
+      "bullets": [
         {
-          "id": "iiit-classification-lift",
-          "cluster": "iiit-nlp-extraction",
-          "text": "Lifted NLP classification accuracy from 78% to 93% with Python and Selenium automation.",
-          "chars": 87,
+          "id": "iiit-nlp-extraction",
+          "cluster": "iiit-nlp",
+          "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, lifting NLP classification accuracy from 78% to 93%.",
+          "chars": 146,
           "skills": [
-            "nlp",
             "python",
-            "selenium"
+            "selenium",
+            "nlp"
           ],
           "variants": [
+            "ai-llm",
             "academic",
-            "ai-llm"
+            "fullstack"
           ],
           "lockedMetrics": [
             "78%",
-            "93%"
+            "93%",
+            "5+"
           ],
-          "priority": 4,
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "iiit-wikipedia",
+          "cluster": "iiit-nlp",
+          "text": "Curated structured datasets that supported 5000+ regional-language Wikipedia contributions.",
+          "chars": 91,
+          "skills": [
+            "python",
+            "data curation"
+          ],
+          "variants": [
+            "academic",
+            "ai-llm"
+          ],
+          "lockedMetrics": [
+            "5000+"
+          ],
+          "priority": 2,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "dsa-oop-mentor",
+      "org": "University Peer Mentoring",
+      "role": "Data Structures & Algorithms Mentor",
+      "dates": "",
+      "location": "",
+      "variants": [
+        "academic"
+      ],
+      "bullets": [
+        {
+          "id": "mentor-dsa-oop",
+          "cluster": "mentoring",
+          "text": "Mentored 50+ students in data structures, algorithms, and object oriented programming in C++, raising the technical level of peers preparing for exams and interviews.",
+          "chars": 166,
+          "skills": [
+            "data structures",
+            "algorithms",
+            "c++",
+            "oop",
+            "mentoring"
+          ],
+          "variants": [
+            "academic"
+          ],
+          "lockedMetrics": [
+            "50+"
+          ],
+          "priority": 1,
           "rewritable": true
         }
       ]
@@ -922,48 +840,144 @@
   ],
   "projects": [
     {
-      "id": "reporesearchai-multi-agent-code-analysis",
+      "id": "locra",
+      "org": "Locra",
+      "role": "On-Device Multimodal AI, Android",
+      "dates": "Jul 2026 to Present",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/Locra",
+      "variants": [
+        "ai-llm",
+        "mobile"
+      ],
+      "bullets": [
+        {
+          "id": "locra-core",
+          "cluster": "locra-core",
+          "text": "Built Locra, an Android-first multimodal AI assistant in React Native, TypeScript, and Expo that runs a quantized Qwen3-VL-2B vision language model fully on device through llama.rn, with no internet needed after model download.",
+          "chars": 227,
+          "skills": [
+            "react native",
+            "typescript",
+            "expo",
+            "qwen3-vl",
+            "llama.rn",
+            "on-device ai",
+            "computer vision"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "locra-voice-native",
+          "cluster": "locra-native",
+          "text": "Added on-device speech to text with Whisper (whisper.rn) and live capture via Vision Camera, and enforced a hard offline guarantee through a network gate and a Kotlin native module that verifies model integrity before inference.",
+          "chars": 228,
+          "skills": [
+            "whisper",
+            "whisper.rn",
+            "vision camera",
+            "kotlin",
+            "native module",
+            "offline-first"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "locra-retrieval",
+          "cluster": "locra-systems",
+          "text": "Engineered an on-device retrieval and memory layer over SQLite and MMKV, combining vector embeddings with lexical fallback and context compaction so the 2B model sustains long, coherent conversations within tight mobile memory limits.",
+          "chars": 234,
+          "skills": [
+            "sqlite",
+            "mmkv",
+            "vector embeddings",
+            "hybrid retrieval",
+            "on-device ai"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "locra-bakeoff-eval",
+          "cluster": "locra-quality",
+          "text": "Benchmarked competing on-device vision language models on physical devices and hardened the release with a quality evaluation harness, a broad contract and integration test suite, and GitHub Actions CI with EAS builds.",
+          "chars": 218,
+          "skills": [
+            "benchmarking",
+            "evaluation",
+            "testing",
+            "ci/cd",
+            "react native"
+          ],
+          "variants": [
+            "ai-llm",
+            "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 4,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "repo-research-ai",
       "org": "RepoResearchAI",
       "role": "Multi-Agent Code Analysis Platform",
       "dates": "",
       "location": "",
       "link": "https://github.com/vineetagarwal54/RepoResearchAI",
       "variants": [
-        "ai-llm"
+        "ai-llm",
+        "fullstack"
       ],
       "bullets": [
         {
-          "id": "reporesearchai-agents-rag",
-          "text": "Built a multi-agent code analysis platform with AutoGen, LangChain, and FAISS, using specialized SDE, PM, and QA agents to generate architecture, API, database, and product insights from uploaded repositories.",
-          "chars": 209,
+          "id": "repo-research-agents",
+          "cluster": "repo-research",
+          "text": "Built a multi-agent system with AutoGen, LangChain, and FAISS vector search where specialized SDE, PM, and QA agents generate architecture insights, API docs, and schema analysis using GPT-4 with RAG over codebase embeddings.",
+          "chars": 225,
           "skills": [
             "autogen",
             "langchain",
             "faiss",
-            "vector search",
-            "multi-agent systems",
-            "code analysis",
-            "fastapi"
+            "rag",
+            "gpt-4",
+            "multi-agent"
           ],
           "variants": [
-            "ai-llm"
+            "ai-llm",
+            "fullstack"
           ],
           "lockedMetrics": [],
           "priority": 1,
           "rewritable": true
         },
         {
-          "id": "reporesearchai-ingestion-chat",
-          "text": "Implemented GitHub URL and ZIP ingestion, semantic code search, configurable analysis depth, authentication, and context-aware repository chat with FastAPI, SQLAlchemy, Streamlit, and SQLite.",
-          "chars": 191,
+          "id": "repo-research-resumable",
+          "cluster": "repo-research",
+          "text": "Designed resumable long-running analysis sessions with a FastAPI backend and Streamlit interface for interactive, context-aware code exploration.",
+          "chars": 145,
           "skills": [
             "fastapi",
-            "sqlalchemy",
             "streamlit",
-            "sqlite",
-            "semantic search",
-            "github integration",
-            "authentication"
+            "rag"
           ],
           "variants": [
             "ai-llm",
@@ -971,94 +985,6 @@
           ],
           "lockedMetrics": [],
           "priority": 2,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "jobtrack-ai-application-tracker",
-      "org": "JobTrack",
-      "role": "AI Job Application Tracker",
-      "dates": "Active",
-      "location": "",
-      "link": "https://github.com/vineetagarwal54/Job_Tracker",
-      "variants": [
-        "ai-llm",
-        "fullstack"
-      ],
-      "bullets": [
-        {
-          "id": "jobtrack-electron-tracker",
-          "text": "Built an Electron and React desktop job tracker with local JSON storage through secure IPC, workspaces, bulk actions, deadline alerts, and one-click capture from job boards.",
-          "chars": 173,
-          "skills": [
-            "electron",
-            "react",
-            "ipc",
-            "local storage",
-            "desktop applications",
-            "browser automation",
-            "job tracking"
-          ],
-          "variants": [
-            "fullstack"
-          ],
-          "lockedMetrics": [],
-          "priority": 1,
-          "rewritable": true
-        },
-        {
-          "id": "jobtrack-ai-resume-pipeline",
-          "text": "Integrated a deterministic AI resume and cover-letter pipeline using Claude, prompt caching, structured bullet selection, ATS keyword coverage, LaTeX rendering, and Tectonic PDF compilation.",
-          "chars": 190,
-          "skills": [
-            "anthropic api",
-            "claude",
-            "prompt caching",
-            "structured outputs",
-            "ats",
-            "latex",
-            "tectonic",
-            "electron"
-          ],
-          "variants": [
-            "ai-llm",
-            "fullstack"
-          ],
-          "lockedMetrics": [],
-          "priority": 2,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "care-bridge-ai",
-      "org": "Care Bridge AI",
-      "role": "Healthcare Assistant",
-      "dates": "",
-      "location": "",
-      "link": "https://github.com/vineetagarwal54/carebridge-ai",
-      "variants": [
-        "ai-llm",
-        "fullstack"
-      ],
-      "bullets": [
-        {
-          "id": "care-bridge-healthcare-assistant",
-          "text": "Built a healthcare assistant at Bitcamp with FastAPI, PostgreSQL, React, and the Gemini API for conversational patient support.",
-          "chars": 127,
-          "skills": [
-            "fastapi",
-            "postgresql",
-            "react",
-            "gemini api"
-          ],
-          "variants": [
-            "ai-llm",
-            "fullstack"
-          ],
-          "lockedMetrics": [],
-          "priority": 1,
           "rewritable": true
         }
       ]
@@ -1067,31 +993,31 @@
       "id": "terrapin-events",
       "org": "Terrapin Events",
       "role": "Full-Stack Event Platform",
-      "dates": "",
+      "dates": "Sept 2025 to Present",
       "location": "",
-      "link": "",
+      "link": "https://github.com/bhavnakumari/enpm613-team4-terrapin-events",
       "variants": [
-        "cloud-backend",
-        "fullstack"
+        "fullstack",
+        "cloud-backend"
       ],
       "bullets": [
         {
-          "id": "terrapin-events-platform",
-          "text": "Developed an event platform with React, FastAPI, MongoDB, Kubernetes, CAS SSO with JWT RBAC, and Stripe webhooks for 100+ concurrent users with sub-200ms API latency.",
-          "chars": 166,
+          "id": "terrapin-core",
+          "cluster": "terrapin",
+          "text": "Built a full-stack event platform in React, FastAPI, and MongoDB on Kubernetes with CAS SSO, JWT role-based access control, and Stripe payments via webhooks, supporting 100+ concurrent users at sub-200ms API response times.",
+          "chars": 223,
           "skills": [
             "react",
             "fastapi",
             "mongodb",
             "kubernetes",
-            "cas sso",
             "jwt",
             "rbac",
-            "stripe webhooks"
+            "stripe"
           ],
           "variants": [
-            "cloud-backend",
-            "fullstack"
+            "fullstack",
+            "cloud-backend"
           ],
           "lockedMetrics": [
             "100+",
@@ -1099,95 +1025,16 @@
           ],
           "priority": 1,
           "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "aws-video-analytics-streaming-platform",
-      "org": "AWS Video Analytics Streaming Platform",
-      "role": "Cloud Streaming Platform",
-      "dates": "",
-      "location": "",
-      "link": "",
-      "variants": [
-        "cloud-backend",
-        "ai-llm"
-      ],
-      "bullets": [
-        {
-          "id": "aws-video-analytics-platform",
-          "text": "Created a video analytics streaming platform with 3 Lambda functions, EKS, S3, DynamoDB, SQS, AppSync GraphQL, and CloudFormation that autoscaled from 2 to 10 pods with zero critical vulnerabilities.",
-          "chars": 199,
-          "skills": [
-            "aws lambda",
-            "eks",
-            "s3",
-            "dynamodb",
-            "sqs",
-            "appsync graphql",
-            "cloudformation",
-            "kubernetes"
-          ],
-          "variants": [
-            "cloud-backend",
-            "ai-llm"
-          ],
-          "lockedMetrics": [
-            "3",
-            "2 to 10",
-            "zero critical vulnerabilities"
-          ],
-          "priority": 1,
-          "rewritable": false
-        }
-      ]
-    },
-    {
-      "id": "collabdraw",
-      "org": "CollabDrawAI",
-      "role": "Collaborative Whiteboard",
-      "dates": "",
-      "location": "",
-      "link": "https://github.com/vineetagarwal54/CollabDrawAI",
-      "variants": [
-        "fullstack"
-      ],
-      "bullets": [
-        {
-          "id": "collabdraw-realtime-whiteboard",
-          "text": "Built a real-time collaborative whiteboard with room-based sessions and live synchronization using Next.js 15, TypeScript, WebSocket, PostgreSQL, Prisma, HTML5 Canvas, and Turborepo.",
-          "chars": 182,
-          "skills": [
-            "next.js",
-            "typescript",
-            "websocket",
-            "postgresql",
-            "prisma",
-            "html5 canvas",
-            "turborepo",
-            "real-time collaboration"
-          ],
-          "variants": [
-            "fullstack"
-          ],
-          "lockedMetrics": [
-            "15"
-          ],
-          "priority": 1,
-          "rewritable": true
         },
         {
-          "id": "collabdraw-monorepo-services",
-          "text": "Separated the frontend, REST API, WebSocket service, database client, shared UI, and common types into reusable monorepo packages with JWT authentication.",
-          "chars": 154,
+          "id": "terrapin-cicd",
+          "cluster": "terrapin",
+          "text": "Built CI/CD pipelines and automated waitlist and notification workflows, enabling reliable feature delivery in an Agile team.",
+          "chars": 125,
           "skills": [
-            "monorepo",
-            "express",
-            "websocket",
-            "jwt",
-            "prisma",
-            "shared packages",
-            "rest apis"
+            "ci/cd",
+            "agile",
+            "backend"
           ],
           "variants": [
             "fullstack",
@@ -1200,9 +1047,101 @@
       ]
     },
     {
+      "id": "serverless-video-analytics",
+      "org": "Serverless Video Analytics Platform, AWS",
+      "role": "Cloud Engineer",
+      "dates": "Sept 2023 to Dec 2023",
+      "location": "",
+      "link": "https://github.com/Divyesh4683/AWS-Video-Analytics-Streaming-Dashboard",
+      "variants": [
+        "cloud-backend",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "video-analytics-core",
+          "cluster": "video-analytics",
+          "text": "Designed a serverless pipeline on AWS Lambda, API Gateway, DynamoDB, and SQS with CloudFormation and GitHub Actions, using dedicated upload, processing, and analytics functions with auto-scaling behind CloudFront to absorb bursty load at low idle cost.",
+          "chars": 252,
+          "skills": [
+            "aws",
+            "lambda",
+            "api gateway",
+            "dynamodb",
+            "sqs",
+            "cloudformation",
+            "serverless"
+          ],
+          "variants": [
+            "cloud-backend",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "video-analytics-security",
+          "cluster": "video-analytics",
+          "text": "Hardened the platform with network policies, RBAC, and security scanning that reached zero critical vulnerabilities, and scaled EKS workloads from 2 to 10 pods behind a load balancer.",
+          "chars": 183,
+          "skills": [
+            "eks",
+            "kubernetes",
+            "rbac",
+            "security"
+          ],
+          "variants": [
+            "cloud-backend"
+          ],
+          "lockedMetrics": [
+            "zero critical",
+            "2 to 10 pods"
+          ],
+          "priority": 2,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "collabdraw",
+      "org": "CollabDrawAI",
+      "role": "Real-Time Collaborative Whiteboard",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/CollabDrawAI",
+      "variants": [
+        "fullstack",
+        "mobile"
+      ],
+      "bullets": [
+        {
+          "id": "collabdraw-core",
+          "cluster": "collabdraw",
+          "text": "Built a real-time collaborative whiteboard in Next.js and TypeScript with WebSocket sync, PostgreSQL and Prisma, and a Turborepo monorepo, supporting multiple users drawing simultaneously with live updates.",
+          "chars": 206,
+          "skills": [
+            "next.js",
+            "typescript",
+            "websocket",
+            "postgresql",
+            "prisma",
+            "turborepo",
+            "real-time"
+          ],
+          "variants": [
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
       "id": "meetspace",
       "org": "MeetSpace",
-      "role": "WebRTC Meeting Application",
+      "role": "WebRTC Video Conferencing",
       "dates": "",
       "location": "",
       "link": "https://github.com/vineetagarwal54/MeetSpace",
@@ -1212,24 +1151,122 @@
       ],
       "bullets": [
         {
-          "id": "meetspace-video-meetings",
-          "text": "Developed a multi-participant WebRTC meeting application with peer-to-peer video, screen sharing, chat, and recording using React, TypeScript, Node.js, Express, Socket.IO, and PeerJS.",
-          "chars": 183,
+          "id": "meetspace-core",
+          "cluster": "meetspace",
+          "text": "Built a peer-to-peer video conferencing app with WebRTC, React, TypeScript, and Node.js, supporting multi-participant calls, screen sharing, recording, and in-call chat.",
+          "chars": 169,
           "skills": [
             "webrtc",
-            "peer-to-peer",
             "react",
             "typescript",
             "node.js",
-            "express",
-            "socket.io",
-            "peerjs",
-            "screen sharing",
-            "recording"
+            "real-time"
           ],
           "variants": [
             "fullstack",
             "mobile"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "ai-chatbot-plywood",
+      "org": "Plywood Studio AI Chatbot",
+      "role": "AI Customer Support Assistant",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/AIChatbot",
+      "variants": [
+        "ai-llm",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "plywood-core",
+          "cluster": "plywood",
+          "text": "Built a domain-specific support assistant with FastAPI, OpenAI APIs, and a Hugging Face fallback that works offline, using Redis caching and RAG for low-latency answers.",
+          "chars": 169,
+          "skills": [
+            "fastapi",
+            "openai apis",
+            "hugging face",
+            "redis",
+            "rag"
+          ],
+          "variants": [
+            "ai-llm",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "care-bridge-ai",
+      "org": "Care Bridge AI",
+      "role": "Healthcare Assistant (Bitcamp)",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54",
+      "variants": [
+        "ai-llm",
+        "fullstack"
+      ],
+      "bullets": [
+        {
+          "id": "carebridge-core",
+          "cluster": "carebridge",
+          "text": "Built a healthcare assistant at Bitcamp with FastAPI, PostgreSQL, React, and the Gemini API, delivering conversational patient support with low-latency responses.",
+          "chars": 162,
+          "skills": [
+            "fastapi",
+            "postgresql",
+            "react",
+            "gemini",
+            "conversational ai"
+          ],
+          "variants": [
+            "ai-llm",
+            "fullstack"
+          ],
+          "lockedMetrics": [],
+          "priority": 1,
+          "rewritable": true
+        }
+      ]
+    },
+    {
+      "id": "job-tracker",
+      "org": "JobTrack",
+      "role": "Desktop Job Tracker with AI Resume Generation",
+      "dates": "",
+      "location": "",
+      "link": "https://github.com/vineetagarwal54/Job_Tracker",
+      "variants": [
+        "fullstack",
+        "ai-llm"
+      ],
+      "bullets": [
+        {
+          "id": "jobtrack-core",
+          "cluster": "jobtrack",
+          "text": "Built a React and Electron desktop app that captures postings via a bookmarklet and generates tailored one-page resumes, where an LLM selects bullets from a fixed content bank and deterministic code renders LaTeX to PDF through Tectonic with a compile and verify one-page loop.",
+          "chars": 277,
+          "skills": [
+            "react",
+            "electron",
+            "llm",
+            "latex",
+            "anthropic api"
+          ],
+          "variants": [
+            "fullstack",
+            "ai-llm"
           ],
           "lockedMetrics": [],
           "priority": 1,
@@ -1240,32 +1277,26 @@
     {
       "id": "activity-logger",
       "org": "Activity Logger",
-      "role": "Activity Tracking REST API",
-      "dates": "",
+      "role": "Cross-Platform Mobile App",
+      "dates": "Sept 2023 to Dec 2023",
       "location": "",
       "link": "https://github.com/vineetagarwal54/ActivityLogger",
       "variants": [
-        "cloud-backend",
-        "fullstack",
         "mobile"
       ],
       "bullets": [
         {
-          "id": "activity-logger-rest-api",
-          "text": "Built a Node.js and Express REST API with MySQL for user management, single and batch activity logging, activity history retrieval, input validation, and structured error handling.",
-          "chars": 180,
+          "id": "activity-logger-core",
+          "cluster": "activity-logger",
+          "text": "Built a cross-platform React Native app with a Node.js backend and SQL database, featuring real-time activity tracking, push notifications, and an analytics dashboard across iOS and Android.",
+          "chars": 190,
           "skills": [
+            "react native",
             "node.js",
-            "express",
-            "mysql",
-            "rest apis",
-            "input validation",
-            "error handling",
-            "batch processing"
+            "sql",
+            "mobile"
           ],
           "variants": [
-            "cloud-backend",
-            "fullstack",
             "mobile"
           ],
           "lockedMetrics": [],
@@ -1275,158 +1306,31 @@
       ]
     },
     {
-      "id": "plywood-studio-ai-chatbot",
-      "org": "Plywood Studio AI Chatbot",
-      "role": "Domain-Specific AI Chatbot",
-      "dates": "",
-      "location": "",
-      "link": "https://github.com/vineetagarwal54/AIChatbot",
-      "variants": [
-        "ai-llm"
-      ],
-      "bullets": [
-        {
-          "id": "plywood-ai-chatbot",
-          "text": "Built a domain-specific RAG chatbot with FastAPI, OpenAI and Hugging Face fallback clients, Redis caching, guardrails, observability, and web and command-line interfaces.",
-          "chars": 170,
-          "skills": [
-            "fastapi",
-            "openai apis",
-            "hugging face",
-            "redis",
-            "rag",
-            "guardrails",
-            "observability",
-            "fallback routing"
-          ],
-          "variants": [
-            "ai-llm"
-          ],
-          "lockedMetrics": [],
-          "priority": 1,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "locra",
-      "org": "Locra",
-      "role": "On-Device Vision AI for Android",
-      "dates": "Active",
-      "location": "",
-      "link": "https://github.com/vineetagarwal54/Locra",
-      "variants": [
-        "ai-llm",
-        "mobile"
-      ],
-      "bullets": [
-        {
-          "id": "locra-on-device-vision",
-          "text": "Developing an offline-first React Native vision assistant for Android with llama.rn, keeping model execution and user image context on-device without cloud services or an account.",
-          "chars": 179,
-          "skills": [
-            "on-device ai",
-            "computer vision",
-            "android",
-            "typescript",
-            "react native",
-            "llama.rn",
-            "offline-first"
-          ],
-          "variants": [
-            "ai-llm",
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 1,
-          "rewritable": true
-        },
-        {
-          "id": "locra-vlm-inference",
-          "text": "Running vision-language model inference locally through llama.rn so image understanding happens entirely on the device with no network calls.",
-          "chars": 141,
-          "skills": [
-            "on-device ai",
-            "vision-language model",
-            "computer vision",
-            "llama.rn",
-            "inference",
-            "offline-first"
-          ],
-          "variants": [
-            "ai-llm",
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 2,
-          "rewritable": true
-        },
-        {
-          "id": "locra-model-storage",
-          "text": "Handling local model download, storage, and lifecycle on the device so the assistant keeps working fully offline after the first setup.",
-          "chars": 135,
-          "skills": [
-            "on-device ai",
-            "model storage",
-            "offline-first",
-            "android",
-            "react native"
-          ],
-          "variants": [
-            "ai-llm",
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 3,
-          "rewritable": true
-        },
-        {
-          "id": "locra-mobile-architecture",
-          "text": "Architecting the Android client as a TypeScript React Native app over a native inference bridge for production-oriented on-device AI.",
-          "chars": 133,
-          "skills": [
-            "react native",
-            "typescript",
-            "android",
-            "mobile architecture",
-            "on-device ai",
-            "system integration"
-          ],
-          "variants": [
-            "ai-llm",
-            "mobile"
-          ],
-          "lockedMetrics": [],
-          "priority": 4,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "google-adk-experiments",
+      "id": "google-adk",
       "org": "google-adk",
-      "role": "Multi-Agent Orchestration Experiments",
+      "role": "Agentic Workflow Experiments",
       "dates": "",
       "location": "",
-      "link": "https://github.com/vineetagarwal54/google-adk",
+      "link": "https://github.com/vineetagarwal54",
       "variants": [
         "ai-llm"
       ],
       "bullets": [
         {
-          "id": "google-adk-orchestration",
-          "text": "Explored Google ADK and agentic workflow patterns for multi-agent orchestration.",
-          "chars": 80,
+          "id": "google-adk-core",
+          "cluster": "google-adk",
+          "text": "Prototyped multi-agent orchestration workflows with the Google Agent Development Kit, exploring tool use and agent coordination patterns in Python.",
+          "chars": 147,
           "skills": [
             "google adk",
-            "agentic workflows",
-            "multi-agent systems"
+            "multi-agent",
+            "python"
           ],
           "variants": [
             "ai-llm"
           ],
           "lockedMetrics": [],
-          "priority": 5,
+          "priority": 1,
           "rewritable": true
         }
       ]
@@ -1437,6 +1341,8 @@
     "low-level kernel fusion",
     "GPU kernel optimization",
     "the 2 to 3x speculative decoding speedup as a personal benchmark result",
-    "deep production distributed systems at massive scale beyond listed roles"
+    "deep production distributed systems at massive scale beyond listed roles",
+    "ServBeyond metrics (25 hours, 95%, 100 users) as verified until Vineet measures them; bracket if unconfirmed",
+    "any number not present in a bullet's lockedMetrics list as a verified metric"
   ]
 }

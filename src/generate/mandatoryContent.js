@@ -32,6 +32,24 @@ export const OPTIONAL_EXPERIENCE_IDS = Object.freeze([
   "iiit-hyderabad-software-intern",
 ]);
 
+// Minimum bullets an entry must carry so experience reads substantial. Recent
+// mandatory roles and the longest tenure role never render as a single line;
+// the mandatory project keeps one. Optional/older roles have a floor of 0 and
+// are the first experience to yield when space is tight. The ceiling (up to 4
+// or 3) lives in entryBulletLimit; this is only the floor.
+export const BULLET_FLOORS = Object.freeze({
+  "servbeyond-enterprise-ai-platform-intern": 2,
+  "runara-ml-inference-engineer-intern": 2,
+  "xelpmoc-software-engineer": 2,
+  locra: 1,
+});
+
+export function bulletFloorFor(entryId) {
+  if (Object.prototype.hasOwnProperty.call(BULLET_FLOORS, entryId)) return BULLET_FLOORS[entryId];
+  if (OPTIONAL_EXPERIENCE_IDS.includes(entryId)) return 0;
+  return 1;
+}
+
 // Mandatory skill categories, keyed to content-bank skillGroup ids. Every
 // resume must include all of these regardless of the selected variant. The
 // model may reorder technologies within a group and add relevant optional
@@ -153,16 +171,56 @@ export function ensureMandatoryContent(bank, selection, variant) {
   const experience = cloneEntries(selection.experience);
   const projects = cloneEntries(selection.projects);
 
+  const bankBullet = (section, entryId, bulletId) => {
+    const entry = (bank[section] || []).find((item) => item.id === entryId);
+    return entry ? (entry.bullets || []).find((bullet) => bullet.id === bulletId) : null;
+  };
+
   const ensure = (list, section, ids) => {
     for (const id of ids) {
       const bankEntry = bank[section].find((entry) => entry.id === id);
       if (!bankEntry || !bankEntry.bullets.length) continue;
-      const strongest = [...bankEntry.bullets].sort((a, b) => a.priority - b.priority)[0];
-      const existing = list.find((entry) => entry.entryId === id);
+      // Guarantee enough DISTINCT-accomplishment candidates are present so the
+      // budget can reserve the entry's floor and a recent role is never a single
+      // line. Candidates differ by accomplishment cluster, since same-cluster
+      // bullets are dropped as duplicates downstream and would not count toward
+      // the floor. Verb uniqueness is left to the budget: it reserves entries in
+      // priority order (so ServBeyond claims a shared "Built"/"Delivered" before
+      // Xelpmoc) and skips duplicate verbs when placing. One spare accomplishment
+      // past the floor absorbs a cross-entry verb collision. The floor is honored
+      // up to the entry's real count of distinct accomplishments.
+      const floor = bulletFloorFor(id);
+      const target = floor >= 2 ? floor + 2 : floor;
+      const ordered = [...bankEntry.bullets].sort((a, b) => a.priority - b.priority);
+      let existing = list.find((entry) => entry.entryId === id);
       if (!existing) {
-        list.push({ entryId: id, bullets: [{ id: strongest.id }] });
-      } else if (!existing.bullets || existing.bullets.length === 0) {
-        existing.bullets = [{ id: strongest.id }];
+        existing = { entryId: id, bullets: [] };
+        list.push(existing);
+      }
+      if (!Array.isArray(existing.bullets)) existing.bullets = [];
+      const have = new Set(existing.bullets.map((bullet) => bullet.id));
+      // Guarantee at least one bullet so a mandatory entry is never empty.
+      if (existing.bullets.length === 0) {
+        existing.bullets.push({ id: ordered[0].id });
+        have.add(ordered[0].id);
+      }
+      const usedClusters = new Set();
+      let distinct = 0;
+      for (const selected of existing.bullets) {
+        const cluster = bankBullet(section, id, selected.id)?.cluster || null;
+        if (cluster && usedClusters.has(cluster)) continue;
+        if (cluster) usedClusters.add(cluster);
+        distinct += 1;
+      }
+      for (const bullet of ordered) {
+        if (distinct >= target) break;
+        if (have.has(bullet.id)) continue;
+        const cluster = bullet.cluster || null;
+        if (cluster && usedClusters.has(cluster)) continue;
+        existing.bullets.push({ id: bullet.id });
+        have.add(bullet.id);
+        if (cluster) usedClusters.add(cluster);
+        distinct += 1;
       }
     }
   };

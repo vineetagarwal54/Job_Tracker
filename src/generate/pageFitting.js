@@ -6,7 +6,17 @@
 // bullet. Returns the trimmed selection plus the removed bullet, or null when
 // nothing can be trimmed without touching mandatory content.
 
-import { isMandatoryEntry } from "./mandatoryContent.js";
+import { isMandatoryEntry, bulletFloorFor, OPTIONAL_EXPERIENCE_IDS } from "./mandatoryContent.js";
+
+// Trim priority: reduce project bullets to one each first, then drop optional or
+// older experience, then extra recent-role experience bullets above their floor.
+// Skills are never trimmed here, so they yield last (only the pre-compile budget
+// cap ever touches them).
+function trimTier(section, entryId) {
+  if (section === "projects") return 0;
+  if (OPTIONAL_EXPERIENCE_IDS.includes(entryId)) return 1;
+  return 2;
+}
 
 function bankBulletPriority(bank, entryId, bulletId) {
   for (const section of ["experience", "projects"]) {
@@ -27,16 +37,19 @@ export function trimOneBullet(bank, selection, rankScores = null) {
   const candidates = [];
   for (const section of ["experience", "projects"]) {
     for (const entry of selection[section] || []) {
-      const mandatory = isMandatoryEntry(entry.entryId);
       const bullets = entry.bullets || [];
+      const floor = bulletFloorFor(entry.entryId);
       for (const bullet of bullets) {
-        // Never remove the sole bullet of a mandatory entry.
-        if (mandatory && bullets.length <= 1) continue;
+        // A bullet is removable only above the entry's floor. This one rule keeps
+        // recent roles at 2 or more, keeps every project entry at 1 or more (so
+        // the count never drops below exactly two projects), and never removes a
+        // mandatory entry's last bullet.
+        if (bullets.length <= floor) continue;
         candidates.push({
           section,
           entryId: entry.entryId,
           bulletId: bullet.id,
-          mandatory,
+          tier: trimTier(section, entry.entryId),
           priority: bankBulletPriority(bank, entry.entryId, bullet.id),
           rank: rankScores && rankScores.has(bullet.id) ? rankScores.get(bullet.id) : null,
         });
@@ -45,8 +58,9 @@ export function trimOneBullet(bank, selection, rankScores = null) {
   }
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => {
-    // Optional bullets first (mandatory === false sorts before true).
-    if (a.mandatory !== b.mandatory) return a.mandatory ? 1 : -1;
+    // Project extra bullets first, then optional/older experience, then extra
+    // recent-role bullets.
+    if (a.tier !== b.tier) return a.tier - b.tier;
     // Then lowest final JD rank first; fall back to weakest static priority.
     if (a.rank !== null && b.rank !== null && a.rank !== b.rank) return a.rank - b.rank;
     return b.priority - a.priority;

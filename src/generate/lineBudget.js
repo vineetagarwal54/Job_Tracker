@@ -1,5 +1,5 @@
 import { dedupeAccomplishments, tokenSimilarity } from "./accomplishmentClusters.js";
-import { isMandatoryEntry, reservationRank, MANDATORY_SKILL_GROUP_IDS } from "./mandatoryContent.js";
+import { isMandatoryEntry, reservationRank, bulletFloorFor, MANDATORY_SKILL_GROUP_IDS } from "./mandatoryContent.js";
 import { bulletRankScore, entryBulletLimit } from "./bulletRanking.js";
 
 // Two same-entry bullets whose token overlap meets this bar describe the same
@@ -134,23 +134,40 @@ export function budgetSelection(resolvedSelection, ctx = null) {
     return reservationRank(sa, ea) - reservationRank(sb, eb);
   });
   for (const key of mandatoryEntryKeys) {
-    // Candidates are already in composite-rank order, so the highest-ranked
-    // free-verb bullet is reserved for each mandatory entry.
-    const candidates = rankOrder.filter(
-      (item) => `${item.section}:${item.entry.id}` === key && !consumed.has(item.bullet.id)
-    );
-    const preferred = candidates.find((item) => {
-      const verb = openingActionVerb(item.text);
-      return !verb || !usedVerbs.has(verb);
-    });
-    const chosen = preferred || candidates[0];
-    if (chosen) place(chosen, true);
+    // In JD mode reserve up to the entry's floor so a recent role never renders
+    // as a single line; without a ranking context keep the original one-bullet
+    // reservation so the fixed sample and legacy renders stay byte-identical.
+    const entryId = key.split(/:(.+)/)[1];
+    const floor = ctx ? bulletFloorFor(entryId) : 1;
+    for (let reserved = 0; reserved < floor; reserved += 1) {
+      // Candidates are already in composite-rank order, so the highest-ranked
+      // free-verb bullet not yet placed is reserved for each mandatory entry.
+      const candidates = rankOrder.filter(
+        (item) => `${item.section}:${item.entry.id}` === key && !consumed.has(item.bullet.id)
+      );
+      if (candidates.length === 0) break;
+      const preferred = candidates.find((item) => {
+        const verb = openingActionVerb(item.text);
+        return !verb || !usedVerbs.has(verb);
+      });
+      // The first bullet guarantees the mandatory entry is present, forcing the
+      // strongest candidate exactly as before. Additional floor bullets are only
+      // added when their action verb is still free, so the floor can never force
+      // a duplicate-verb collision that would fail final validation.
+      const chosen = reserved === 0 ? (preferred || candidates[0]) : preferred;
+      if (!chosen) break;
+      place(chosen, true);
+    }
   }
 
-  // Phase B: fill the remaining budget in composite-rank order. Because mandatory
-  // professional-experience bullets outrank weak optional-project bullets, the
-  // top-up naturally strengthens real experience before adding filler.
-  for (const item of rankOrder) {
+  // Phase B: fill the remaining budget experience-first, then projects, each in
+  // composite-rank order. Allocating experience before projects makes experience
+  // the dominant section; projects take only the space experience leaves.
+  const phaseBOrder = [
+    ...rankOrder.filter((item) => item.section === "experience"),
+    ...rankOrder.filter((item) => item.section === "projects"),
+  ];
+  for (const item of phaseBOrder) {
     if (consumed.has(item.bullet.id)) continue;
     const result = place(item, false);
     if (!result.ok) {

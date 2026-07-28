@@ -45,3 +45,29 @@ export function filterExploratoryProjects(selection) {
   );
   return { ...selection, projects: filtered };
 }
+
+// Limits the resume to exactly two project entries: the mandatory one (Locra)
+// plus the single highest JD-ranked other project. All other projects are
+// dropped so experience dominates the page. `rankScores` is a bulletId -> score
+// map (from computeAllRankScores); a project's rank is the best score across its
+// bank bullets. Returns a new selection; does not mutate input. With no other
+// project it is a no-op.
+export function limitToTwoProjects(bank, selection, rankScores = null) {
+  const projects = selection.projects || [];
+  const mandatory = projects.filter((entry) => isMandatoryEntry(entry.entryId));
+  const others = projects.filter((entry) => !isMandatoryEntry(entry.entryId));
+  if (others.length <= 1) return selection;
+
+  const scores = rankScores instanceof Map ? rankScores : new Map();
+  const scoreOf = (entry) => {
+    const bankEntry = (bank.projects || []).find((project) => project.id === entry.entryId);
+    const ids = (bankEntry?.bullets || []).map((bullet) => bullet.id);
+    let best = -Infinity;
+    for (const id of ids) if (scores.has(id) && scores.get(id) > best) best = scores.get(id);
+    return best;
+  };
+  const ranked = others
+    .map((entry, index) => ({ entry, index, score: scoreOf(entry) }))
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index));
+  return { ...selection, projects: [...mandatory, ranked[0].entry] };
+}

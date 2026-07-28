@@ -53,12 +53,16 @@ function bulletJdScore(bullet, text, ctx) {
   return score;
 }
 
-// Per-entry bullet ceiling (task Part 2 distribution rules).
+// Per-entry bullet ceiling (task Part 2 distribution rules). Experience should
+// dominate the page: recent mandatory roles carry up to 4 bullets, the longest
+// tenure role up to 3, projects at most 2, and optional/older roles at most 1.
+// The floor (never below 2 for recent/tenure roles) is enforced separately in
+// the budget reservation phase; this is only the upper bound the fill respects.
 export function entryBulletLimit(entryId, emphasisSet = new Set()) {
-  if (entryId === "runara-ml-inference-engineer-intern") return emphasisSet.has("llm-inference") ? 2 : 1;
-  if (entryId === "locra") return (emphasisSet.has("mobile") || emphasisSet.has("ai-product")) ? 2 : 1;
-  if (entryId === "servbeyond-enterprise-ai-platform-intern") return 2;
-  if (entryId === "xelpmoc-software-engineer") return 2;
+  if (entryId === "servbeyond-enterprise-ai-platform-intern") return 4;
+  if (entryId === "runara-ml-inference-engineer-intern") return 4;
+  if (entryId === "xelpmoc-software-engineer") return 3;
+  if (entryId === "locra") return 2;
   if (OPTIONAL_EXPERIENCE.has(entryId)) return 1;
   return 2; // other projects: 1 to 2
 }
