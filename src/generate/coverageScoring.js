@@ -4,6 +4,9 @@ function bankSources(bank, options) {
   const allowedBullets = options?.bulletIds ? new Set(options.bulletIds) : null;
   const allowedGroups = options?.skillGroupIds ? new Set(options.skillGroupIds) : null;
   const sources = [];
+  for (const source of options?.extraSources || []) {
+    if (source?.id && source?.text) sources.push({ id: source.id, text: source.text });
+  }
   if (Array.isArray(options?.renderedSkills)) {
     // Coverage reflects only the individual skills that actually render.
     for (const group of options.renderedSkills) {
@@ -22,7 +25,7 @@ function bankSources(bank, options) {
         if (!allowedBullets || allowedBullets.has(bullet.id)) {
           sources.push({
             id: bullet.id,
-            text: `${options?.bulletTexts?.[bullet.id] || bullet.text} ${(bullet.skills || []).join(" ")}`,
+            text: `${options?.bulletTexts?.[bullet.id] || bullet.text}${options?.includeBulletSkills === false ? "" : ` ${(bullet.skills || []).join(" ")}`}`,
           });
         }
       }

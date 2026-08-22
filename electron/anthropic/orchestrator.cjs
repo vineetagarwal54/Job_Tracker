@@ -72,7 +72,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let job;
       try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
       progress?.("Analyzing job requirements");
-      const [keywordModule, coverageModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff"].map((name) => load(path.join(generateDir, `${name}.js`))));
+      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule, relevanceModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff", "relevanceIntelligence"].map((name) => load(path.join(generateDir, `${name}.js`))));
       stage = "content-bank";
       let bank;
       try { bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8")); } catch (error) { throw codedError("VALIDATION_FAILED", `The resume content bank is missing or corrupt: ${error.message}`); }
@@ -109,7 +109,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       const variant = canonicalBase.variant;
 
       progress?.("Selecting resume variant");
-      const preliminaryCoverage = coverageModule.scoreCoverage(bank, extraction, { analysis: analyzed.analysis });
+      const relevancePlan = relevanceModule.buildRelevancePlan({ bank, base: canonicalBase, job, extraction, analysis: analyzed.analysis });
+      const preliminaryCoverage = relevancePlan.baseCoverage;
 
       // --- Selection (Sonnet) with universal deterministic fallback. If the
       // model response or its validation fails, build a safe selection straight
@@ -120,10 +121,10 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let usedSelectionFallback = false;
       let selectionFallbackReason = null;
       try {
-        generated = await generateResumeSelection({ client, apiKey, bank, canonicalBases: baseModule.canonicalBases, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, signal, generateDir, progress });
+        generated = await generateResumeSelection({ client, apiKey, bank, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, relevancePlan, signal, generateDir, progress });
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
-        generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
+        generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis, relevancePlan }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
         usedSelectionFallback = true;
         selectionFallbackReason = error.message;
       }
@@ -165,6 +166,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       stage = "final-verification";
       const finalVerification = tailoringModule.verifyTailoredBase({ bank, base: generated.base, extraction, analysis: analyzed.analysis, pageCount });
       finalVerification.densityRatio = generated.densityRatio;
+      const coverageImprovement = relevanceModule.summarizeCoverageChange(preliminaryCoverage, finalVerification.coverage);
 
       // Eligibility / mismatch warnings never block generation; they explain the
       // mismatch alongside the finished resume. Coverage here reflects only the
@@ -190,7 +192,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
         baseResumeId: canonicalBase.id,
         selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
-        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio },
+        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: relevancePlan.candidates.length, meaningfulGaps: relevancePlan.gaps, unsupportedMissing: relevancePlan.unsupportedMissing, beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,
         warnings,

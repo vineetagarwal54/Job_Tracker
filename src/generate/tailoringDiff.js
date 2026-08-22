@@ -2,6 +2,7 @@ import { rewriteViolation } from "./validateSelection.js";
 import { textContainsTerm } from "./protectedTerms.js";
 import { scoreCoverage } from "./coverageScoring.js";
 import { missingJobSkills } from "./skillSelection.js";
+import { MIN_RELEVANCE_BENEFIT, relevanceUtility } from "./relevanceIntelligence.js";
 
 export const TAILORING_CAPS = Object.freeze({ bulletChanges: 3, projectSwaps: 1, skillChanges: 4 });
 
@@ -122,7 +123,7 @@ function validKnownFields(value, allowed) {
   return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).every((key) => allowed.includes(key));
 }
 
-export function applyTailoringDiff({ bank, base, diff, extraction = null, analysis = null }) {
+export function applyTailoringDiff({ bank, base, diff, extraction = null, analysis = null, relevancePlan = null }) {
   const original = clone(base);
   let tailored = clone(base);
   const accepted = { version: 1, summaryChange: null, bulletChanges: [], projectSwap: null, skillChanges: [] };
@@ -135,17 +136,31 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
   if (candidate.version !== undefined && candidate.version !== 1) reject(rejected, "diff", "Diff version must be 1.", { version: candidate.version });
   if (candidate.baseResumeId !== undefined && candidate.baseResumeId !== base.id) reject(rejected, "diff", "Diff targets a different canonical base.", { baseResumeId: candidate.baseResumeId });
 
+  const relevanceCandidates = new Map((relevancePlan?.candidates || []).map((item) => [item.id, item]));
+  const relevanceCandidate = (change, type) => {
+    if (!relevancePlan) return null;
+    const found = relevanceCandidates.get(change?.candidateId);
+    if (!found || found.type !== type || found.expectedGain < (relevancePlan.minimumBenefit || MIN_RELEVANCE_BENEFIT)) return false;
+    return found;
+  };
+  const relevanceReasonIsValid = (change, found) => !relevancePlan || (found && justified(change.justification, found.matchedTerms));
+  const positiveBenefit = (before, after) => !relevancePlan || relevanceUtility(after, relevancePlan) - relevanceUtility(before, relevancePlan) >= (relevancePlan.minimumBenefit || MIN_RELEVANCE_BENEFIT);
+
   if (candidate.summaryChange) {
     const change = candidate.summaryChange;
     const summaries = summaryCatalog(bank);
-    if (!validKnownFields(change, ["summaryId", "justification"])) reject(rejected, "summary", "Summary change contains unsupported fields.", change);
+    const relevant = relevanceCandidate(change, "summary");
+    if (!validKnownFields(change, ["candidateId", "summaryId", "justification"])) reject(rejected, "summary", "Summary change contains unsupported fields.", change);
+    else if (relevancePlan && !relevant) reject(rejected, "summary", "Summary change is not an approved minimum-benefit candidate.", change);
+    else if (relevant && relevant.summaryId !== change.summaryId) reject(rejected, "summary", "Summary change does not match its approved candidate.", change);
     else if (!summaries.has(change.summaryId)) reject(rejected, "summary", "Summary must reference a verified bank summary ID.", change);
-    else if (!justified(change.justification, terms)) reject(rejected, "summary", "Summary change is not justified by a JD term.", change);
+    else if (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant)) reject(rejected, "summary", "Summary change is not justified by its concrete JD gap.", change);
     else if (!matchesJd(summaries.get(change.summaryId), terms)) reject(rejected, "summary", "Verified summary does not surface a JD term.", change);
     else {
       const next = clone(tailored);
       next.summary = summaries.get(change.summaryId);
       if (!densityIsSafe(original, next)) reject(rejected, "summary", "Summary change exceeds the density guard.", change);
+      else if (!positiveBenefit(tailored, next)) reject(rejected, "summary", "Summary change has no positive relevance benefit.", change);
       else { tailored = next; accepted.summaryChange = clone(change); }
     }
   }
@@ -153,10 +168,14 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
   const bulletChanges = Array.isArray(candidate.bulletChanges) ? candidate.bulletChanges : [];
   for (const [position, change] of bulletChanges.entries()) {
     if (position >= TAILORING_CAPS.bulletChanges) { reject(rejected, "bullet", "Bullet modification cap exceeded.", change); continue; }
-    if (!validKnownFields(change, ["type", "entryId", "baseBulletId", "replacementBulletId", "rewrittenText", "justification"])) { reject(rejected, "bullet", "Bullet change contains unsupported fields.", change); continue; }
+    const relevantType = change.type === "swap" ? "bullet-swap" : change.type === "rewrite" ? "bullet-rewrite" : null;
+    const relevant = relevanceCandidate(change, relevantType);
+    if (!validKnownFields(change, ["candidateId", "type", "entryId", "baseBulletId", "replacementBulletId", "rewrittenText", "justification"])) { reject(rejected, "bullet", "Bullet change contains unsupported fields.", change); continue; }
+    if (relevancePlan && !relevant) { reject(rejected, "bullet", "Bullet change is not an approved minimum-benefit candidate.", change); continue; }
+    if (relevant && (relevant.entryId !== change.entryId || relevant.baseBulletId !== change.baseBulletId || (change.type === "swap" && relevant.replacementBulletId !== change.replacementBulletId))) { reject(rejected, "bullet", "Bullet change does not match its approved candidate.", change); continue; }
     const located = findBaseBullet(tailored, change.entryId, change.baseBulletId);
     if (!located.entry || !located.bullet) { reject(rejected, "bullet", "Bullet change does not target a bullet in the selected base experience.", change); continue; }
-    if (!justified(change.justification, terms)) { reject(rejected, "bullet", "Bullet change is not justified by a JD term.", change); continue; }
+    if (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant)) { reject(rejected, "bullet", "Bullet change is not justified by its concrete JD gap.", change); continue; }
     let replacement;
     if (change.type === "swap") {
       const found = index.bullets.get(change.replacementBulletId);
@@ -173,20 +192,24 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
       const lengthRatio = text.length / located.bullet.text.length;
       if (violation) { reject(rejected, "bullet", `Rewrite ${violation}.`, change); continue; }
       if (similarity(located.bullet.text, text) < 0.55 || lengthRatio < 0.75 || lengthRatio > 1.25) { reject(rejected, "bullet", "Rewrite is not a light edit of the base bullet.", change); continue; }
-      if (!matchesJd(text, terms)) { reject(rejected, "bullet", "Rewrite does not surface a JD term.", change); continue; }
+      if (!matchesJd(text, terms) || (relevant && !relevant.matchedTerms.some((term) => textContainsTerm(text, term)))) { reject(rejected, "bullet", "Rewrite does not surface the approved JD term.", change); continue; }
       replacement = { sourceBulletId: source.id, text };
     } else { reject(rejected, "bullet", "Unknown bullet change type.", change); continue; }
     const next = clone(tailored);
     const nextLocated = findBaseBullet(next, change.entryId, change.baseBulletId);
     nextLocated.entry.bullets[nextLocated.index] = replacement;
     if (!densityIsSafe(original, next)) reject(rejected, "bullet", "Bullet change exceeds the density guard.", change);
+    else if (!positiveBenefit(tailored, next)) reject(rejected, "bullet", "Bullet change has no positive relevance benefit.", change);
     else { tailored = next; accepted.bulletChanges.push(clone(change)); }
   }
 
   if (candidate.projectSwap) {
     const change = candidate.projectSwap;
-    if (!validKnownFields(change, ["baseProjectId", "replacementProjectId", "justification"])) reject(rejected, "project", "Project swap contains unsupported fields.", change);
-    else if (!justified(change.justification, terms)) reject(rejected, "project", "Project swap is not justified by a JD term.", change);
+    const relevant = relevanceCandidate(change, "project-swap");
+    if (!validKnownFields(change, ["candidateId", "baseProjectId", "replacementProjectId", "justification"])) reject(rejected, "project", "Project swap contains unsupported fields.", change);
+    else if (relevancePlan && !relevant) reject(rejected, "project", "Project swap is not an approved minimum-benefit candidate.", change);
+    else if (relevant && (relevant.baseProjectId !== change.baseProjectId || relevant.replacementProjectId !== change.replacementProjectId)) reject(rejected, "project", "Project swap does not match its approved candidate.", change);
+    else if (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant)) reject(rejected, "project", "Project swap is not justified by its concrete JD gap.", change);
     else {
       const slot = tailored.projects.findIndex((project) => project.entryId === change.baseProjectId);
       const replacement = index.projects.get(change.replacementProjectId);
@@ -200,6 +223,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
         const next = clone(tailored);
         next.projects[slot] = { entryId: replacement.id, title: replacement.org, role: replacement.role, dates: replacement.dates || "", bullets };
         if (!densityIsSafe(original, next)) reject(rejected, "project", "Project swap exceeds the density guard.", change);
+        else if (!positiveBenefit(tailored, next)) reject(rejected, "project", "Project swap has no positive relevance benefit.", change);
         else { tailored = next; accepted.projectSwap = clone(change); }
       }
     }
@@ -208,7 +232,10 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
   const skillChanges = Array.isArray(candidate.skillChanges) ? candidate.skillChanges : [];
   for (const [position, change] of skillChanges.entries()) {
     if (position >= TAILORING_CAPS.skillChanges) { reject(rejected, "skill", "Skill modification cap exceeded.", change); continue; }
-    if (!validKnownFields(change, ["type", "groupLabel", "baseItem", "replacementItem", "justification"])) { reject(rejected, "skill", "Skill change contains unsupported fields.", change); continue; }
+    const relevant = relevanceCandidate(change, "skill-edit");
+    if (!validKnownFields(change, ["candidateId", "type", "groupLabel", "baseItem", "replacementItem", "justification"])) { reject(rejected, "skill", "Skill change contains unsupported fields.", change); continue; }
+    if (relevancePlan && !relevant) { reject(rejected, "skill", "Skill change is not an approved minimum-benefit candidate.", change); continue; }
+    if (relevant && (relevant.groupLabel !== change.groupLabel || relevant.replacementItem !== change.replacementItem)) { reject(rejected, "skill", "Skill change does not match its approved candidate.", change); continue; }
     const group = tailored.skills.find((candidateGroup) => candidateGroup.label.toLowerCase() === String(change.groupLabel || "").toLowerCase());
     const verifiedCandidates = index.skillItems.get(String(change.replacementItem || "").toLowerCase()) || [];
     const compatibleGroupIds = BASE_SKILL_GROUP_COMPATIBILITY[String(change.groupLabel || "").toLowerCase()] || [];
@@ -216,7 +243,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
     const verifiedItem = verified?.item;
     if (!group) { reject(rejected, "skill", "Skill change must target an existing base skill category.", change); continue; }
     if (!verifiedItem) { reject(rejected, "skill", "Skill addition must reference a verified item compatible with the targeted category.", change); continue; }
-    if (!justified(change.justification, terms)) { reject(rejected, "skill", "Skill change is not justified by a JD term.", change); continue; }
+    if (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant)) { reject(rejected, "skill", "Skill change is not justified by its concrete JD gap.", change); continue; }
     if (!matchesJd(verifiedItem, terms)) { reject(rejected, "skill", "Skill change does not add a JD term.", change); continue; }
     if (tailored.skills.some((candidateGroup) => candidateGroup.items.some((item) => item.toLowerCase() === verifiedItem.toLowerCase()))) { reject(rejected, "skill", "Skill is already present in the base.", change); continue; }
     const next = clone(tailored);
@@ -228,6 +255,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
       nextGroup.items[itemIndex] = verifiedItem;
     } else { reject(rejected, "skill", "Unknown skill change type.", change); continue; }
     if (!densityIsSafe(original, next)) reject(rejected, "skill", "Skill change exceeds the density guard.", change);
+    else if (!positiveBenefit(tailored, next)) reject(rejected, "skill", "Skill change has no positive relevance benefit.", change);
     else { tailored = next; accepted.skillChanges.push(clone(change)); }
   }
 
@@ -252,7 +280,7 @@ export function verifyTailoredBase({ bank, base, extraction, analysis, pageCount
   const bulletTexts = {};
   for (const section of ["experience", "projects"]) for (const entry of base[section]) for (const bullet of entry.bullets) bulletTexts[bullet.sourceBulletId] = bullet.text;
   const bulletIds = Object.keys(bulletTexts);
-  const coverage = scoreCoverage(bank, extraction, { analysis, bulletIds, bulletTexts, renderedSkills: selection.renderedSkills, skillGroupIds: selection.skillGroupIds });
+  const coverage = scoreCoverage(bank, extraction, { analysis, bulletIds, bulletTexts, renderedSkills: selection.renderedSkills, skillGroupIds: selection.skillGroupIds, includeBulletSkills: false, extraSources: [{ id: "base-summary", text: base.summary }] });
   return {
     coverage,
     pageCount,
