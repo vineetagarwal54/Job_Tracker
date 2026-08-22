@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messageForResumeError, missingGenerationRequirements, subscribeToGeneration } from "../utils/resumeGeneration";
+import { resolveBaseResumeId } from "../generate/baseResumes";
 
 const ESTIMATES = { resume: 0.04, "resume-and-cover-letter": 0.05 };
 
@@ -7,6 +8,8 @@ const normalizeJob = (job) => ({
   company: String(job?.company || "Untitled"),
   title: String(job?.title || job?.role || "Role"),
   description: String(job?.description || job?.jd || ""),
+  resumeOption: String(job?.resumeOption || job?.resume || "Software Engineer / FullStack / Cloud"),
+  baseResumeId: resolveBaseResumeId(job?.resumeOption || job?.resume),
 });
 
 export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterComplete } = {}) {

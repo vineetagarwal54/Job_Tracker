@@ -3,6 +3,19 @@ const APP_DATA_KEY = "app_data_v3";
 
 const DEFAULT_WORKSPACE_NAME = "Internships";
 
+const LEGACY_RESUME_OPTIONS = Object.freeze({
+  "AI/ML": "AI / LLM",
+  Mobile: "Mobile / React Native",
+  Frontend: "Software Engineer / FullStack / Cloud",
+  "General/Full-stack": "Software Engineer / FullStack / Cloud",
+  Academic: "Software Engineer / FullStack / Cloud",
+  Custom: "Software Engineer / FullStack / Cloud",
+});
+
+function normalizeResumeOption(option) {
+  return LEGACY_RESUME_OPTIONS[option] || option || "Software Engineer / FullStack / Cloud";
+}
+
 // Returns the normalized app data blob, or null.
 // Legacy data is migrated into the workspace shape without losing jobs.
 export async function loadAppData() {
@@ -10,7 +23,8 @@ export async function loadAppData() {
   if (result) {
     const parsed = JSON.parse(result.value);
     const normalized = normalizeAppData(parsed);
-    if (Object.prototype.hasOwnProperty.call(parsed, "applicationProfiles")) {
+    const resumeOptionsChanged = (parsed.jobs || []).some((job, index) => normalized.jobs[index]?.resume !== job.resume);
+    if (Object.prototype.hasOwnProperty.call(parsed, "applicationProfiles") || resumeOptionsChanged) {
       await window.storage.set(APP_DATA_KEY, JSON.stringify(normalized));
     }
     return normalized;
@@ -39,7 +53,7 @@ function normalizeAppData(data) {
   return {
     workspaces: data.workspaces ?? [],
     activeWorkspaceId: data.activeWorkspaceId ?? null,
-    jobs: (data.jobs ?? []).map(job => ({ ...job, generatedDocuments: Array.isArray(job.generatedDocuments) ? job.generatedDocuments : [] })),
+    jobs: (data.jobs ?? []).map(job => ({ ...job, resume: normalizeResumeOption(job.resume), generatedDocuments: Array.isArray(job.generatedDocuments) ? job.generatedDocuments : [] })),
     generationHistory: Array.isArray(data.generationHistory) ? data.generationHistory : [],
   };
 }
@@ -49,7 +63,7 @@ async function migrateLegacyJobs(oldJobs) {
   const migrated = {
     workspaces: [ws],
     activeWorkspaceId: ws.id,
-    jobs: (oldJobs || []).map(j => ({ ...j, workspaceId: ws.id })),
+    jobs: (oldJobs || []).map(j => ({ ...j, resume: normalizeResumeOption(j.resume), workspaceId: ws.id })),
     generationHistory: [],
   };
   await window.storage.set(APP_DATA_KEY, JSON.stringify(migrated));

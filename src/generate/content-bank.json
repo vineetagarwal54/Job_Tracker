@@ -87,65 +87,8 @@
       ]
     },
     {
-      "id": "dsa-algorithms",
-      "label": "Data Structures & Algorithms",
-      "items": [
-        "Data Structures",
-        "Algorithms",
-        "Complexity Analysis",
-        "Problem Solving (C++)",
-        "Object Oriented Design",
-        "Recursion & Dynamic Programming"
-      ],
-      "variants": [
-        "fullstack",
-        "cloud-backend",
-        "academic",
-        "ai-llm",
-        "mobile"
-      ]
-    },
-    {
-      "id": "system-design",
-      "label": "System Design",
-      "items": [
-        "Distributed Systems",
-        "Microservices",
-        "API Design",
-        "Data Modeling",
-        "Service Boundaries",
-        "Caching",
-        "Load Balancing",
-        "Scalability",
-        "Event-Driven Architecture"
-      ],
-      "variants": [
-        "cloud-backend",
-        "fullstack",
-        "ai-llm",
-        "academic"
-      ]
-    },
-    {
-      "id": "llm-inference",
-      "label": "LLM Inference & Optimization",
-      "items": [
-        "vLLM",
-        "SGLang",
-        "TensorRT-LLM",
-        "llama.cpp",
-        "llama.rn",
-        "speculative decoding",
-        "KV cache",
-        "quantization (FP8, INT4, AWQ)"
-      ],
-      "variants": [
-        "ai-llm"
-      ]
-    },
-    {
       "id": "applied-ai",
-      "label": "Applied AI",
+      "label": "AI / LLM",
       "items": [
         "LangChain",
         "LangGraph",
@@ -157,45 +100,16 @@
         "Amazon Bedrock",
         "Anthropic API",
         "Hugging Face",
-        "Gemini"
+        "Qwen3-VL",
+        "Whisper",
+        "on-device inference"
       ],
       "variants": [
         "ai-llm",
         "cloud-backend",
-        "fullstack"
-      ]
-    },
-    {
-      "id": "on-device-ai",
-      "label": "On-Device AI",
-      "items": [
-        "Qwen3-VL",
-        "Whisper",
-        "vision-language models",
-        "on-device inference",
-        "offline-first",
-        "vector embeddings",
-        "hybrid retrieval"
-      ],
-      "variants": [
-        "ai-llm",
-        "mobile"
-      ]
-    },
-    {
-      "id": "frontend",
-      "label": "Frontend",
-      "items": [
-        "React",
-        "Next.js",
-        "React Native",
-        "Redux Toolkit",
-        "TypeScript",
-        "Vue"
-      ],
-      "variants": [
         "fullstack",
-        "mobile"
+        "mobile",
+        "academic"
       ]
     },
     {
@@ -208,36 +122,51 @@
         "Django",
         "REST APIs",
         "GraphQL",
-        "WebSocket"
+        "WebSocket",
+        "WebRTC",
+        "Socket.IO"
       ],
       "variants": [
+        "ai-llm",
         "cloud-backend",
         "fullstack",
-        "ai-llm"
+        "mobile",
+        "academic"
       ]
     },
     {
-      "id": "mobile",
-      "label": "Mobile",
+      "id": "frontend",
+      "label": "Frontend",
       "items": [
+        "React",
+        "Next.js",
         "React Native",
-        "Expo",
         "Redux Toolkit",
+        "TypeScript",
+        "Expo",
         "Cross-Platform (iOS & Android)",
-        "Firebase",
-        "MMKV",
-        "Xcode",
-        "Android Studio"
+        "Vue"
       ],
       "variants": [
-        "mobile"
+        "ai-llm",
+        "cloud-backend",
+        "fullstack",
+        "mobile",
+        "academic"
       ]
     },
     {
       "id": "cloud-devops",
       "label": "Cloud & DevOps",
       "items": [
-        "AWS (Lambda, EKS, S3, DynamoDB, SQS, API Gateway, CloudFormation)",
+        "AWS",
+        "Lambda",
+        "EKS",
+        "S3",
+        "DynamoDB",
+        "SQS",
+        "API Gateway",
+        "CloudFormation",
         "Docker",
         "Kubernetes",
         "GitHub Actions",
@@ -245,10 +174,11 @@
         "Azure"
       ],
       "variants": [
+        "ai-llm",
         "cloud-backend",
         "fullstack",
-        "ai-llm",
-        "mobile"
+        "mobile",
+        "academic"
       ]
     },
     {
@@ -272,47 +202,39 @@
       ]
     },
     {
-      "id": "realtime",
-      "label": "Real-Time",
+      "id": "llm-inference",
+      "label": "LLM Inference & Optimization",
       "items": [
-        "WebRTC",
-        "WebSocket",
-        "Socket.IO"
+        "vLLM",
+        "SGLang",
+        "TensorRT-LLM",
+        "llama.cpp",
+        "llama.rn",
+        "speculative decoding",
+        "KV cache",
+        "quantization (FP8, INT4, AWQ)"
       ],
       "variants": [
-        "fullstack",
-        "mobile",
-        "cloud-backend"
-      ]
-    },
-    {
-      "id": "agentic-tooling",
-      "label": "AI & Agentic Tooling",
-      "items": [
-        "Claude Code",
-        "Cursor",
-        "Copilot",
-        "spec-driven development",
-        "prompt engineering"
-      ],
-      "variants": [
-        "ai-llm",
-        "fullstack",
-        "mobile",
-        "cloud-backend"
+        "ai-llm"
       ]
     },
     {
       "id": "core-engineering",
       "label": "Core Engineering",
       "items": [
-        "Git",
+        "Data Structures",
+        "Algorithms",
         "System Design",
         "Distributed Systems",
-        "Software Architecture",
+        "Microservices",
+        "Object Oriented Design",
+        "Git",
+        "Agile/Scrum",
         "Testing",
         "Code Reviews",
-        "Agile/Scrum"
+        "Claude Code",
+        "Cursor",
+        "Copilot"
       ],
       "variants": [
         "ai-llm",
@@ -434,7 +356,7 @@
       ]
     },
     {
-      "id": "runara-ml-inference-intern",
+      "id": "runara-ml-inference-engineer-intern",
       "org": "Runara.ai",
       "role": "Machine Learning & Inference Engineering Intern",
       "dates": "Apr 2026 to May 2026",
@@ -522,7 +444,7 @@
       ]
     },
     {
-      "id": "xelpmoc-software-developer",
+      "id": "xelpmoc-software-engineer",
       "org": "Xelpmoc Design and Tech Limited",
       "role": "Software Developer",
       "dates": "Nov 2022 to Apr 2024",
@@ -679,7 +601,7 @@
       ]
     },
     {
-      "id": "svipes-react-native-developer",
+      "id": "svipes-software-engineer",
       "org": "Svipes",
       "role": "React Native Developer",
       "dates": "Jul 2024 to Dec 2024",
@@ -749,7 +671,7 @@
       ]
     },
     {
-      "id": "iiit-hyderabad-intern",
+      "id": "iiit-hyderabad-software-intern",
       "org": "IIIT Hyderabad",
       "role": "Summer Intern",
       "dates": "Jun 2022 to Aug 2022",
@@ -800,39 +722,6 @@
             "5000+"
           ],
           "priority": 2,
-          "rewritable": true
-        }
-      ]
-    },
-    {
-      "id": "dsa-oop-mentor",
-      "org": "University Peer Mentoring",
-      "role": "Data Structures & Algorithms Mentor",
-      "dates": "",
-      "location": "",
-      "variants": [
-        "academic"
-      ],
-      "bullets": [
-        {
-          "id": "mentor-dsa-oop",
-          "cluster": "mentoring",
-          "text": "Mentored 50+ students in data structures, algorithms, and object oriented programming in C++, raising the technical level of peers preparing for exams and interviews.",
-          "chars": 166,
-          "skills": [
-            "data structures",
-            "algorithms",
-            "c++",
-            "oop",
-            "mentoring"
-          ],
-          "variants": [
-            "academic"
-          ],
-          "lockedMetrics": [
-            "50+"
-          ],
-          "priority": 1,
           "rewritable": true
         }
       ]

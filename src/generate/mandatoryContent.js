@@ -60,6 +60,7 @@ export const MANDATORY_SKILL_GROUP_IDS = Object.freeze([
   "backend", // Backend
   "frontend", // Frontend
   "cloud-devops", // Cloud and DevOps
+  "core-engineering", // Core Engineering
 ]);
 
 // Technologies that must be present inside their mandatory group. Matched

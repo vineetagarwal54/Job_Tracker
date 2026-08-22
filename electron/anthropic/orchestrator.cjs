@@ -215,7 +215,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         coverLetter: pricingModule.normalizeUsage(generated.model, {}),
       };
       return {
-        job: { company: job.company, title: job.title }, analysis: analyzed.analysis, preliminaryCoverage,
+        job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
+        baseResumeId: job.baseResumeId,
         selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,

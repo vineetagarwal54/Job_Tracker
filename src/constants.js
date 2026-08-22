@@ -1,4 +1,4 @@
-export const RESUME_VERSIONS = ["Mobile", "AI/ML", "General/Full-stack", "Frontend", "Academic", "Custom"];
+export const RESUME_VERSIONS = ["AI / LLM", "Mobile / React Native", "Software Engineer / FullStack / Cloud"];
 export const WORK_TYPES = ["Remote", "Hybrid", "Onsite"];
 export const SOURCES = ["LinkedIn", "Indeed", "Company Site", "Referral", "Handshake", "Other"];
 export const PRIORITIES = ["High", "Medium", "Low"];
@@ -24,7 +24,7 @@ export const STATUSES = Object.keys(STATUS_CONFIG);
 
 export const getEmptyForm = () => ({
   company: "", role: "", date: new Date().toISOString().split("T")[0], deadline: "",
-  resume: "General/Full-stack", status: "Applied",
+  resume: "Software Engineer / FullStack / Cloud", status: "Applied",
   link: "", notes: "", jd: "",
   salary: "", location: "", workType: "Remote",
   source: "LinkedIn", priority: "Medium",
@@ -35,7 +35,7 @@ export const getEmptyForm = () => ({
 export const sampleJobs = [
   {
     id: 1, company: "Acme Corp", role: "Mobile App Developer Intern",
-    date: "2026-03-01", deadline: "", resume: "Mobile", status: "Interview",
+    date: "2026-03-01", deadline: "", resume: "Mobile / React Native", status: "Interview",
     link: "", notes: "Example entry — click Edit to modify or Del to remove.",
     jd: "Build cross-platform mobile apps using React Native. Work on IoT integrations for smart home devices.",
     salary: "$40/hr", location: "Boston, MA", workType: "Hybrid",
@@ -43,7 +43,7 @@ export const sampleJobs = [
   },
   {
     id: 2, company: "Globex Inc", role: "Software Engineer Intern",
-    date: "2026-03-05", deadline: "2026-04-01", resume: "General/Full-stack", status: "OA Pending",
+    date: "2026-03-05", deadline: "2026-04-01", resume: "Software Engineer / FullStack / Cloud", status: "OA Pending",
     link: "", notes: "Example entry — this is sample data to help you get started.",
     jd: "Work on backend services and internal tooling. Java / TypeScript stack.",
     salary: "$35/hr", location: "Remote", workType: "Remote",

@@ -1,0 +1,117 @@
+[
+  {
+    "id": "ai",
+    "option": "AI / LLM",
+    "sourcePdf": "resume/base/ai-base.pdf",
+    "sourceNormalizedTextLength": 3673,
+    "variant": "ai-llm",
+    "summary": "Software engineering graduate student with 2+ years of production experience building multi-agent AI systems and applied LLM products. Ships RAG pipelines, agent orchestration and evaluation, and GenAI automation that run in production for real users, backed by hands-on LLM inference optimization and a full-stack foundation that treats AI as one reliable component inside a larger system.",
+    "skills": [
+      { "label": "Applied AI", "items": ["multi-agent systems", "RAG with cited retrieval", "agent evaluation and scoring", "LangChain", "OpenAI APIs", "Claude", "prompt engineering", "embeddings", "vector search"] },
+      { "label": "LLM Inference & Optimization", "items": ["speculative decoding", "vLLM", "SGLang", "TensorRT-LLM", "quantization (INT4, FP8)", "KV cache", "PyTorch", "HuggingFace", "on-device (llama.rn)"] },
+      { "label": "GenAI Automation", "items": ["Microsoft Copilot", "Power Automate", "Azure Functions (Python)", "SharePoint", "Microsoft Graph API"] },
+      { "label": "Languages", "items": ["Python", "JavaScript", "TypeScript", "C++", "SQL", "Go"] },
+      { "label": "Frontend", "items": ["React", "Next.js", "React Native", "Redux Toolkit"] },
+      { "label": "Backend & Cloud", "items": ["FastAPI", "Node.js", "Express", "REST APIs", "AWS (Lambda, API Gateway, DynamoDB, SQS)", "Docker", "Kubernetes", "CI/CD"] },
+      { "label": "Databases", "items": ["PostgreSQL", "MongoDB", "Redis", "FAISS", "Pinecone"] },
+      { "label": "Core Engineering", "items": ["Data Structures & Algorithms (C++)", "OOP", "System Design", "Microservices", "Agile/Scrum"] }
+    ],
+    "experience": [
+      { "entryId": "servbeyond-enterprise-ai-platform-intern", "role": "Enterprise AI & Platform Intern", "dates": "Jun 2026 to Present", "bullets": [
+        { "sourceBulletId": "servbeyond-rag-assistant", "text": "Shipped a multi-agent RAG proposal assistant used daily by 20+ business development staff, auto-vectorizing every document on insert into a version-controlled SharePoint archive, with a Claude drafting agent and a separate evaluation agent that scores each RFI draft against the solicitation before reviewer handoff." },
+        { "sourceBulletId": "servbeyond-agentic-workflows", "text": "Engineered a company-wide AI meeting autopilot for 100 employees, chaining 5 Power Automate flows and Microsoft Graph API to convert Teams Copilot recaps into routed Jira tickets, mapping context to catch cross-meeting follow-ups and update existing tickets instead of duplicating, cutting up to 2 hours of manual entry per meeting." },
+        { "sourceBulletId": "servbeyond-agentic-workflows", "text": "Built a natural-language USAspending research agent whose query planner parses each prompt, routes to the correct API, and retrieves 1000+ contracts across any year range, generating Excel dashboards saved to SharePoint and delivered through Outlook and Teams." }
+      ]},
+      { "entryId": "runara-ml-inference-engineer-intern", "role": "Software Engineer Intern", "dates": "March 2026 to May 2026", "bullets": [
+        { "sourceBulletId": "runara-speculative-decoding", "text": "Implemented speculative decoding from scratch in PyTorch and HuggingFace across two GPUs, applying the rejection-sampling acceptance criterion and establishing the draft-to-target cost ratio under which the technique yields 2 to 3x inference throughput on large target models." },
+        { "sourceBulletId": "runara-benchmarking", "text": "Benchmarked Qwen3-Coder-480B across vLLM, SGLang, and TensorRT-LLM on Blackwell GPUs, profiling TTFT, throughput, VRAM, and KV cache growth, and caught an FP8 versus 4-bit checkpoint mismatch that prevented wasted GPU hours." }
+      ]},
+      { "entryId": "xelpmoc-software-engineer", "role": "Software Engineer", "dates": "Nov 2022 to Apr 2024", "bullets": [
+        { "sourceBulletId": "xelpmoc-sql-redis", "text": "Reduced API response time from 75s to under 10s and raised throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding a Redis caching layer." },
+        { "sourceBulletId": "xelpmoc-tourism-backend", "text": "Architected RESTful backend services for a tourism platform, cutting production defects 40% and accelerating feature delivery 25%." }
+      ]},
+      { "entryId": "iiit-hyderabad-software-intern", "role": "Software Intern", "dates": "Jun 2022 to Aug 2022", "bullets": [
+        { "sourceBulletId": "iiit-nlp-extraction", "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, improving NLP classification accuracy 15%." }
+      ]}
+    ],
+    "education": { "educationId": "umd-meng-software-engineering", "degree": "Master of Engineering, Computer Software Engineering, Minor in Cloud Engineering", "dates": "Jan 2025 to Dec 2026 (Expected)", "gpa": "GPA: 3.7" },
+    "projects": [
+      { "entryId": "repo-research-ai", "title": "RepoResearchAI", "role": "Multi-Agent Code Analysis Platform", "bullets": [{ "sourceBulletId": "repo-research-agents", "text": "Designed a multi-agent platform with AutoGen, LangChain, and FAISS vector search where specialized agents (SDE, PM, QA) produce architecture insights, API docs, and schema analysis using GPT-4 with RAG over codebase embeddings." }] },
+      { "entryId": "locra", "title": "Locra", "role": "On-Device Multimodal AI, Android", "bullets": [{ "sourceBulletId": "locra-core", "text": "Developed an Android-first multimodal AI assistant in React Native, TypeScript, and Expo that runs a quantized Qwen3-VL-2B vision-language model fully on device via llama.rn, pairing on-device Whisper speech-to-text with a Kotlin native module that enforces model integrity and a hard offline guarantee." }] }
+    ]
+  },
+  {
+    "id": "mobile",
+    "option": "Mobile / React Native",
+    "sourcePdf": "resume/base/mobile-base.pdf",
+    "sourceNormalizedTextLength": 3152,
+    "variant": "mobile",
+    "summary": "Software engineering graduate student with 2+ years shipping production iOS and Android apps in React Native and TypeScript, owning features from component architecture and state management through App Store and Play Store release. Comfortable across the stack, from diagnosing mobile performance regressions to designing Node.js and serverless AWS backends where cost, latency, and failure modes matter. Recent work spans real-time systems and on-device vision AI, building consumer products in which AI is one component within a larger experience.",
+    "skills": [
+      { "label": "Languages", "items": ["JavaScript", "TypeScript", "C++", "Python", "SQL"] },
+      { "label": "Mobile", "items": ["React Native", "Redux Toolkit", "Component Architecture", "Performance Profiling", "Cross-Platform (iOS and Android)", "App Store and Play Store Release"] },
+      { "label": "On-Device AI", "items": ["on-device vision (Qwen3-VL)", "llama.rn", "Whisper", "RAG", "OpenAI APIs"] },
+      { "label": "Real-Time & Data", "items": ["WebRTC", "WebSocket", "Socket.IO", "MongoDB", "Redis", "Firebase (Push Notifications)", "Webhooks"] },
+      { "label": "Backend & Cloud", "items": ["Node.js", "Express", "REST APIs", "AWS Serverless (Lambda, API Gateway, DynamoDB, SQS)", "PostgreSQL", "Docker", "CI/CD"] },
+      { "label": "Core Concepts", "items": ["Git", "Agile Development", "System Design", "Cross-Platform Architecture", "Performance Optimization"] }
+    ],
+    "experience": [
+      { "entryId": "servbeyond-enterprise-ai-platform-intern", "role": "Enterprise AI & Platform Intern", "dates": "Jun 2026 to Present", "location": "Rockville, MD", "bullets": [{ "sourceBulletId": "servbeyond-agentic-workflows", "text": "Shipped a company-wide GenAI assistant used daily by 20+ staff, wiring REST and SOAP integrations across Salesforce, ServiceNow, and AWS into a normalized data layer with a React front end." }] },
+      { "entryId": "svipes-software-engineer", "role": "React Native Developer", "dates": "Jul 2024 to Dec 2024", "bullets": [
+        { "sourceBulletId": "svipes-video-perf", "text": "Cut video playback stutter 70% and load time by 1.3 seconds through async loading and client-side caching, smoothing playback across iOS and Android." },
+        { "sourceBulletId": "svipes-screens", "text": "Shipped 50+ cross-platform React Native screens with Redux Toolkit, delivering modular UI systems that improved release consistency across both platforms." }
+      ]},
+      { "entryId": "xelpmoc-software-engineer", "role": "Software Developer", "dates": "Nov 2022 to Apr 2024", "bullets": [
+        { "sourceBulletId": "xelpmoc-credentials-wallet", "text": "Built and shipped a production iOS and Android credentials wallet app; implemented 15+ blockchain webhooks enabling real-time verification workflows." },
+        { "sourceBulletId": "xelpmoc-firebase-twilio", "text": "Integrated Firebase and Twilio for push notifications and secure user communication, improving real-time engagement across platforms." },
+        { "sourceBulletId": "xelpmoc-release-cycles", "text": "Led mobile release cycles using Xcode and Android Studio; resolved critical UI defects and deployed stable updates to the App Store and Play Store." },
+        { "sourceBulletId": "xelpmoc-senior-living", "text": "Developed twin React Native apps for an old-age home network, improving operational coordination by more than 60% through real-time task sync." }
+      ]}
+    ],
+    "education": { "educationId": "umd-meng-software-engineering", "degree": "Master of Engineering, Computer Software Engineering", "dates": "Jan 2025 to Dec 2026", "gpa": "", "notes": ["Minor in Cloud Engineering", "Relevant Coursework: Software Design, Cloud Computing, Virtualization, Cloud Security"] },
+    "projects": [
+      { "entryId": "locra", "title": "Locra", "role": "On-Device Multimodal AI, Android", "dates": "Jun 2025 to Present", "bullets": [
+        { "sourceBulletId": "locra-core", "text": "Built an Android-first multimodal AI assistant in React Native, TypeScript, and Expo that runs a quantized Qwen3-VL-2B vision-language model fully on device via llama.rn, with no internet needed after model download." },
+        { "sourceBulletId": "locra-voice-native", "text": "Added on-device speech to text with Whisper (whisper.rn) and live capture via Vision Camera, and enforced a hard offline guarantee through a network gate and a Kotlin native module that verifies model integrity before inference." }
+      ]},
+      { "entryId": "serverless-video-analytics", "title": "Serverless Video Analytics Platform, AWS", "role": "", "dates": "Sept 2023 to Dec 2023", "bullets": [{ "sourceBulletId": "video-analytics-core", "text": "Designed a serverless pipeline on AWS Lambda, API Gateway, DynamoDB, and SQS with CloudFormation and GitHub Actions, using dedicated upload, processing, and analytics functions with auto-scaling behind CloudFront to absorb bursty load at low idle cost." }] }
+    ]
+  },
+  {
+    "id": "swe-cloud",
+    "option": "Software Engineer / FullStack / Cloud",
+    "sourcePdf": "resume/base/swe-cloud-base.pdf",
+    "sourceNormalizedTextLength": 3278,
+    "variant": "cloud-backend",
+    "summary": "Software engineering graduate student with 2+ years of production experience building full-stack applications and cloud-native backends. Designs and ships REST APIs, serverless AWS pipelines, and containerized services on Kubernetes, with a track record of cutting latency and defects in live systems. Comfortable across the stack from React front ends to the data layer, pursuing a Cloud Engineering focus.",
+    "skills": [
+      { "label": "Languages", "items": ["Python", "JavaScript", "TypeScript", "C++", "SQL", "Go"] },
+      { "label": "Backend", "items": ["FastAPI", "Node.js", "Express", "REST APIs", "GraphQL", "WebSocket", "Socket.IO"] },
+      { "label": "Cloud and DevOps", "items": ["AWS (Lambda, API Gateway, EKS, S3, DynamoDB, SQS, CloudFront, CloudFormation)", "Docker", "Kubernetes", "CI/CD (GitHub Actions)", "Azure Functions"] },
+      { "label": "Frontend", "items": ["React", "Next.js", "React Native", "Redux Toolkit"] },
+      { "label": "Databases", "items": ["PostgreSQL", "MongoDB", "Redis", "FAISS", "Pinecone"] },
+      { "label": "Applied AI", "items": ["multi-agent systems", "RAG", "LangChain", "OpenAI APIs", "Claude", "prompt engineering", "embeddings", "vector search"] },
+      { "label": "Architecture and Practices", "items": ["System Design", "Microservices", "Serverless", "Auth (JWT, RBAC, SSO)", "Agile"] }
+    ],
+    "experience": [
+      { "entryId": "servbeyond-enterprise-ai-platform-intern", "role": "Enterprise AI & Platform Intern", "dates": "Jun 2026 to Present", "bullets": [
+        { "sourceBulletId": "servbeyond-agentic-workflows", "text": "Engineered platform integrations across Salesforce, ServiceNow, and AWS, wiring REST and SOAP services into a normalized data layer that powers company-wide automation for 100 employees." },
+        { "sourceBulletId": "servbeyond-agentic-workflows", "text": "Streamlined meeting-to-ticket and opportunity intake with Python Azure Functions and Power Automate, deployed company-wide and saving up to 2 hours per meeting and 10 to 15 minutes per opportunity." },
+        { "sourceBulletId": "servbeyond-rag-lite", "text": "Shipped a retrieval assistant over a version-controlled SharePoint archive used daily by 20+ staff, pairing auto-vectorized ingestion with a React front end." }
+      ]},
+      { "entryId": "runara-ml-inference-engineer-intern", "role": "Software Engineer Intern", "dates": "March 2026 to May 2026", "bullets": [{ "sourceBulletId": "runara-speculative-decoding", "text": "Implemented speculative decoding from scratch in PyTorch and HuggingFace across two GPUs, applying the rejection-sampling acceptance criterion and establishing the draft-to-target cost ratio under which the technique yields 2 to 3x inference throughput on large target models." }] },
+      { "entryId": "svipes-software-engineer", "role": "Software Engineer", "dates": "Jul 2024 to Dec 2024", "bullets": [{ "sourceBulletId": "svipes-video-perf", "text": "Optimized a video module with async loading and client-side caching, cutting playback stutter 70% and load time by 1.3 seconds across iOS and Android." }] },
+      { "entryId": "xelpmoc-software-engineer", "role": "Software Engineer", "dates": "Nov 2022 to Apr 2024", "bullets": [
+        { "sourceBulletId": "xelpmoc-sql-redis", "text": "Reduced API response time from 75s to under 10s and raised throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding a Redis caching layer." },
+        { "sourceBulletId": "xelpmoc-tourism-backend", "text": "Architected RESTful backend services for a tourism platform, cutting production defects 40% and accelerating feature delivery 25%." },
+        { "sourceBulletId": "xelpmoc-webrtc", "text": "Designed a real-time interview system with WebRTC and Socket.IO supporting 100+ concurrent sessions at sub-200ms latency." }
+      ]},
+      { "entryId": "iiit-hyderabad-software-intern", "role": "Software Intern", "dates": "Jun 2022 to Aug 2022", "bullets": [{ "sourceBulletId": "iiit-nlp-extraction", "text": "Automated multilingual data extraction across 5+ regional languages with Python and Selenium, improving NLP classification accuracy 15%." }] }
+    ],
+    "education": { "educationId": "umd-meng-software-engineering", "degree": "Master of Engineering, Computer Software Engineering, Minor in Cloud Engineering", "dates": "Jan 2025 to Dec 2026 (Expected)", "gpa": "GPA: 3.7" },
+    "projects": [
+      { "entryId": "serverless-video-analytics", "title": "Serverless Video Analytics Platform, AWS", "role": "", "bullets": [{ "sourceBulletId": "video-analytics-core", "text": "Deployed a serverless video pipeline on AWS Lambda, API Gateway, DynamoDB, and SQS with CloudFormation and GitHub Actions, using dedicated upload, processing, and analytics functions auto-scaling behind CloudFront to absorb bursty load at low idle cost." }] },
+      { "entryId": "locra", "title": "Locra", "role": "On-Device Multimodal AI, Android", "bullets": [{ "sourceBulletId": "locra-core", "text": "Developed an Android-first multimodal AI assistant in React Native, TypeScript, and Expo that runs a quantized Qwen3-VL-2B vision-language model fully on device via llama.rn, pairing on-device Whisper speech-to-text with a Kotlin native module that enforces model integrity and a hard offline guarantee." }] }
+    ]
+  }
+]
