@@ -12,8 +12,15 @@ const LEGACY_RESUME_OPTIONS = Object.freeze({
   Custom: "Software Engineer / FullStack / Cloud",
 });
 
-function normalizeResumeOption(option) {
-  return LEGACY_RESUME_OPTIONS[option] || option || "Software Engineer / FullStack / Cloud";
+const CURRENT_RESUME_OPTIONS = new Set([
+  "AI / LLM",
+  "Mobile / React Native",
+  "Software Engineer / FullStack / Cloud",
+]);
+
+export function normalizeResumeOption(option) {
+  const migrated = LEGACY_RESUME_OPTIONS[option] || option;
+  return CURRENT_RESUME_OPTIONS.has(migrated) ? migrated : "Software Engineer / FullStack / Cloud";
 }
 
 // Returns the normalized app data blob, or null.
@@ -49,7 +56,7 @@ export async function loadAppData() {
 
 // Fills in defaults for any fields a saved blob is missing, so adding new
 // top-level fields stays backward-compatible without one-off migrations.
-function normalizeAppData(data) {
+export function normalizeAppData(data) {
   return {
     workspaces: data.workspaces ?? [],
     activeWorkspaceId: data.activeWorkspaceId ?? null,

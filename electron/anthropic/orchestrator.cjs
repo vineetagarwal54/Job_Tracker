@@ -72,7 +72,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let job;
       try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
       progress?.("Analyzing job requirements");
-      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule, relevanceModule, pageFitModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff", "relevanceIntelligence", "pageFitBackoff"].map((name) => load(path.join(generateDir, `${name}.js`))));
+      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, baseModule, tailoringModule, relevanceModule, pageFitModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackAnalysis", "resumeWarnings", "baseResumes", "tailoringDiff", "relevanceIntelligence", "pageFitBackoff"].map((name) => load(path.join(generateDir, `${name}.js`))));
       stage = "content-bank";
       let bank;
       try { bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8")); } catch (error) { throw codedError("VALIDATION_FAILED", `The resume content bank is missing or corrupt: ${error.message}`); }
@@ -101,11 +101,6 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         usedAnalysisFallback = true;
       }
 
-      // Multiple role-emphasis tags steer the summary, bullet ranking, skills,
-      // projects, and page-space allocation. The primary emphasis also chooses
-      // the concrete resume variant (so an enterprise-AI JD renders the ai-llm
-      // variant with the enterprise summary, not the inference summary).
-      const emphasisResult = emphasisModule.classifyEmphases({ job, extraction, analysis: analyzed.analysis });
       const variant = canonicalBase.variant;
 
       progress?.("Selecting resume variant");
@@ -144,7 +139,6 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
           const finalSelection = tailoringModule.tailoredBaseEvidenceSelection(bank, candidateBase);
           renderedAttempt.finalSelection = finalSelection;
           renderedAttempt.renderedSkills = finalSelection.renderedSkills;
-          renderedAttempt.budget = { included: [], excluded: [], usedLines: null, availableLines: null, remainingLines: null };
           fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), renderedAttempt.tex, "utf8");
           progress?.(attempt.attempt === 1 ? "Compiling resume PDF" : "Backing off tailoring to preserve one page");
           const compiledAttempt = await compileResumeTex(texFileName);
@@ -155,8 +149,6 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       generated = { ...generated, base: pageFit.base, acceptedDiff: pageFit.acceptedDiff, densityRatio: pageFit.densityRatio };
       const { rendered, compiled } = pageFit.result;
       const pageCount = pageFit.pageCount;
-      const removedForFit = [];
-      const addedForFit = [];
 
       progress?.("Verifying PDF text layer");
       stage = "ats-verification";
@@ -197,13 +189,12 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       return {
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
         baseResumeId: canonicalBase.id,
-        selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
+        selection: rendered.finalSelection, finalCoverage: finalVerification.coverage,
         tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: relevancePlan.candidates.length, meaningfulGaps: relevancePlan.gaps, unsupportedMissing: relevancePlan.unsupportedMissing, beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
-        atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,
+        atsIntegrity, atsWarning: ATS_WARNING,
         warnings,
         fallback: { analysis: usedAnalysisFallback, selection: usedSelectionFallback, reason: selectionFallbackReason },
-        emphases: emphasisResult.emphases, primaryEmphasis: emphasisResult.primary,
         renderedSkills: rendered.renderedSkills || finalVerification.renderedSkills || null,
         suggestedFileName: fileNameModule.userFacingFileName({ kind: "resume", company: job.company, role: job.title }),
         models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,
@@ -218,29 +209,5 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
 }
 
 function analyzeModelName() { return MODELS.analysis; }
-
-// Builds a model-shaped `generated` object entirely from the verified bank when
-// the model selection fails. Tries the closest variant, then general
-// software-engineering variants, so an unusual JD still yields a valid resume.
-function buildFallbackGenerated({ fallbackModule, finalizeModule, bank, extraction, analysis, variant: preferredVariant = null, emphasisResult = null }) {
-  const candidates = [];
-  if (preferredVariant) candidates.push(preferredVariant);
-  const first = fallbackModule.chooseFallbackVariant(bank, { analysis, extraction });
-  if (!candidates.includes(first)) candidates.push(first);
-  for (const variant of ["fullstack", "cloud-backend", "ai-llm", "mobile"]) {
-    if (!candidates.includes(variant)) candidates.push(variant);
-  }
-  const emphasis = emphasisResult?.primary || null;
-  const emphases = emphasisResult?.emphases || null;
-  let lastError = null;
-  for (const variant of candidates) {
-    try {
-      const raw = fallbackModule.buildDeterministicSelection(bank, { variant, extraction, analysis });
-      const finalized = finalizeModule.finalizeSelection(bank, raw, { variant, extraction, analysis, emphasis, emphases });
-      return { selection: finalized.selection, finalSelection: finalized.finalSelection, budget: finalized.budget, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
-    } catch (error) { lastError = error; }
-  }
-  throw lastError || codedError("VALIDATION_FAILED", "Deterministic fallback selection failed for every variant.");
-}
 
 module.exports = { createOrchestrator, countPages, ATS_WARNING };

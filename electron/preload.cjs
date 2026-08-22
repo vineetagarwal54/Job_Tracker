@@ -22,7 +22,6 @@ contextBridge.exposeInMainWorld("resume", {
   keyStatus: () => ipcRenderer.invoke("resume:key-status"),
   testApiKey: () => ipcRenderer.invoke("resume:key-test"),
   checkTectonic: () => ipcRenderer.invoke("resume:check-tectonic"),
-  analyzeJob: (job) => ipcRenderer.invoke("resume:analyze-job", job),
   generate: (job) => ipcRenderer.invoke("resume:generate", job),
   generateCoverLetter: (input) => ipcRenderer.invoke("resume:generate-cover-letter", input),
   cancelGeneration: () => ipcRenderer.invoke("resume:cancel-generation"),

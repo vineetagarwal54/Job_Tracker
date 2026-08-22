@@ -2,7 +2,7 @@
 //
 // The useful rules from the reference skill files (JD analyzer, resume tailor,
 // resume quantifier, resume bullet writer, tech resume optimizer, cover-letter
-// generator, humanizer) are distilled here into small composable fragments.
+// generator) are distilled here into small composable fragments.
 // Each model call is assembled from ONLY the modules it needs, so we never send
 // every rule to every call.
 
@@ -18,9 +18,7 @@ const TECH_OPTIMIZER = `Surface an exact job-description term only when it is al
 
 const NO_FABRICATION = `Never claim CUDA kernel authoring, kernel fusion, GPU kernel optimization, or the teammates' 2 to 3 times speculative-decoding result as the candidate's own benchmark.`;
 
-const COVER_LETTER = `Write a direct professional cover letter using only the supplied verified content bank, the selected resume evidence, the job description, and the validated analysis. Return only the requested JSON. Do not output contact information, greeting, sign-off, headings, URLs, or LaTeX. Write exactly four content paragraphs: a brief opening, two evidence-based body paragraphs, and a concise closing. Do not invent company facts, metrics, responsibilities, technologies, names, addresses, or personal stories.`;
-
-const HUMANIZER = `Rewrite the supplied cover letter so it reads as natural human writing. Remove AI tells: inflated or promotional phrasing, filler, the rule of three, negative parallelisms, and generic openers such as "I am excited to apply", "passionate about", "perfect fit", "cutting-edge", or "leverage my skills". Keep every fact, number, technology, scope, and outcome identical to the input; change wording only, never meaning. Return the same JSON structure with the same four paragraphs. Use no em dash and no AI filler.`;
+const COVER_LETTER = `Write a concise, natural cover letter using only the supplied final-resume evidence, job description, and validated analysis. Select the two or three strongest verified matches; do not force in unrelated bullets or repeat keywords. Every substantive candidate claim must be copied into claimEvidence and cite only the supplied resume evidence ID that supports it. Preserve metrics exactly. Never invent experience, skills, ownership, outcomes, company facts, motivation, names, addresses, or personal stories. Company-specific statements must be directly supported by the job description. Return only the requested JSON with exactly four short content paragraphs and no contact information, greeting, sign-off, headings, URLs, or LaTeX.`;
 
 function compose(...modules) {
   return modules.filter(Boolean).join(" ");
@@ -30,13 +28,11 @@ function compose(...modules) {
 const ANALYSIS_SYSTEM = compose(JD_ANALYZER, "Return only the requested JSON.");
 const SELECTION_SYSTEM = compose(RESUME_TAILOR, QUANTIFIER, BULLET_WRITER, TECH_OPTIMIZER, NO_FABRICATION, "Output only the requested JSON.");
 const COVER_LETTER_SYSTEM = compose(COVER_LETTER, QUANTIFIER, "Use no em dash and no AI filler.");
-const HUMANIZER_SYSTEM = compose(HUMANIZER, QUANTIFIER);
 
 module.exports = {
-  modules: { JD_ANALYZER, RESUME_TAILOR, QUANTIFIER, BULLET_WRITER, TECH_OPTIMIZER, NO_FABRICATION, COVER_LETTER, HUMANIZER },
+  modules: { JD_ANALYZER, RESUME_TAILOR, QUANTIFIER, BULLET_WRITER, TECH_OPTIMIZER, NO_FABRICATION, COVER_LETTER },
   compose,
   ANALYSIS_SYSTEM,
   SELECTION_SYSTEM,
   COVER_LETTER_SYSTEM,
-  HUMANIZER_SYSTEM,
 };

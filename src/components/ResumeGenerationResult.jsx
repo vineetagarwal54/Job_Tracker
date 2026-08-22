@@ -1,16 +1,15 @@
 import { useState } from "react";
 
 const values = (items) => (items || []).map(item => item.value || item.normalized || item).join(", ") || "None";
+const BASE_LABELS = Object.freeze({ ai: "AI / LLM", mobile: "Mobile / React Native", "swe-cloud": "Software Engineer / FullStack / Cloud" });
 
 export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder, onGenerateAgain, onGenerateCoverLetter, coverActive }) {
   const [saveMsg, setSaveMsg] = useState(null);
   if (!result) return null;
   const included = result.verification?.includedBulletIds || [];
-  const excluded = result.verification?.excluded || result.budget?.excluded || [];
   const coverage = result.finalCoverage || {};
   const onePage = result.pageCount === 1;
   const atsOk = result.atsIntegrity ? result.atsIntegrity.valid : null;
-  const removed = result.removedForFit || [];
   const warnings = result.warnings || [];
   const renderedSkills = result.renderedSkills || result.verification?.renderedSkills || [];
   const coverageImprovement = result.tailoring?.coverageImprovement || {};
@@ -35,7 +34,6 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Badge ok={atsOk}>{atsOk === null ? "ATS text layer unchecked" : atsOk ? "ATS text layer" : "ATS text layer failed"}</Badge>
         <Badge ok={true} neutral>Must-have coverage {coverage.mustHave?.percentage ?? 0}%</Badge>
         {backedOffForFit.length > 0 && <Badge ok={null} warn>Reverted {backedOffForFit.length} change{backedOffForFit.length > 1 ? "s" : ""} for one page</Badge>}
-        {removed.length > 0 && <Badge ok={null} warn>Trimmed {removed.length} bullet{removed.length > 1 ? "s" : ""} to fit</Badge>}
       </div>
 
       {warnings.length > 0 && (
@@ -82,14 +80,12 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Unsupported JD gaps" value={(result.tailoring?.unsupportedMissing || []).map((item) => item.term).join(", ") || "None"} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
-        <Detail label="Generation mode" value={result.fallback?.selection ? `Canonical base unchanged after tailoring fallback${result.fallback?.reason ? ` (${result.fallback.reason})` : ""}` : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
-        <Detail label="Base resume" value={result.baseResumeId} />
+        <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
+        <Detail label="Base resume" value={BASE_LABELS[result.baseResumeId] || "Software Engineer / FullStack / Cloud"} />
         <Detail label="Accepted tailoring changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
         <Detail label="Rejected tailoring changes" value={String(result.tailoring?.rejected?.length || 0)} />
-        <Detail label="Backed off for page fit" value={backedOffForFit.map((item) => `${item.type}${item.candidateId ? ` (${item.candidateId})` : ""}`).join(", ") || "None"} />
+        <Detail label="Backed off for page fit" value={backedOffForFit.map((item) => item.type).join(", ") || "None"} />
         <Detail label="Included bullets" value={included.join(", ")} />
-        <Detail label="Excluded bullets" value={excluded.map(item => `${item.id} (${item.reason})`).join(", ") || "None"} />
-        <Detail label="Trimmed to fit" value={removed.map(item => `${item.bulletId} (${item.entryId})`).join(", ") || "None"} />
         <Detail label="Models" value={`${result.models?.analysis || ""}; ${result.models?.resumeSelection || ""}`} />
         <Detail label="Analysis usage" value={formatUsage(result.usage?.analysis)} />
         <Detail label="Tailoring diff usage" value={formatUsage(result.usage?.resumeSelection)} />

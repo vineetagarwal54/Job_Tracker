@@ -83,15 +83,15 @@ letter.
 
 ### Architecture decision that matters most
 
-**The LLM never writes the resume document.** It selects and lightly
-rewrites bullets from a fixed content bank (JSON, hand-maintained, not
-generated). Deterministic JS code renders those bullets into the LaTeX
-template. This is the whole point of the design , it prevents template
+**The LLM never writes the resume document.** The selected job option chooses
+one of three canonical bases. The model may propose only a small structured
+diff referencing canonical, base, and content-bank IDs. Deterministic JS
+validates and applies that diff, then renders it into the LaTeX template. This prevents template
 drift (LLM inventing new LaTeX structure/sections) and invented metrics
 (LLM fabricating numbers that aren't in the source bullets). Any
 implementation that lets the model emit raw `.tex` or free-form prose that
-gets inserted verbatim into the document is wrong. The model's only output
-is structured JSON referencing/rewriting bank entries; JS owns every byte
+gets inserted verbatim into the document is wrong. The model's only resume
+output is a bounded structured diff; JS owns every byte
 of the `.tex` file.
 
 ### Pipeline
@@ -101,25 +101,28 @@ of the `.tex` file.
 2. **Haiku call** (`claude-haiku-4-5-20251001`) , classify role family,
    seniority, must-have requirements, blockers (e.g. citizenship/clearance
    requirements the user can't meet). Cheap, fast, small output.
-3. **Deterministic coverage score** of the content bank against the
+3. **Deterministic coverage score** of the selected canonical base against the
    extracted JD keywords , no API call. Surfaces gaps before spending a
    Sonnet call.
 4. **Sonnet call** (`claude-sonnet-5`), **streamed**, with the content bank
-   as a **cached** stable prefix (prompt caching) , selects and lightly
-   rewrites bullets, returns structured JSON. Must return **more ranked
-   bullets than there are template slots** so the deterministic render step
-   can pick the best fit for the one-page budget without a second API round
-   trip.
+   as a **cached** stable prefix (prompt caching), returns only a bounded
+   tailoring diff chosen from deterministic minimum-benefit candidates.
 5. **Deterministic render**: JSON → `.tex`, using the measured spacing
    constants below. Pure JS, no API.
 6. **Compile** `.tex` → PDF via `tectonic` (shelled out from the main
    process).
-7. **Post-render ATS check** on the final rendered document , deterministic,
-   no API , confirms the actually-shipped document still covers the JD
-   keywords (not just what was requested of the model).
+7. **Compile-driven one-page backoff and post-render ATS check** on the final
+   rendered document. Overflow reverts the least valuable accepted changes;
+   it never trims original base content.
 
 Only steps 2 and 4 call the API. Steps 1, 3, 5, 7 are pure deterministic JS
 and must stay that way , do not fold them into a prompt "for simplicity."
+
+Cover letters use the final post-backoff resume and existing job analysis.
+They use one streamed Sonnet writing call followed by deterministic factual
+validation, render, compile, and one-page verification. The humanizer pass is
+retired. Invalid prose or model failure uses the conservative verified fallback
+without another model call.
 
 ### Measured constants (from the actual template , do not re-derive)
 

@@ -7,9 +7,9 @@ function link(url) {
   return `\\href{${escapeLatex(url)}}{${escapeLatex(visible)}}`;
 }
 
-export function renderCoverLetter({ bank, content, identity, job, date = new Date() }) {
+export function renderCoverLetter({ bank, content, identity, job, date = new Date(), validationOptions = {} }) {
   const safeIdentity = validateRendererIdentity(identity);
-  const safeContent = validateCoverLetter(content, bank);
+  const safeContent = validateCoverLetter(content, bank, validationOptions);
   const contacts = [safeIdentity.location, safeIdentity.phone, safeIdentity.email].filter(Boolean).map(escapeLatex);
   for (const key of ["linkedin", "github", "portfolio"]) if (safeIdentity.links[key]) contacts.push(link(safeIdentity.links[key]));
   const paragraphs = [safeContent.opening, ...safeContent.bodyParagraphs, safeContent.closing].map((text) => escapeLatexWithProtectedTerms(text)).join("\n\n");

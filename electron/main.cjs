@@ -3,7 +3,6 @@ const path = require("path");
 const fs = require("fs");
 const { createAnthropicClient } = require("./anthropic/apiClient.cjs");
 const { createKeyStore } = require("./anthropic/keyStore.cjs");
-const { analyzeJob } = require("./anthropic/analyzeJob.cjs");
 const { createOrchestrator } = require("./anthropic/orchestrator.cjs");
 const { createActiveGenerations } = require("./anthropic/activeGenerations.cjs");
 const { createCoverLetterOrchestrator } = require("./anthropic/coverLetterOrchestrator.cjs");
@@ -135,7 +134,6 @@ function registerResumeIpc() {
     status: () => environment.configured ? { configured: true, source: "environment" } : { ...keyStore.status(), source: keyStore.status().configured ? "safeStorage" : "environment" },
   };
   const client = createAnthropicClient();
-  const generateDir = path.join(rootDir, "src", "generate");
   const compileResumeTex = (fileName) => compileGeneratedTex(paths, fileName);
   const orchestrate = createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile: () => null, compileResumeTex, paths });
   const orchestrateCoverLetter = createCoverLetterOrchestrator({ rootDir, client, keyProvider, getDefaultProfile: () => null, compileResumeTex, paths });
@@ -147,10 +145,6 @@ function registerResumeIpc() {
       await client.request({ apiKey: keyProvider.readKey(), body: { model: MODELS.analysis, max_tokens: 1, messages: [{ role: "user", content: "Reply OK" }] } });
       return { ok: true, model: MODELS.analysis };
     } catch (error) { return { ok: false, error: serializeResumeError(error) }; }
-  });
-  ipcMain.handle("resume:analyze-job", async (_event, job) => {
-    try { const result = await analyzeJob({ client, apiKey: keyProvider.readKey(), job, generateDir }); return { ok: true, ...result }; }
-    catch (error) { return { ok: false, error: serializeResumeError(error) }; }
   });
   ipcMain.handle("resume:generate", async (event, job) => {
     const owner = event.sender.id;

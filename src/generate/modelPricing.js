@@ -7,12 +7,13 @@ export const MODEL_PRICING_USD_PER_MILLION = Object.freeze({
 });
 
 export function normalizeUsage(model, usage = {}) {
+  const safeUsage = usage && typeof usage === "object" ? usage : {};
   return {
     model,
-    inputTokens: Number(usage.input_tokens || 0),
-    outputTokens: Number(usage.output_tokens || 0),
-    cacheCreationInputTokens: Number(usage.cache_creation_input_tokens || 0),
-    cacheReadInputTokens: Number(usage.cache_read_input_tokens || 0),
+    inputTokens: Number(safeUsage.input_tokens || 0),
+    outputTokens: Number(safeUsage.output_tokens || 0),
+    cacheCreationInputTokens: Number(safeUsage.cache_creation_input_tokens || 0),
+    cacheReadInputTokens: Number(safeUsage.cache_read_input_tokens || 0),
   };
 }
 

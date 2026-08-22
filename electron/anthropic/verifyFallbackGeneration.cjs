@@ -33,15 +33,17 @@ const VALID_ANALYSIS = {
 };
 const VALID_SELECTION = { version: 1, baseResumeId: "swe-cloud", bulletChanges: [], skillChanges: [] };
 
-// Mock client: analysisMode / selectionMode are "ok" | "throw".
+// Mock client modes are "ok", "throw", or "malformed".
 function makeClient({ analysis = "ok", selection = "ok" } = {}) {
   return {
     request: async ({ body }) => {
       if (body.model === MODELS.analysis) {
         if (analysis === "throw") throw new Error("simulated analysis outage");
+        if (analysis === "malformed") return { content: [{ type: "text", text: JSON.stringify({ roleFamily: "backend" }) }], usage: {}, stop_reason: "end_turn" };
         return { content: [{ type: "text", text: JSON.stringify(VALID_ANALYSIS) }], usage: {}, stop_reason: "end_turn" };
       }
       if (selection === "throw") throw new Error("simulated selection outage");
+      if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
       return { text: JSON.stringify({ ...VALID_SELECTION, baseResumeId: body.output_config.format.schema.properties.baseResumeId.enum[0] }), usage: null, stopReason: "end_turn" };
     },
   };
@@ -51,9 +53,8 @@ function makeOrchestrator(client) {
   return createOrchestrator({ rootDir: root, client, keyProvider, getDefaultProfile, compileResumeTex: (fileName) => compileGeneratedTex(paths, fileName), paths });
 }
 
-// Cover-letter mock client: call 1 returns a factual draft (numbers only from
-// the verified bank), call 2 returns a faithful humanized rewrite that keeps
-// every number and technology, so the two-pass humanizer accepts it.
+// Cover-letter mock client returns a factual draft grounded in verified bank
+// evidence. The active flow must make exactly one writing-model call.
 function coverClient() {
   let calls = 0;
   const filler = "word ".repeat(45).trim();
@@ -69,12 +70,11 @@ function coverClient() {
       { sentence: "Delivered platform automation for 100 employees and cut API response time from 75 seconds to under 10 seconds.", evidenceIds: ["servbeyond-platform-integrations", "xelpmoc-sql-redis"] },
     ],
   };
-  const humanized = { ...draft, opening: `Direct opening line here. ${"note ".repeat(42).trim()}` };
   return {
+    get calls() { return calls; },
     request: async () => {
       calls += 1;
-      const payload = calls === 1 ? draft : humanized;
-      return { text: JSON.stringify(payload), stopReason: "end_turn", usage: { input_tokens: 10, output_tokens: 20 } };
+      return { text: JSON.stringify(draft), stopReason: "end_turn", usage: { input_tokens: 10, output_tokens: 20 } };
     },
   };
 }
@@ -111,16 +111,33 @@ async function main() {
   assertResumeShape(selFallback, "selection-fallback");
   assert(selFallback.fallback.selection === true, "selection-fallback: selection fallback flagged");
   assert(selFallback.warnings.some((w) => w.type === "selection-fallback"), "selection-fallback: warning surfaced");
+  assert(JSON.stringify(selFallback.selection) === JSON.stringify(normal.selection), "selection-fallback: canonical base remained byte-for-byte equivalent at the selection layer");
 
   // 3. Analysis + selection fallback: both model calls fail -> resume still ships.
   const bothFallback = await makeOrchestrator(makeClient({ analysis: "throw", selection: "throw" })).call(null, { job });
   assertResumeShape(bothFallback, "both-fallback");
   assert(bothFallback.fallback.analysis === true && bothFallback.fallback.selection === true, "both-fallback: both fallbacks flagged");
   assert(bothFallback.warnings.some((w) => w.type === "analysis-fallback"), "both-fallback: analysis fallback warning surfaced");
+  assert(JSON.stringify(bothFallback.selection) === JSON.stringify(normal.selection), "both-fallback: model outages did not weaken the canonical base");
+
+  const malformedAnalysis = await makeOrchestrator(makeClient({ analysis: "malformed" })).call(null, { job });
+  assertResumeShape(malformedAnalysis, "malformed-analysis");
+  assert(malformedAnalysis.fallback.analysis === true, "malformed-analysis: deterministic analysis fallback used");
+
+  const malformedSelection = await makeOrchestrator(makeClient({ selection: "malformed" })).call(null, { job });
+  assertResumeShape(malformedSelection, "malformed-selection");
+  assert(malformedSelection.fallback.selection === true, "malformed-selection: canonical selection fallback used");
+  assert(JSON.stringify(malformedSelection.selection) === JSON.stringify(normal.selection), "malformed-selection: malformed output did not alter the canonical base");
 
   // 4. Recovery after failure: a prior failure never blocks a later generation.
   const recovered = await makeOrchestrator(makeClient({})).call(null, { job });
   assertResumeShape(recovered, "recovery");
+
+  let compileFailure;
+  try {
+    await createOrchestrator({ rootDir: root, client: makeClient({}), keyProvider, getDefaultProfile, compileResumeTex: async () => ({ ok: false, error: { code: "COMPILATION_FAILED", message: "simulated compiler failure" } }), paths })({ job });
+  } catch (error) { compileFailure = error; }
+  assert(compileFailure?.code === "COMPILATION_FAILED" && compileFailure?.stage === "render-compile", "compile failure is explicit and stage-labelled");
 
   const mobileJob = { ...job, resumeOption: "Mobile / React Native", baseResumeId: "mobile" };
   const mobile = await makeOrchestrator(makeClient({})).call(null, { job: mobileJob });
@@ -131,16 +148,17 @@ async function main() {
   const enterpriseJob = { company: "Acme", title: "Enterprise AI Builder", description: "Ship internal AI tools and automations, agentic GenAI workflows, Salesforce and ServiceNow integrations, and drive adoption and measurable business impact. LangChain and RAG." };
   const enterprise = await makeOrchestrator(makeClient({ selection: "throw" })).call(null, { job: enterpriseJob });
   assertResumeShape(enterprise, "enterprise");
-  assert(enterprise.primaryEmphasis === "enterprise-ai", "enterprise JD classified as enterprise-ai");
+  assert(enterprise.baseResumeId === "swe-cloud", "enterprise JD keeps selected default base");
 
   // 6. Cover-letter-only: reuse the resume's stored evidence with a NEW JD and
-  //    the two-pass humanizer, WITHOUT regenerating the resume.
-  const orchestrateCover = createCoverLetterOrchestrator({ rootDir: root, client: coverClient(), keyProvider, getDefaultProfile, compileResumeTex: (fileName) => compileGeneratedTex(paths, fileName), paths });
+  //    one writing-model call, WITHOUT regenerating the resume.
+  const coverApi = coverClient();
+  const orchestrateCover = createCoverLetterOrchestrator({ rootDir: root, client: coverApi, keyProvider, getDefaultProfile, compileResumeTex: (fileName) => compileGeneratedTex(paths, fileName), paths });
   const newJd = { company: "Beta Corp", title: "Backend Engineer", description: "Backend engineer building REST APIs on AWS with Redis and PostgreSQL." };
-  const cover = await orchestrateCover({ job: newJd, analysis: normal.analysis, selection: normal.selection });
+  const cover = await orchestrateCover({ job: newJd, selection: normal.selection });
   assert(cover.pageCount === 1, `cover-letter-only is one page (got ${cover.pageCount})`);
   assert(cover.atsIntegrity.valid, "cover-letter-only ATS text layer valid");
-  assert(cover.humanized === true, "cover-letter-only ran the humanizer and kept it (facts preserved)");
+  assert(cover.modelCalls === 1 && coverApi.calls === 1, "cover-letter-only used exactly one writing-model call");
   assert(cover.pdfFileName !== normal.pdfFileName, "cover-letter-only produced a separate document (did not touch the resume)");
 
   console.log(JSON.stringify({
@@ -148,10 +166,13 @@ async function main() {
     selectionFallbackCompiles: true,
     analysisAndSelectionFallbackCompiles: true,
     recoveryAfterFailure: true,
+    malformedAnalysisFallsBack: true,
+    malformedSelectionFallsBack: true,
+    compileFailureExplicit: true,
     selectedJobResumeOptionAuthoritative: true,
     selectedBaseRemainsAuthoritative: true,
     coverLetterOnlyReusesResume: true,
-    humanizerRan: cover.humanized,
+    singleCoverLetterCall: coverApi.calls === 1,
     onePage: [normal.pageCount, selFallback.pageCount, bothFallback.pageCount, recovered.pageCount, mobile.pageCount, enterprise.pageCount, cover.pageCount],
   }, null, 2));
 }

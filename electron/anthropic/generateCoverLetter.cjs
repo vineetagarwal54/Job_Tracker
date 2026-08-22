@@ -1,76 +1,59 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { MODELS } = require("./models.cjs");
-const { COVER_LETTER_SYSTEM, HUMANIZER_SYSTEM } = require("./prompts.cjs");
+const { COVER_LETTER_SYSTEM } = require("./prompts.cjs");
 const { parseJsonText, sanitizeJob } = require("./validation.cjs");
 
-// Two-pass cover-letter generation (task Part 5):
-//   1. Generate a factual first draft from verified evidence only.
-//   2. Validate facts and numbers.
-//   3. Humanize the draft (second model pass).
-//   4. Validate facts, numbers, technologies, and meaning again.
-//   5. Fall back to the first valid draft if humanization changed a fact.
-async function generateCoverLetter({ client, apiKey, bank, job, analysis, selection, resumeText = "", signal, generateDir, progress }) {
-  const { COVER_LETTER_SCHEMA, validateCoverLetter } = await import(pathToFileURL(path.join(generateDir, "coverLetterValidation.js")).href);
-  const { validateJobAnalysis } = await import(pathToFileURL(path.join(generateDir, "jobAnalysisValidation.js")).href);
-  const { validateSelection } = await import(pathToFileURL(path.join(generateDir, "validateSelection.js")).href);
-  const { validateHumanizedCoverLetter } = await import(pathToFileURL(path.join(generateDir, "coverLetterHumanization.js")).href);
-  const safeJob = sanitizeJob(job);
-  validateJobAnalysis(analysis);
-  const verifiedSelection = resumeText ? null : validateSelection(bank, selection, { requireUniqueActionVerbs: false });
-  const { identity: _identity, ...safeBank } = bank;
-  const stable = `${COVER_LETTER_SYSTEM}\nVERIFIED CONTENT BANK:\n${JSON.stringify(safeBank)}`;
-  const evidence = resumeText ? [{ id: "local-pdf", text: String(resumeText) }] : verifiedSelection.rankedBullets.map((item) => ({ id: item.bullet.id, text: item.text }));
-
-  // Pass 1: factual first draft.
-  progress?.("Drafting evidence-based cover letter");
-  const draftResponse = await client.request({ apiKey, signal, stream: true, timeoutMs: 180000, body: {
-    model: MODELS.writing,
-    max_tokens: 2200,
-    system: [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }],
-    output_config: { format: { type: "json_schema", schema: COVER_LETTER_SCHEMA } },
-    messages: [{ role: "user", content: JSON.stringify({ job: safeJob, analysis, selectedEvidence: evidence, requirements: "150 to 320 words in exactly four paragraphs. No invented facts or numbers; use only supplied evidence. Return claimEvidence with every factual sentence and its one or more evidence IDs." }) }],
-  } });
-  progress?.("Validating cover letter claims");
-  const draft = validateCoverLetter(parseJsonText(draftResponse.text, "Cover letter", { stopReason: draftResponse.stopReason }), bank, { jobDescription: safeJob.description, evidenceText: resumeText });
-  const evidenceIds = new Set(evidence.map((item) => item.id));
-  if (draft.claimEvidence.some((claim) => claim.evidenceIds.some((id) => !evidenceIds.has(id)))) throw Object.assign(new Error("Cover letter cited evidence outside the selected resume."), { code: "VALIDATION_FAILED" });
-
-  // Pass 2: humanize, then revalidate facts. On any failure keep the factual
-  // draft (never ship a version that changed a fact).
-  let content = draft;
-  let humanized = false;
-  const usageTotals = accumulateUsage({}, draftResponse.usage);
-  try {
-    progress?.("Humanizing cover letter");
-    const humanizeResponse = await client.request({ apiKey, signal, stream: true, timeoutMs: 180000, body: {
-      model: MODELS.writing,
-      max_tokens: 2200,
-      system: HUMANIZER_SYSTEM,
-      output_config: { format: { type: "json_schema", schema: COVER_LETTER_SCHEMA } },
-      messages: [{ role: "user", content: JSON.stringify({ draft: { version: 1, opening: draft.opening, bodyParagraphs: draft.bodyParagraphs, closing: draft.closing, claimEvidence: draft.claimEvidence }, jobDescription: safeJob.description, requirements: "Keep every number, technology, ownership, responsibility, scope, employer/project association, production status, customer count, leadership claim, team size, and outcome identical. Change wording only; preserve claimEvidence exactly. Return four paragraphs and 150 to 320 words." }) }],
-    } });
-    accumulateUsage(usageTotals, humanizeResponse.usage);
-    const candidate = validateCoverLetter(parseJsonText(humanizeResponse.text, "Humanized cover letter", { stopReason: humanizeResponse.stopReason }), bank, { jobDescription: safeJob.description, evidenceText: resumeText });
-    const check = validateHumanizedCoverLetter(draft, candidate, { jobDescription: safeJob.description });
-    if (check.valid) {
-      content = candidate;
-      humanized = true;
-    }
-  } catch {
-    // Humanization pass failed to produce a valid factual draft: keep pass 1.
-  }
-
-  progress?.("Validating cover letter claims");
-  return { content, humanized, usage: usageTotals, model: MODELS.writing };
+function isCancellation(error, signal) {
+  return Boolean(signal?.aborted) || error?.code === "CANCELLED" || error?.name === "AbortError" || /\babort|cancel/i.test(String(error?.message || ""));
 }
 
-function accumulateUsage(totals, usage) {
-  if (!usage) return totals;
-  for (const key of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]) {
-    if (typeof usage[key] === "number") totals[key] = (totals[key] || 0) + usage[key];
+async function generateCoverLetter({ client, apiKey, bank, job, analysis, selection, resumeText = "", signal, generateDir, progress }) {
+  const validation = await import(pathToFileURL(path.join(generateDir, "coverLetterValidation.js")).href);
+  const evidenceModule = await import(pathToFileURL(path.join(generateDir, "coverLetterEvidence.js")).href);
+  const { validateJobAnalysis } = await import(pathToFileURL(path.join(generateDir, "jobAnalysisValidation.js")).href);
+  const safeJob = sanitizeJob(job);
+  validateJobAnalysis(analysis);
+  const evidenceBundle = evidenceModule.buildCoverLetterEvidence({ bank, job: safeJob, analysis, selection, resumeText });
+  if (!evidenceBundle.evidence.length) throw Object.assign(new Error("No verified resume evidence is available for the cover letter."), { code: "VALIDATION_FAILED" });
+
+  progress?.("Writing evidence-based cover letter");
+  let response = null;
+  let content;
+  let usedFallback = false;
+  try {
+    response = await client.request({ apiKey, signal, stream: true, timeoutMs: 180000, body: {
+      model: MODELS.writing,
+      max_tokens: 1800,
+      system: COVER_LETTER_SYSTEM,
+      output_config: { format: { type: "json_schema", schema: validation.coverLetterSchema(evidenceBundle.evidence.map((item) => item.id)) } },
+      messages: [{ role: "user", content: JSON.stringify({
+        job: safeJob,
+        analysis,
+        finalResumeEvidence: evidenceBundle.evidence,
+        finalResumeSkills: evidenceBundle.resumeSkills,
+        requirements: "Write 200 to 300 words in exactly four short paragraphs. Emphasize only the 2 or 3 strongest supplied evidence items. Every substantive candidate claim must appear verbatim in claimEvidence and cite only its supporting finalResumeEvidence ID. Preserve every metric exactly. Describe the company only with facts stated in the JD. If the JD gives no supported motivation, use a factual general closing. Avoid filler, keyword stuffing, and claims based only on an unsupported JD requirement.",
+      }) }],
+    } });
+    progress?.("Validating cover letter evidence");
+    content = validation.validateCoverLetter(parseJsonText(response.text, "Cover letter", { stopReason: response.stopReason }), bank, { jobDescription: safeJob.description, evidenceText: evidenceBundle.allEvidence.map((item) => item.text).join(" ") });
+    evidenceModule.validateEvidenceClaims(content, evidenceBundle, { job: safeJob, bank });
+  } catch (error) {
+    if (isCancellation(error, signal)) throw error;
+    usedFallback = true;
+    progress?.("Using conservative verified cover letter fallback");
+    content = evidenceModule.buildConservativeCoverLetter({ job: safeJob, evidenceBundle });
+    content = validation.validateCoverLetter(content, bank, { jobDescription: safeJob.description, evidenceText: evidenceBundle.allEvidence.map((item) => item.text).join(" ") });
+    evidenceModule.validateEvidenceClaims(content, evidenceBundle, { job: safeJob, bank });
   }
-  return totals;
+
+  let conservativeContent = content;
+  if (!usedFallback) {
+    conservativeContent = evidenceModule.buildConservativeCoverLetter({ job: safeJob, evidenceBundle });
+    conservativeContent = validation.validateCoverLetter(conservativeContent, bank, { jobDescription: safeJob.description, evidenceText: evidenceBundle.allEvidence.map((item) => item.text).join(" ") });
+    evidenceModule.validateEvidenceClaims(conservativeContent, evidenceBundle, { job: safeJob, bank });
+  }
+  return { content, conservativeContent, usedFallback, evidence: evidenceBundle.evidence, usage: response?.usage || null, model: MODELS.writing, modelCalls: 1 };
 }
 
 module.exports = { generateCoverLetter };

@@ -1,7 +1,7 @@
-import { rewriteViolation } from "./validateSelection.js";
+import { rewriteViolation } from "./resumeEvidenceValidation.js";
 import { textContainsTerm } from "./protectedTerms.js";
 import { scoreCoverage } from "./coverageScoring.js";
-import { missingJobSkills } from "./skillSelection.js";
+import { missingJobSkills } from "./resumeGapReporting.js";
 import { MIN_RELEVANCE_BENEFIT, relevanceUtility } from "./relevanceIntelligence.js";
 
 export const TAILORING_CAPS = Object.freeze({ bulletChanges: 3, projectSwaps: 1, skillChanges: 4 });
@@ -64,6 +64,19 @@ function density(base) {
 function densityIsSafe(original, candidate) {
   const ratio = density(candidate) / Math.max(1, density(original));
   return ratio >= 0.85 && ratio <= 1.15;
+}
+
+function duplicateOpeningVerbCount(base) {
+  const counts = new Map();
+  for (const entry of [...(base.experience || []), ...(base.projects || [])]) for (const bullet of entry.bullets || []) {
+    const verb = String(bullet.text || "").trim().match(/^[A-Za-z]+/)?.[0]?.toLowerCase();
+    if (verb) counts.set(verb, (counts.get(verb) || 0) + 1);
+  }
+  return [...counts.values()].reduce((total, count) => total + Math.max(0, count - 1), 0);
+}
+
+function actionVerbsAreSafe(original, candidate) {
+  return duplicateOpeningVerbCount(candidate) <= duplicateOpeningVerbCount(original);
 }
 
 function summaryCatalog(bank) {
@@ -199,6 +212,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
     const nextLocated = findBaseBullet(next, change.entryId, change.baseBulletId);
     nextLocated.entry.bullets[nextLocated.index] = replacement;
     if (!densityIsSafe(original, next)) reject(rejected, "bullet", "Bullet change exceeds the density guard.", change);
+    else if (!actionVerbsAreSafe(original, next)) reject(rejected, "bullet", "Bullet change would add a repeated opening action verb.", change);
     else if (!positiveBenefit(tailored, next)) reject(rejected, "bullet", "Bullet change has no positive relevance benefit.", change);
     else { tailored = next; accepted.bulletChanges.push(clone(change)); }
   }
@@ -223,6 +237,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
         const next = clone(tailored);
         next.projects[slot] = { entryId: replacement.id, title: replacement.org, role: replacement.role, dates: replacement.dates || "", bullets };
         if (!densityIsSafe(original, next)) reject(rejected, "project", "Project swap exceeds the density guard.", change);
+        else if (!actionVerbsAreSafe(original, next)) reject(rejected, "project", "Project swap would add a repeated opening action verb.", change);
         else if (!positiveBenefit(tailored, next)) reject(rejected, "project", "Project swap has no positive relevance benefit.", change);
         else { tailored = next; accepted.projectSwap = clone(change); }
       }
@@ -264,14 +279,18 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
 
 export function tailoredBaseEvidenceSelection(bank, base) {
   const skillGroups = base.skills.map((group, index) => ({ id: `base-skill-${index}`, label: group.label, items: [...group.items] }));
+  const bankBullets = new Map([...bank.experience, ...bank.projects].flatMap((entry) => entry.bullets.map((bullet) => [bullet.id, bullet.text])));
+  const selectedBullet = (bullet) => bankBullets.get(bullet.sourceBulletId) === bullet.text
+    ? { id: bullet.sourceBulletId }
+    : { id: bullet.sourceBulletId, rewrittenText: bullet.text };
   return {
     version: 1,
     variant: base.variant,
     educationId: base.education.educationId,
     skillGroupIds: [bank.skillGroups[0].id],
     renderedSkills: skillGroups,
-    experience: base.experience.map((entry) => ({ entryId: entry.entryId, bullets: entry.bullets.map((bullet) => ({ id: bullet.sourceBulletId })) })),
-    projects: base.projects.map((entry) => ({ entryId: entry.entryId, bullets: entry.bullets.map((bullet) => ({ id: bullet.sourceBulletId })) })),
+    experience: base.experience.map((entry) => ({ entryId: entry.entryId, bullets: entry.bullets.map(selectedBullet) })),
+    projects: base.projects.map((entry) => ({ entryId: entry.entryId, bullets: entry.bullets.map(selectedBullet) })),
   };
 }
 

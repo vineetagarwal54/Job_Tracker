@@ -48,9 +48,12 @@ const fabricated = apply({
 });
 assert(fabricated.acceptedDiff.bulletChanges.length === 0 && fabricated.acceptedDiff.skillChanges.length === 0 && fabricated.rejected.length === 2, "fabricated claims and skills rejected");
 
-for (const result of [zero, swap, rewrite, project, skill, capped, protectedAttempt, fabricated]) {
+const repeatedVerb = apply({ bulletChanges: [{ type: "rewrite", entryId: "xelpmoc-software-engineer", baseBulletId: "xelpmoc-sql-redis", rewrittenText: rewriteText.replace(/^Reduced/, "Architected"), justification: "The JD requires SQL performance work." }] });
+assert(repeatedVerb.acceptedDiff.bulletChanges.length === 0 && repeatedVerb.rejected.some((item) => /repeated opening action verb/.test(item.reason)), "tailoring was allowed to worsen opening-action-verb duplication");
+
+for (const result of [zero, swap, rewrite, project, skill, capped, protectedAttempt, fabricated, repeatedVerb]) {
   assert(JSON.stringify(counts(result.base)) === JSON.stringify(originalCounts), "every result preserves protected structure and bullet density");
   assert(result.densityRatio >= 0.85 && result.densityRatio <= 1.15, "every result stays within the density guard");
 }
 
-console.log(JSON.stringify({ zeroChange: true, bulletSwap: true, justifiedRewrite: true, projectSwap: true, skillEdit: true, capsEnforced: true, protectedContentPreserved: true, fabricationRejected: true }, null, 2));
+console.log(JSON.stringify({ zeroChange: true, bulletSwap: true, justifiedRewrite: true, projectSwap: true, skillEdit: true, capsEnforced: true, protectedContentPreserved: true, fabricationRejected: true, actionVerbDuplicationNotWorsened: true }, null, 2));

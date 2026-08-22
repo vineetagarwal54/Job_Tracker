@@ -28,11 +28,13 @@
     "preview": "vite preview",
     "electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "vite build && electron-builder",
-    "verify:ai-resume": "node electron/verifyAiResumeFeature.cjs && node src/generate/verifyPhases3to5.js && node src/generate/verifyJobAnalysisContract.js && node src/generate/verifyDuplicateVerbBudget.js && node electron/anthropic/verifyApiClient.cjs && node src/generate/renderSampleResume.js && node src/generate/verifySampleResume.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/verifyGeneratedPdfs.cjs && node src/generate/verifyDeterministicRules.js && node src/generate/verifyFallbackAndSkills.js && node src/generate/verifyRoleTailoring.js && node electron/anthropic/verifyFallbackGeneration.cjs",
+    "verify:ai-resume": "node electron/verifyAiResumeFeature.cjs && node src/generate/verifyCanonicalBases.js && node src/generate/verifyResumeContracts.js && node src/generate/verifyPhases3to5.js && node src/generate/verifyJobAnalysisContract.js && node electron/anthropic/verifyApiClient.cjs && node src/generate/verifyTailoringDiff.js && node src/generate/verifyRelevanceIntelligence.js && node src/generate/verifyPageFitBackoff.js && node src/generate/verifyCoverLetterFlow.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/verifyGeneratedPdfs.cjs && node src/utils/verifyStorageMigration.js && node electron/anthropic/verifyFallbackGeneration.cjs",
     "verify:canonical-bases": "node src/generate/verifyCanonicalBases.js",
     "verify:tailoring-diff": "node src/generate/verifyTailoringDiff.js",
     "verify:relevance": "node src/generate/verifyRelevanceIntelligence.js",
     "verify:page-fit": "node src/generate/verifyPageFitBackoff.js",
+    "verify:cover-letter": "node src/generate/verifyCoverLetterFlow.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/anthropic/verifyFallbackGeneration.cjs",
+    "verify:production-regression": "node electron/anthropic/verifyProductionRegression.cjs",
     "postinstall": "electron-builder install-app-deps || true"
   },
   "build": {

@@ -1,4 +1,4 @@
-import { findGenericPhrases } from "./coverLetterHumanization.js";
+import { findGenericPhrases } from "./genericPhraseValidation.js";
 
 const FIELDS = ["version", "opening", "bodyParagraphs", "closing", "claimEvidence"];
 // wordCount is a derived field this validator adds; tolerate it so re-validating
@@ -28,7 +28,7 @@ export function validateCoverLetter(value, bank, options = {}) {
   if (paragraphs.some((item) => !item)) throw Object.assign(new Error("Cover letter paragraphs cannot be empty."), { code: "VALIDATION_FAILED" });
   const text = paragraphs.join(" ");
   const words = text.split(/\s+/).filter(Boolean).length;
-  if (words < 150 || words > 320) throw Object.assign(new Error(`Cover letter must contain 150 to 320 words; received ${words}.`), { code: "VALIDATION_FAILED" });
+  if (words < 180 || words > 310) throw Object.assign(new Error(`Cover letter should contain approximately 200 to 300 words; received ${words}.`), { code: "VALIDATION_FAILED" });
   if (LATEX.test(text)) throw Object.assign(new Error("Cover letter response contains LaTeX commands."), { code: "VALIDATION_FAILED" });
   for (const pattern of FORBIDDEN) if (pattern.test(text)) throw Object.assign(new Error("Cover letter contains a forbidden claim or separator."), { code: "VALIDATION_FAILED" });
   const allowedNumbers = allBankNumbers(bank, options.evidenceText);
@@ -43,3 +43,23 @@ export function validateCoverLetter(value, bank, options = {}) {
 export const COVER_LETTER_SCHEMA = { type: "object", additionalProperties: false, properties: {
   version: { type: "integer", enum: [1] }, opening: { type: "string" }, bodyParagraphs: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" } }, closing: { type: "string" }, claimEvidence: { type: "array", minItems: 1, items: { type: "object", additionalProperties: false, properties: { sentence: { type: "string" }, evidenceIds: { type: "array", minItems: 1, items: { type: "string" } } }, required: ["sentence", "evidenceIds"] } },
 }, required: FIELDS };
+
+export function coverLetterSchema(evidenceIds) {
+  const ids = [...new Set((evidenceIds || []).filter(Boolean))];
+  return {
+    ...COVER_LETTER_SCHEMA,
+    properties: {
+      ...COVER_LETTER_SCHEMA.properties,
+      claimEvidence: {
+        ...COVER_LETTER_SCHEMA.properties.claimEvidence,
+        items: {
+          ...COVER_LETTER_SCHEMA.properties.claimEvidence.items,
+          properties: {
+            ...COVER_LETTER_SCHEMA.properties.claimEvidence.items.properties,
+            evidenceIds: { type: "array", minItems: 1, items: { type: "string", enum: ids.length ? ids : ["no-evidence"] } },
+          },
+        },
+      },
+    },
+  };
+}

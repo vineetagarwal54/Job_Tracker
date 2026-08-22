@@ -49,7 +49,7 @@ export function documentHistoryEntry(type, result, job = null, sourceResume = nu
     ...(type === "resume" && result.selection && result.analysis
       ? { source: { analysis: result.analysis, selection: result.selection, bulletEvidence: result.selection.rankedBullets || [], renderedSkills: result.renderedSkills || [], company: result.job?.company || "", role: result.job?.title || "", createdAt: new Date().toISOString(), pdfFileName: result.pdfFileName } }
       : {}),
-    ...(type === "cover-letter" ? { jobDescription: String(job?.description || job?.jd || ""), company: String(job?.company || ""), role: String(job?.title || job?.role || ""), sourceResumeId: sourceResume?.id || null, sourceResumeFileName: sourceResume?.pdfFileName || null, humanized: Boolean(result.humanized), origin: "cover-letter" } : { origin: "generated" }),
+    ...(type === "cover-letter" ? { jobDescription: String(job?.description || job?.jd || ""), company: String(job?.company || ""), role: String(job?.title || job?.role || ""), sourceResumeId: sourceResume?.id || null, sourceResumeFileName: sourceResume?.pdfFileName || null, origin: "cover-letter" } : { origin: "generated" }),
   };
 }
 

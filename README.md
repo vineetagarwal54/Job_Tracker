@@ -76,6 +76,16 @@ Anthropic API billing is separate from Claude subscriptions. Resume selection se
 
 Generated files are written to `resume/output/` during development. Packaged builds use `Documents\JobTrack\Resumes\`, which remains writable after installation.
 
+### Current document-generation architecture
+
+Each job selects one authoritative canonical base: **AI / LLM**, **Mobile / React Native**, or **Software Engineer / FullStack / Cloud**. Generation scores that selected base against the JD, asks Sonnet for only a small ID-referenced tailoring diff, validates every proposed change against the verified content bank, and renders the result with deterministic JavaScript. JD classification never overrides the saved resume choice.
+
+Tailoring is capped at three bullet changes, one project swap, four skill edits, and one summary change. Low-value or unsupported proposals are rejected. If accepted tailoring causes a second page, JobTrack reverts the least valuable changes until the PDF returns to one page; it never trims original base content. The unchanged canonical base is the safe worst-case result.
+
+Cover letters use the final post-backoff resume evidence and existing job analysis. They require one writing-model call, followed by deterministic claim validation, LaTeX rendering, compilation, and one-page verification. Unsupported model prose falls back to a conservative letter built only from verified resume evidence. The former second humanizer pass is no longer active.
+
+See [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) for the complete active pipeline, ownership boundaries, failure guarantees, and verification commands.
+
 ### Build a distributable
 
 ```bash
@@ -128,7 +138,9 @@ The bookmarklet uses selected page text when available, then JSON-LD, then the m
 JobTrack/
 ├── electron/
 │   ├── main.cjs           # Electron main process, IPC handlers, deep-link (jobtrack://)
-│   └── preload.cjs        # Exposes storage + electronAPI to renderer
+│   ├── preload.cjs        # Narrow storage and document-generation bridges
+│   ├── anthropic/         # Main-process model orchestration and schemas
+│   └── resume/            # Tectonic, generated paths, and PDF verification
 ├── src/
 │   ├── main.jsx           # React entry point
 │   ├── JobTracker.jsx     # Root component, wires all state and layout
@@ -150,12 +162,17 @@ JobTrack/
 │   │   ├── useJobs.js         # All app state: workspaces + jobs + persistence
 │   │   ├── useFilters.js      # Filter and sort state
 │   │   └── useJobSorting.js   # Memoised filter + sort logic
+│   ├── generate/          # Canonical bases, verified bank, tailoring, rendering
 │   └── utils/
 │       ├── storageHelpers.js      # IPC storage wrapper + migration
 │       ├── bookmarklet.js         # Bookmarklet JS URL generator
 │       ├── validation.js          # Form validation
 │       ├── deadline.js            # Deadline date helpers
 │       └── jobDescriptionCleaner.js  # HTML → plain text cleaner
+├── resume/
+│   ├── base/              # Three authoritative canonical resume PDFs
+│   ├── template/          # Resume and cover-letter LaTeX templates
+│   └── output/            # Generated development files, gitignored
 ├── index.html
 ├── vite.config.js
 └── package.json
@@ -165,7 +182,7 @@ JobTrack/
 
 ## Data & Privacy
 
-Application data and generated files are stored locally. When you explicitly generate an AI resume or cover letter, JobTrack sends the saved job description, validated analysis context, and verified content bank to Anthropic. The API key remains in the Electron main process, and identity/contact fields are added locally during rendering. You can export a full job backup at any time via the **Export** button and restore it with **Import**.
+Application data and generated files are stored locally. When you explicitly generate a resume, JobTrack sends the saved job description, selected canonical base, and verified content bank to Anthropic for a bounded diff. Cover-letter generation sends the job context and only the strongest verified evidence from the final resume. The API key remains in the Electron main process, and identity/contact fields are added locally during rendering. You can export a full job backup at any time via the **Export** button and restore it with **Import**.
 
 **Where your data lives:**
 

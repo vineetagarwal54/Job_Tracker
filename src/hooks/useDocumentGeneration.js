@@ -103,20 +103,19 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
     }
   }, [cleanup, onCoverLetterComplete, onResumeComplete, status]);
 
-  // Cover-letter-only (task Part 5): generate a cover letter for a new JD using
-  // an existing resume's stored evidence, WITHOUT regenerating the resume. The
-  // new JD is analyzed fresh (falling back to the source resume's analysis), and
-  // the cover letter draws only on the source selection and verified bank.
+  // Cover-letter-only generation reuses stored resume evidence. Its new JD is
+  // classified deterministically in the main process, so this path neither
+  // reuses stale analysis from another job nor repeats the Haiku call.
   const generateCoverLetterOnly = useCallback(async ({ job, source }) => {
     if (activeRef.current) { setCoverLetterError(messageForResumeError({ code: "GENERATION_ACTIVE" })); return null; }
-    if (!source?.resumeText && (!source?.selection || !source?.analysis)) { setCoverLetterError("Select a generated resume or readable local PDF to base the cover letter on."); return null; }
+    if (!source?.resumeText && !source?.selection) { setCoverLetterError("Select a generated resume or readable local PDF to base the cover letter on."); return null; }
     const normalizedJob = normalizeJob(job);
     const requirements = missingGenerationRequirements({ status, job: normalizedJob, active: false });
     if (requirements.length) { setCoverLetterError(`Required: ${requirements.join(", ")}.`); return null; }
     activeRef.current = true;
     setActive(true); setMode("generating"); setError(""); setCoverLetterError("");
     setCoverLetterResult(null); setElapsedSeconds(0); setEstimatedCostUsd(ESTIMATES.resume);
-    setProgress("Analyzing job requirements");
+    setProgress("Preparing verified resume evidence");
     cleanup();
     listenerRef.current = subscribeToGeneration(window.resume, (event) => {
       if (event?.type === "started" || event?.type === "progress") setProgress(event.message || "Generating cover letter");
@@ -124,9 +123,7 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
     });
     timerRef.current = setInterval(() => setElapsedSeconds(seconds => seconds + 1), 1000);
     try {
-      let analysis = source.analysis;
-      try { const analyzed = await window.resume.analyzeJob(normalizedJob); if (analyzed?.ok && analyzed.analysis) analysis = analyzed.analysis; } catch { /* keep source analysis */ }
-      const response = await window.resume.generateCoverLetter({ job: normalizedJob, analysis, selection: source.selection, resumeText: source.resumeText || "" });
+      const response = await window.resume.generateCoverLetter({ job: normalizedJob, selection: source.selection, resumeText: source.resumeText || "" });
       if (!response?.ok) {
         if (response?.error?.code === "CANCELLED") { setMode("choice"); setProgress(""); }
         else setCoverLetterError(messageForResumeError(response?.error));
