@@ -72,7 +72,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let job;
       try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
       progress?.("Analyzing job requirements");
-      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule, relevanceModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff", "relevanceIntelligence"].map((name) => load(path.join(generateDir, `${name}.js`))));
+      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule, relevanceModule, pageFitModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff", "relevanceIntelligence", "pageFitBackoff"].map((name) => load(path.join(generateDir, `${name}.js`))));
       stage = "content-bank";
       let bank;
       try { bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8")); } catch (error) { throw codedError("VALIDATION_FAILED", `The resume content bank is missing or corrupt: ${error.message}`); }
@@ -113,9 +113,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       const preliminaryCoverage = relevancePlan.baseCoverage;
 
       // --- Selection (Sonnet) with universal deterministic fallback. If the
-      // model response or its validation fails, build a safe selection straight
-      // from the verified bank so a bad model response never fails a resume the
-      // bank can produce. ---
+      // model response or its validation fails, keep the selected canonical base
+      // unchanged so a bad model response cannot damage protected content. ---
       stage = "selection";
       let generated;
       let usedSelectionFallback = false;
@@ -138,17 +137,24 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       const texFileName = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}.tex`;
 
       stage = "render-compile";
-      const rendered = renderModule.renderCanonicalBase({ bank, base: generated.base, template, identity });
-      const finalSelection = tailoringModule.tailoredBaseEvidenceSelection(bank, generated.base);
-      rendered.finalSelection = finalSelection;
-      rendered.renderedSkills = finalSelection.renderedSkills;
-      rendered.budget = { included: [], excluded: [], usedLines: null, availableLines: null, remainingLines: null };
-      fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
-      progress?.("Compiling resume PDF");
-      const compiled = await compileResumeTex(texFileName);
-      if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
-      const pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
-      if (pageCount !== 1) throw codedError("VALIDATION_FAILED", `Tailored canonical resume is ${pageCount || "an unknown number of"} pages.`);
+      const pageFit = await pageFitModule.fitTailoredBaseToOnePage({
+        canonicalBase, tailoredBase: generated.base, acceptedDiff: generated.acceptedDiff, relevancePlan,
+        renderAndCompile: async (candidateBase, attempt) => {
+          const renderedAttempt = renderModule.renderCanonicalBase({ bank, base: candidateBase, template, identity });
+          const finalSelection = tailoringModule.tailoredBaseEvidenceSelection(bank, candidateBase);
+          renderedAttempt.finalSelection = finalSelection;
+          renderedAttempt.renderedSkills = finalSelection.renderedSkills;
+          renderedAttempt.budget = { included: [], excluded: [], usedLines: null, availableLines: null, remainingLines: null };
+          fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), renderedAttempt.tex, "utf8");
+          progress?.(attempt.attempt === 1 ? "Compiling resume PDF" : "Backing off tailoring to preserve one page");
+          const compiledAttempt = await compileResumeTex(texFileName);
+          if (!compiledAttempt.ok) throw codedError(compiledAttempt.error.code, compiledAttempt.error.message);
+          return { rendered: renderedAttempt, compiled: compiledAttempt, pageCount: countPages(paths.resolveGeneratedFile(compiledAttempt.pdfFileName, ".pdf")) };
+        },
+      });
+      generated = { ...generated, base: pageFit.base, acceptedDiff: pageFit.acceptedDiff, densityRatio: pageFit.densityRatio };
+      const { rendered, compiled } = pageFit.result;
+      const pageCount = pageFit.pageCount;
       const removedForFit = [];
       const addedForFit = [];
 
@@ -192,7 +198,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
         baseResumeId: canonicalBase.id,
         selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
-        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: relevancePlan.candidates.length, meaningfulGaps: relevancePlan.gaps, unsupportedMissing: relevancePlan.unsupportedMissing, beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement },
+        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: relevancePlan.candidates.length, meaningfulGaps: relevancePlan.gaps, unsupportedMissing: relevancePlan.unsupportedMissing, beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,
         warnings,

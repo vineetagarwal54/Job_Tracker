@@ -9,11 +9,12 @@ export const RESUME_ERROR_MESSAGES = {
   INVALID_OUTPUT_PATH: "The generated file path was rejected.", MISSING_PROFILE: "No valid resume identity is available in the content bank.",
   MISSING_JOB_DESCRIPTION: "Save the full job description before generating.", MALFORMED_RESPONSE: "Anthropic returned an unreadable response.",
   VALIDATION_FAILED: "Generated content did not pass factual validation.",
+  BASE_VALIDATION_FAILED: "The selected canonical base no longer compiles to exactly one page. Verify the base before tailoring.",
   IDENTITY_INVALID: "The resume identity is incomplete or malformed. Check your name, phone, email, and links.",
 };
 
 export function messageForResumeError(error) {
-  if (["VALIDATION_FAILED", "MALFORMED_RESPONSE", "IDENTITY_INVALID"].includes(error?.code) && error?.message) return error.message;
+  if (["VALIDATION_FAILED", "BASE_VALIDATION_FAILED", "MALFORMED_RESPONSE", "IDENTITY_INVALID"].includes(error?.code) && error?.message) return error.message;
   return RESUME_ERROR_MESSAGES[error?.code] || error?.message || "Document generation failed.";
 }
 

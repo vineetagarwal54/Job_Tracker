@@ -14,6 +14,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
   const warnings = result.warnings || [];
   const renderedSkills = result.renderedSkills || result.verification?.renderedSkills || [];
   const coverageImprovement = result.tailoring?.coverageImprovement || {};
+  const backedOffForFit = result.tailoring?.backedOffForFit || [];
 
   const save = async () => {
     setSaveMsg(null);
@@ -33,6 +34,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Badge ok={onePage}>{onePage ? "One page" : `${result.pageCount || "?"} pages`}</Badge>
         <Badge ok={atsOk}>{atsOk === null ? "ATS text layer unchecked" : atsOk ? "ATS text layer" : "ATS text layer failed"}</Badge>
         <Badge ok={true} neutral>Must-have coverage {coverage.mustHave?.percentage ?? 0}%</Badge>
+        {backedOffForFit.length > 0 && <Badge ok={null} warn>Reverted {backedOffForFit.length} change{backedOffForFit.length > 1 ? "s" : ""} for one page</Badge>}
         {removed.length > 0 && <Badge ok={null} warn>Trimmed {removed.length} bullet{removed.length > 1 ? "s" : ""} to fit</Badge>}
       </div>
 
@@ -84,6 +86,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Base resume" value={result.baseResumeId} />
         <Detail label="Accepted tailoring changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
         <Detail label="Rejected tailoring changes" value={String(result.tailoring?.rejected?.length || 0)} />
+        <Detail label="Backed off for page fit" value={backedOffForFit.map((item) => `${item.type}${item.candidateId ? ` (${item.candidateId})` : ""}`).join(", ") || "None"} />
         <Detail label="Included bullets" value={included.join(", ")} />
         <Detail label="Excluded bullets" value={excluded.map(item => `${item.id} (${item.reason})`).join(", ") || "None"} />
         <Detail label="Trimmed to fit" value={removed.map(item => `${item.bulletId} (${item.entryId})`).join(", ") || "None"} />

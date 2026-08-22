@@ -86,6 +86,8 @@ function assertResumeShape(result, label, expectedBase = "swe-cloud") {
   assert(Array.isArray(result.renderedSkills) && result.renderedSkills.length > 0, `${label}: individual skills rendered`);
   assert(result.baseResumeId === expectedBase, `${label}: selected canonical base retained`);
   assert(result.tailoring && result.tailoring.densityRatio >= 0.85, `${label}: bounded tailoring metadata returned`);
+  assert(Array.isArray(result.tailoring.pageFitAttempts) && result.tailoring.pageFitAttempts.at(-1)?.pageCount === 1, `${label}: compile-driven page-fit verification returned`);
+  assert(Array.isArray(result.tailoring.backedOffForFit), `${label}: page-fit backoff metadata returned`);
   const expIds = (result.selection.experience || []).map((e) => e.entryId);
   assert(expIds.includes("servbeyond-enterprise-ai-platform-intern") && expIds.includes("xelpmoc-software-engineer"), `${label}: protected base employers present`);
   assert((result.selection.projects || []).some((e) => e.entryId === "locra"), `${label}: mandatory project Locra present`);
