@@ -95,7 +95,7 @@ export function buildResumeWarnings({
   }
   if (usedSelectionFallback) {
     push(warnings, "selection-fallback", "info",
-      "The model selection was unavailable, so the resume was built deterministically from your verified content bank.");
+      "The tailoring diff was unavailable, so the selected canonical base was kept unchanged.");
   }
   if (requestedVariant && renderedVariant && requestedVariant !== renderedVariant) {
     push(warnings, "variant-mismatch", "info",

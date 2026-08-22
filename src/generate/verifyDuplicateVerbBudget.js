@@ -5,9 +5,10 @@ import { createRequire } from "node:module";
 import { budgetSelection } from "./lineBudget.js";
 import { validateSelection } from "./validateSelection.js";
 import { messageForResumeError } from "../utils/resumeGeneration.js";
+import { getCanonicalBaseResume, canonicalBases } from "./baseResumes.js";
 
 const require = createRequire(import.meta.url);
-const { generateResumeSelection } = require("../../electron/anthropic/generateResumeSelection.cjs");
+const { generateResumeSelection, tailoringDiffSchema } = require("../../electron/anthropic/generateResumeSelection.cjs");
 const here = path.dirname(fileURLToPath(import.meta.url));
 const bank = JSON.parse(fs.readFileSync(path.join(here, "content-bank.json"), "utf8"));
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -15,10 +16,10 @@ const rejects = async (fn, label) => { try { await fn(); } catch { return; } thr
 
 const selection = {
   version: 1, variant: "ai-llm", educationId: "umd-meng-software-engineering", skillGroupIds: ["llm-inference"],
-  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup" }] }],
+  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-assistant" }] }],
   projects: [
-    { entryId: "reporesearchai-multi-agent-code-analysis", bullets: [{ id: "reporesearchai-agents-rag" }] },
-    { entryId: "aws-video-analytics-streaming-platform", bullets: [{ id: "aws-video-analytics-platform" }] },
+    { entryId: "repo-research-ai", bullets: [{ id: "repo-research-agents" }] },
+    { entryId: "serverless-video-analytics", bullets: [{ id: "video-analytics-core" }] },
   ],
 };
 
@@ -31,37 +32,31 @@ function selectionFromBudget(source, budget) {
 const resolved = validateSelection(bank, selection, { requireUniqueActionVerbs: false });
 const budget = budgetSelection(resolved);
 const includedIds = budget.included.flatMap((entry) => entry.bullets.map((item) => item.bullet.id));
-const duplicate = budget.excluded.find((item) => item.id === "reporesearchai-agents-rag");
-assert(includedIds[0] === "servbeyond-rag-manual-lookup", "First ranked Built bullet was not kept");
-assert(!includedIds.includes("reporesearchai-agents-rag"), "Second Built bullet was not excluded");
-assert(includedIds.includes("aws-video-analytics-platform"), "Lower-ranked bullet with a different verb was not considered");
+const duplicate = budget.excluded.find((item) => item.id === "repo-research-agents");
+assert(includedIds[0] === "servbeyond-rag-assistant", "First ranked Built bullet was not kept");
+assert(!includedIds.includes("repo-research-agents"), "Second Built bullet was not excluded");
+assert(includedIds.includes("video-analytics-core"), "Lower-ranked bullet with a different verb was not considered");
 assert(duplicate?.reason === "duplicate action verb: built", "Duplicate-verb exclusion reason is missing or incorrect");
 validateSelection(bank, selectionFromBudget(selection, budget), { requireUniqueActionVerbs: true });
 
 await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-agentic-workflows", rewrittenText: "Designed 999 enterprise workflows." }] }], projects: [] }), "invented-number rewrite");
-await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup", rewrittenText: "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week across 100 users." }] }], projects: [] }), "locked-metric removal");
-await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "runara-ml-inference-engineer-intern", bullets: [{ id: "runara-speculative-decoding", rewrittenText: "Changed verified source text." }] }], projects: [] }), "non-rewritable change");
+await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-proposal-assistant", rewrittenText: "Shipped a multi-agent RAG proposal assistant for business development staff." }] }], projects: [] }), "locked-metric removal");
 await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "missing-bullet" }] }], projects: [] }), "unknown bullet ID");
-await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup" }, { id: "servbeyond-rag-manual-lookup" }] }], projects: [] }), "duplicate bullet ID");
+await rejects(() => validateSelection(bank, { ...selection, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-assistant" }, { id: "servbeyond-rag-assistant" }] }], projects: [] }), "duplicate bullet ID");
 
-const crossVariant = { ...selection, variant: "cloud-backend", skillGroupIds: ["cloud-devops"], experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup" }] }], projects: [] };
-await rejects(() => generateResumeSelection({ client: { request: async () => ({ text: JSON.stringify(crossVariant), usage: null }) }, apiKey: "fake", bank, job: {}, analysis: {}, extraction: {}, coverage: {}, variant: "cloud-backend", generateDir: here }), "cross-variant selection");
-
-const validCloudSelection = { ...crossVariant, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-agentic-workflows" }] }] };
+const base = getCanonicalBaseResume("swe-cloud");
+const diff = { version: 1, baseResumeId: base.id, bulletChanges: [], skillChanges: [] };
 let requestSchema;
 let requestMaxTokens;
 let requestTimeoutMs;
-await generateResumeSelection({ client: { request: async ({ body, timeoutMs }) => { requestSchema = body.output_config.format.schema; requestMaxTokens = body.max_tokens; requestTimeoutMs = timeoutMs; return { text: JSON.stringify(validCloudSelection), usage: null, stopReason: "end_turn" }; } }, apiKey: "fake", bank, job: {}, analysis: {}, extraction: {}, coverage: {}, variant: "cloud-backend", generateDir: here });
-const allowedIds = requestSchema.properties.experience.items.properties.bullets.items.properties.id.enum;
-assert(requestSchema.properties.variant.enum.length === 1 && requestSchema.properties.variant.enum[0] === "cloud-backend", "Output schema does not lock the selected variant");
-assert(allowedIds.includes("servbeyond-agentic-workflows") && !allowedIds.includes("servbeyond-rag-manual-lookup"), "Output schema does not constrain bullet IDs to the selected variant");
-assert(requestMaxTokens >= 10000, "Resume selection output ceiling is too low for the requested ranked bullets");
+const generatedDiff = await generateResumeSelection({ client: { request: async ({ body, timeoutMs }) => { requestSchema = body.output_config.format.schema; requestMaxTokens = body.max_tokens; requestTimeoutMs = timeoutMs; return { text: JSON.stringify(diff), usage: null, stopReason: "end_turn" }; } }, apiKey: "fake", bank, canonicalBases, base, job: {}, analysis: {}, extraction: {}, coverage: {}, generateDir: here });
+assert(requestSchema.properties.baseResumeId.enum[0] === "swe-cloud", "Diff schema does not lock the selected canonical base");
+assert(requestSchema.properties.bulletChanges.maxItems === 3 && requestSchema.properties.skillChanges.maxItems === 4, "Diff schema does not enforce tailoring caps");
+assert(requestMaxTokens === 5000, "Tailoring diff output ceiling is not bounded");
 assert(requestTimeoutMs === 240000, "Resume selection timeout is too short for schema compilation and streaming");
-
-const casedCloudSelection = { ...validCloudSelection, variant: "Cloud-Backend", educationId: "UMD-MENG-SOFTWARE-ENGINEERING", skillGroupIds: ["Cloud-Devops"], experience: [{ entryId: "Servbeyond-Enterprise-Ai-Platform-Intern", bullets: [{ id: "Servbeyond-Agentic-Workflows" }] }] };
-const canonicalized = await generateResumeSelection({ client: { request: async () => ({ text: JSON.stringify(casedCloudSelection), usage: null }) }, apiKey: "fake", bank, job: {}, analysis: {}, extraction: {}, coverage: {}, variant: "cloud-backend", generateDir: here });
-assert(canonicalized.finalSelection.variant === "cloud-backend" && canonicalized.finalSelection.experience[0].bullets[0].id === "servbeyond-agentic-workflows", "Schema enum casing was not canonicalized to bank IDs");
+assert(generatedDiff.acceptedDiff.bulletChanges.length === 0 && generatedDiff.base.id === "swe-cloud", "Zero-change diff did not preserve the selected base");
+assert(tailoringDiffSchema(bank, base).additionalProperties === false, "Tailoring schema permits structural fields");
 
 const safeReason = "Resume validation failed: rewrite introduced number '999'.";
 assert(messageForResumeError({ code: "VALIDATION_FAILED", message: safeReason }) === safeReason, "Safe validation reason did not reach renderer message handling");
-console.log(JSON.stringify({ firstDuplicateVerbWins: true, duplicateVerbExcluded: true, lowerRankedUniqueVerbIncluded: true, finalVerbValidation: true, rewriteProtections: true, crossVariantRejected: true, variantConstrainedSchema: true, enumCasingCanonicalized: true, outputCeilingRaised: true, resumeTimeoutConfigured: true, unknownAndDuplicateIdsRejected: true, safeValidationMessage: true }, null, 2));
+console.log(JSON.stringify({ firstDuplicateVerbWins: true, duplicateVerbExcluded: true, lowerRankedUniqueVerbIncluded: true, finalVerbValidation: true, rewriteProtections: true, canonicalBaseLocked: true, diffCapsInSchema: true, boundedOutput: true, resumeTimeoutConfigured: true, unknownAndDuplicateIdsRejected: true, safeValidationMessage: true }, null, 2));

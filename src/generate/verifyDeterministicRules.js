@@ -43,8 +43,8 @@ const bare = {
   variant: "ai-llm",
   educationId: "umd-meng-software-engineering",
   skillGroupIds: ["llm-inference"],
-  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup" }] }],
-  projects: [{ entryId: "reporesearchai-multi-agent-code-analysis", bullets: [{ id: "reporesearchai-agents-rag" }] }],
+  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-assistant" }] }],
+  projects: [{ entryId: "repo-research-ai", bullets: [{ id: "repo-research-agents" }] }],
 };
 const injected = ensureMandatoryContent(bank, bare, "ai-llm");
 assert(validateMandatoryEntries(injected).valid, "mandatory employers + Locra injected");
@@ -57,9 +57,9 @@ for (const required of ["applied-ai", "languages", "backend", "frontend", "cloud
   assert(injected.skillGroupIds.includes(required), `mandatory skill group ${required} present`);
 }
 
-// --- Skill-group variant filtering: an unrelated optional group is dropped ---
+// --- Mandatory skill groups survive variant resolution ---
 const skills = resolveSkillGroupIds(bank, ["frontend", "core-engineering"], "ai-llm");
-assert(!skills.includes("core-engineering"), "core-engineering (not ai-llm) filtered out");
+assert(skills.includes("core-engineering"), "mandatory core-engineering group retained");
 assert(skills.includes("frontend"), "mandatory frontend kept despite variant tags");
 
 // --- Budget reserves every mandatory entry even when optional content competes ---
@@ -71,7 +71,7 @@ for (const id of [...MANDATORY_EXPERIENCE_IDS, "locra"]) assert(includedEntryIds
 // --- Duplicate accomplishment prevention: cluster + similarity ---
 const clusterPair = rankedFor({
   ...bare,
-  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup" }, { id: "servbeyond-documentation-rag" }] }],
+  experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-assistant" }, { id: "servbeyond-rag-lite" }] }],
   projects: [],
 });
 const deduped = dedupeAccomplishments(clusterPair.rankedBullets);
@@ -85,10 +85,10 @@ assert(dedupeAccomplishments(near).kept.length === 1, "similarity fallback drops
 
 // --- Rewrite guards ---
 const rw = (id, entryId, section, text) => ({ ...bare, experience: section === "experience" ? [{ entryId, bullets: [{ id, rewrittenText: text }] }] : [], projects: section === "projects" ? [{ entryId, bullets: [{ id, rewrittenText: text }] }] : [] });
-rejects(() => validateSelection(bank, rw("servbeyond-rag-manual-lookup", "servbeyond-enterprise-ai-platform-intern", "experience", "Built and shipped 999 RAG assistants.")), "invented number");
-rejects(() => validateSelection(bank, rw("servbeyond-rag-manual-lookup", "servbeyond-enterprise-ai-platform-intern", "experience", "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95% answer accuracy across 100 users on Kubernetes.")), "unsupported technology");
+rejects(() => validateSelection(bank, rw("servbeyond-rag-assistant", "servbeyond-enterprise-ai-platform-intern", "experience", "Built and shipped 999 RAG assistants.")), "invented number");
+rejects(() => validateSelection(bank, rw("servbeyond-rag-assistant", "servbeyond-enterprise-ai-platform-intern", "experience", "Built and shipped a RAG assistant over internal documentation using LangChain and OpenAI APIs, cutting 25 hours of manual lookup per week and reaching 95% answer accuracy across 100 users on Kubernetes.")), "unsupported technology");
 rejects(() => validateSelection(bank, rw("servbeyond-agentic-workflows", "servbeyond-enterprise-ai-platform-intern", "experience", "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST integration into a normalized data layer.")), "dropped SOAP acronym");
-rejects(() => validateSelection(bank, rw("xelpmoc-api-performance", "xelpmoc-software-engineer", "experience", "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by refactoring SQL joins, indexing tables, and adding Redis caching.")), "dropped high-traffic compound");
+rejects(() => validateSelection(bank, rw("xelpmoc-sql-redis", "xelpmoc-software-engineer", "experience", "Reduced API response time from 75 seconds to under 10 seconds and increased throughput 4x by refactoring SQL joins, indexing tables, and adding Redis caching.")), "dropped high-traffic compound");
 
 // --- Sanitizer reverts a bad rewrite to the original instead of failing ---
 const badRewrite = { ...bare, experience: [{ entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-agentic-workflows", rewrittenText: "Designed agentic GenAI workflows across Salesforce, ServiceNow, and AWS using Amazon Bedrock for orchestration and REST integration into a normalized data layer." }] }], projects: [] };
@@ -107,10 +107,10 @@ assert(summaries.size === 4, "each variant yields a distinct summary");
 assert(selectSummary(bank, "mobile").toLowerCase().includes("react native"), "mobile summary emphasizes React Native");
 
 // --- Project maturity filtering ---
-assert(classifyProject("google-adk-experiments") === "exploratory", "google-adk classified exploratory");
-const withExploratory = { ...bare, projects: [{ entryId: "locra", bullets: [{ id: "locra-on-device-vision" }] }, { entryId: "google-adk-experiments", bullets: [{ id: "google-adk-orchestration" }] }] };
+assert(classifyProject("google-adk") === "exploratory", "google-adk classified exploratory");
+const withExploratory = { ...bare, projects: [{ entryId: "locra", bullets: [{ id: "locra-core" }] }, { entryId: "google-adk", bullets: [{ id: "google-adk-core" }] }] };
 const filtered = filterExploratoryProjects(withExploratory);
-assert(!filtered.projects.some((e) => e.entryId === "google-adk-experiments"), "exploratory dropped when stronger present");
+assert(!filtered.projects.some((e) => e.entryId === "google-adk"), "exploratory dropped when stronger present");
 assert(filtered.projects.some((e) => e.entryId === "locra"), "mandatory Locra retained");
 
 // --- Filenames ---

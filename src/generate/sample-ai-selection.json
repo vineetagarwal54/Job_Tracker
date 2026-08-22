@@ -4,15 +4,15 @@
   "educationId": "umd-meng-software-engineering",
   "skillGroupIds": ["llm-inference", "applied-ai", "databases", "cloud-devops", "languages", "frontend", "backend", "core-engineering"],
   "experience": [
-    { "entryId": "servbeyond-enterprise-ai-platform-intern", "bullets": [{ "id": "servbeyond-rag-manual-lookup" }] },
-    { "entryId": "runara-ml-inference-engineer-intern", "bullets": [{ "id": "runara-speculative-decoding" }, { "id": "runara-acceptance-gap" }, { "id": "runara-framework-benchmark" }, { "id": "runara-quantization-requirement" }, { "id": "runara-throughput-conditions" }] },
-    { "entryId": "svipes-software-engineer", "bullets": [{ "id": "svipes-video-module-refactor" }] },
-    { "entryId": "xelpmoc-software-engineer", "bullets": [{ "id": "xelpmoc-api-performance" }] },
-    { "entryId": "iiit-hyderabad-software-intern", "bullets": [{ "id": "iiit-multilingual-extraction" }] }
+    { "entryId": "servbeyond-enterprise-ai-platform-intern", "bullets": [{ "id": "servbeyond-rag-assistant" }] },
+    { "entryId": "runara-ml-inference-engineer-intern", "bullets": [{ "id": "runara-speculative-decoding" }, { "id": "runara-acceptance-gap" }, { "id": "runara-benchmarking" }, { "id": "runara-fp8-catch" }] },
+    { "entryId": "svipes-software-engineer", "bullets": [{ "id": "svipes-video-perf" }] },
+    { "entryId": "xelpmoc-software-engineer", "bullets": [{ "id": "xelpmoc-sql-redis" }] },
+    { "entryId": "iiit-hyderabad-software-intern", "bullets": [{ "id": "iiit-nlp-extraction" }] }
   ],
   "projects": [
-    { "entryId": "terrapin-events", "bullets": [{ "id": "terrapin-events-platform" }] },
-    { "entryId": "locra", "bullets": [{ "id": "locra-on-device-vision" }] },
-    { "entryId": "google-adk-experiments", "bullets": [{ "id": "google-adk-orchestration" }] }
+    { "entryId": "terrapin-events", "bullets": [{ "id": "terrapin-core" }] },
+    { "entryId": "locra", "bullets": [{ "id": "locra-integrated-offline" }] },
+    { "entryId": "google-adk", "bullets": [{ "id": "google-adk-core" }] }
   ]
 }

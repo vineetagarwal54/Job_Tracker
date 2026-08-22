@@ -30,6 +30,7 @@
     "electron:build": "vite build && electron-builder",
     "verify:ai-resume": "node electron/verifyAiResumeFeature.cjs && node src/generate/verifyPhases3to5.js && node src/generate/verifyJobAnalysisContract.js && node src/generate/verifyDuplicateVerbBudget.js && node electron/anthropic/verifyApiClient.cjs && node src/generate/renderSampleResume.js && node src/generate/verifySampleResume.js && node src/generate/renderSampleCoverLetter.js && node src/generate/verifyCoverLetter.js && node electron/verifyGeneratedPdfs.cjs && node src/generate/verifyDeterministicRules.js && node src/generate/verifyFallbackAndSkills.js && node src/generate/verifyRoleTailoring.js && node electron/anthropic/verifyFallbackGeneration.cjs",
     "verify:canonical-bases": "node src/generate/verifyCanonicalBases.js",
+    "verify:tailoring-diff": "node src/generate/verifyTailoringDiff.js",
     "postinstall": "electron-builder install-app-deps || true"
   },
   "build": {

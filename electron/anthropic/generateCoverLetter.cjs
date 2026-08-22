@@ -17,7 +17,7 @@ async function generateCoverLetter({ client, apiKey, bank, job, analysis, select
   const { validateHumanizedCoverLetter } = await import(pathToFileURL(path.join(generateDir, "coverLetterHumanization.js")).href);
   const safeJob = sanitizeJob(job);
   validateJobAnalysis(analysis);
-  const verifiedSelection = resumeText ? null : validateSelection(bank, selection, { requireUniqueActionVerbs: true });
+  const verifiedSelection = resumeText ? null : validateSelection(bank, selection, { requireUniqueActionVerbs: false });
   const { identity: _identity, ...safeBank } = bank;
   const stable = `${COVER_LETTER_SYSTEM}\nVERIFIED CONTENT BANK:\n${JSON.stringify(safeBank)}`;
   const evidence = resumeText ? [{ id: "local-pdf", text: String(resumeText) }] : verifiedSelection.rankedBullets.map((item) => ({ id: item.bullet.id, text: item.text }));

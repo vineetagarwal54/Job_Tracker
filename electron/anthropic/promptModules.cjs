@@ -8,13 +8,13 @@
 
 const JD_ANALYZER = `Classify the job posting for deterministic resume selection. Identify the role family, seniority, must-have requirements, and nice-to-have requirements. Blockers are limited to explicit citizenship, security-clearance, or CPT/OPT rejection requirements; generic no-sponsorship language is not a blocker for a full-time OPT candidate. Never invent a numeric score.`;
 
-const RESUME_TAILOR = `Select and lightly rewrite only verified bank bullets, ranked most relevant to the job description first. Prefer bullets whose skills and outcomes match the must-have requirements. Use only bank IDs. Never output LaTeX, summaries, skills prose, education prose, headings, URLs, contact information, or document structure.`;
+const RESUME_TAILOR = `The selected canonical resume is authoritative. Propose only a minimal diff against it, never a complete resume. Prefer no change, then a verified same-experience bullet swap, then a light truthful rewrite. You may reference a verified summary, propose at most three bullet changes, one one-for-one project swap, and four verified skill additions or swaps. Never remove experience, education, sections, skills, bullets without replacement, or projects without replacement. Use only supplied canonical and content-bank IDs. Never output LaTeX, headings, contact information, or document structure.`;
 
 const QUANTIFIER = `Preserve every metric exactly. Never invent, round, weaken, or drop a number. Use the verified numbers already present in the source; if a number is unknown, do not fabricate one.`;
 
 const BULLET_WRITER = `Lead each bullet with a strong, distinct action verb; never repeat an opening action verb across the document. Use no em dash and no hyphen as a separator; keep conventional technical hyphenation intact. For every rewritten bullet, return its original id, the rewritten text, and a justification naming the exact job-description term or responsibility that motivated the change. Do not make cosmetic edits that no job-description term justifies.`;
 
-const TECH_OPTIMIZER = `Optimize for applicant tracking systems: surface the exact technical terms the job description uses when they are already true of the candidate. For skills, select INDIVIDUAL items the job description calls for, copied verbatim from each category's verified items only, ordered by importance; never invent a skill, never move an item between categories, and never introduce a technology the source bullet does not support.`;
+const TECH_OPTIMIZER = `Surface an exact job-description term only when it is already supported by the selected base or verified content bank. Skill edits must reference verified bank items and an existing base category. Never invent a skill, claim, metric, technology, or accomplishment.`;
 
 const NO_FABRICATION = `Never claim CUDA kernel authoring, kernel fusion, GPU kernel optimization, or the teammates' 2 to 3 times speculative-decoding result as the candidate's own benchmark.`;
 

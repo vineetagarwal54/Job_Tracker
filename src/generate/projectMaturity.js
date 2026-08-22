@@ -10,8 +10,8 @@
 import { isMandatoryEntry } from "./mandatoryContent.js";
 
 const MATURITY = Object.freeze({
-  "reporesearchai-multi-agent-code-analysis": "flagship",
-  "aws-video-analytics-streaming-platform": "flagship",
+  "repo-research-ai": "flagship",
+  "serverless-video-analytics": "flagship",
   locra: "flagship",
   "terrapin-events": "solid",
   "jobtrack-ai-application-tracker": "solid",
@@ -20,7 +20,7 @@ const MATURITY = Object.freeze({
   meetspace: "solid",
   "activity-logger": "solid",
   "plywood-studio-ai-chatbot": "solid",
-  "google-adk-experiments": "exploratory",
+  "google-adk": "exploratory",
 });
 
 export function classifyProject(entryId) {

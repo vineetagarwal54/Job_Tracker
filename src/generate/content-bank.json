@@ -250,7 +250,7 @@
       "id": "servbeyond-enterprise-ai-platform-intern",
       "org": "ServBeyond Solutions",
       "role": "Enterprise AI & Platform Intern",
-      "dates": "Jun 2026 to Aug 2026",
+      "dates": "Jun 2026 to Present",
       "location": "Rockville, MD",
       "variants": [
         "ai-llm",
@@ -258,6 +258,83 @@
         "fullstack"
       ],
       "bullets": [
+        {
+          "id": "servbeyond-proposal-assistant",
+          "cluster": "servbeyond-rag",
+          "text": "Shipped a multi-agent RAG proposal assistant used daily by 20+ business development staff, auto-vectorizing every document on insert into a version-controlled SharePoint archive, with a Claude drafting agent and a separate evaluation agent that scores each RFI draft against the solicitation before reviewer handoff.",
+          "chars": 316,
+          "skills": ["multi-agent systems", "rag", "sharepoint", "claude", "evaluation"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["20+"],
+          "priority": 1,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-meeting-autopilot",
+          "cluster": "servbeyond-automation",
+          "text": "Engineered a company-wide AI meeting autopilot for 100 employees, chaining 5 Power Automate flows and Microsoft Graph API to convert Teams Copilot recaps into routed Jira tickets, mapping context to catch cross-meeting follow-ups and update existing tickets instead of duplicating, cutting up to 2 hours of manual entry per meeting.",
+          "chars": 332,
+          "skills": ["power automate", "microsoft graph api", "copilot", "jira", "automation"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["100", "5", "2 hours"],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-usaspending-agent",
+          "cluster": "servbeyond-research-agent",
+          "text": "Built a natural-language USAspending research agent whose query planner parses each prompt, routes to the correct API, and retrieves 1000+ contracts across any year range, generating Excel dashboards saved to SharePoint and delivered through Outlook and Teams.",
+          "chars": 260,
+          "skills": ["agentic workflows", "api", "sharepoint", "excel", "microsoft teams"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["1000+"],
+          "priority": 3,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-company-genai-assistant",
+          "cluster": "servbeyond-integration",
+          "text": "Shipped a company-wide GenAI assistant used daily by 20+ staff, wiring REST and SOAP integrations across Salesforce, ServiceNow, and AWS into a normalized data layer with a React front end.",
+          "chars": 189,
+          "skills": ["genai", "rest", "soap", "salesforce", "servicenow", "aws", "react"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack", "mobile"],
+          "lockedMetrics": ["20+"],
+          "priority": 4,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-platform-integrations",
+          "cluster": "servbeyond-integration",
+          "text": "Engineered platform integrations across Salesforce, ServiceNow, and AWS, wiring REST and SOAP services into a normalized data layer that powers company-wide automation for 100 employees.",
+          "chars": 186,
+          "skills": ["salesforce", "servicenow", "aws", "rest", "soap", "automation"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["100"],
+          "priority": 5,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-intake-automation",
+          "cluster": "servbeyond-automation",
+          "text": "Streamlined meeting-to-ticket and opportunity intake with Python Azure Functions and Power Automate, deployed company-wide and saving up to 2 hours per meeting and 10 to 15 minutes per opportunity.",
+          "chars": 197,
+          "skills": ["python", "azure functions", "power automate", "automation"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["2 hours", "10 to 15 minutes"],
+          "priority": 6,
+          "rewritable": true
+        },
+        {
+          "id": "servbeyond-sharepoint-retrieval",
+          "cluster": "servbeyond-rag",
+          "text": "Shipped a retrieval assistant over a version-controlled SharePoint archive used daily by 20+ staff, pairing auto-vectorized ingestion with a React front end.",
+          "chars": 157,
+          "skills": ["rag", "sharepoint", "react", "vector search"],
+          "variants": ["ai-llm", "cloud-backend", "fullstack"],
+          "lockedMetrics": ["20+"],
+          "priority": 7,
+          "rewritable": true
+        },
         {
           "id": "servbeyond-rag-assistant",
           "cluster": "servbeyond-rag",
@@ -358,7 +435,7 @@
     {
       "id": "runara-ml-inference-engineer-intern",
       "org": "Runara.ai",
-      "role": "Machine Learning & Inference Engineering Intern",
+      "role": "Machine Learning & Inference Engineer Intern",
       "dates": "Apr 2026 to May 2026",
       "location": "",
       "variants": [
@@ -503,8 +580,8 @@
         {
           "id": "xelpmoc-webrtc",
           "cluster": "xelpmoc-realtime",
-          "text": "Built a real-time interview system with WebRTC and Socket.IO supporting 100+ concurrent sessions at sub-200ms latency.",
-          "chars": 118,
+          "text": "Designed a real-time interview system with WebRTC and Socket.IO supporting 100+ concurrent sessions at sub-200ms latency.",
+          "chars": 121,
           "skills": [
             "webrtc",
             "socket.io",
@@ -732,7 +809,7 @@
       "id": "locra",
       "org": "Locra",
       "role": "On-Device Multimodal AI, Android",
-      "dates": "Jul 2026 to Present",
+      "dates": "Jun 2025 to Present",
       "location": "",
       "link": "https://github.com/vineetagarwal54/Locra",
       "variants": [
@@ -759,6 +836,17 @@
             "mobile"
           ],
           "lockedMetrics": [],
+          "priority": 2,
+          "rewritable": true
+        },
+        {
+          "id": "locra-integrated-offline",
+          "cluster": "locra-core",
+          "text": "Developed an Android-first multimodal AI assistant in React Native, TypeScript, and Expo that runs a quantized Qwen3-VL-2B vision-language model fully on device via llama.rn, pairing on-device Whisper speech-to-text with a Kotlin native module that enforces model integrity and a hard offline guarantee.",
+          "chars": 303,
+          "skills": ["react native", "typescript", "expo", "qwen3-vl", "llama.rn", "whisper", "kotlin", "on-device ai"],
+          "variants": ["ai-llm", "mobile"],
+          "lockedMetrics": ["Qwen3-VL-2B"],
           "priority": 1,
           "rewritable": true
         },

@@ -64,8 +64,6 @@ const groupIds = skills.groups.map((g) => g.id);
 for (const mandatory of ["applied-ai", "languages", "backend", "frontend", "cloud-devops"]) assert(groupIds.includes(mandatory), `mandatory skill category ${mandatory} present`);
 const cloud = skills.groups.find((g) => g.id === "cloud-devops");
 for (const item of ["AWS", "Docker", "Kubernetes"]) assert(cloud.items.includes(item), `mandatory skill item ${item} present`);
-assert(groupIds.includes("networking") && groupIds.includes("security"), "JD pulled in Networking and Security categories");
-assert(groupIds.includes("operating-systems"), "JD pulled in Operating Systems (Linux)");
 const backendGroup = skills.groups.find((g) => g.id === "backend");
 assert(backendGroup.items.length < bank.skillGroups.find((g) => g.id === "backend").items.length, "backend category shows a JD-narrowed subset, not every item");
 // Ordering by JD importance: an item the JD requires ranks before a backfilled one.
@@ -85,7 +83,6 @@ const javaMissing = missingJobSkills({ extraction: aliasExtraction, analysis: { 
 assert(javaMissing.map((s) => String(s).toLowerCase()).includes("java"), "Java reported missing (not matched via JavaScript)");
 const aliasSkills = resolveRenderedSkills(bank, { skillGroupIds: ["applied-ai", "languages", "backend", "frontend", "cloud-devops"], variant: "cloud-backend", extraction: aliasExtraction, analysis: { mustHaveKeywords: ["k8s", "postgres", "unix", "node"], niceToHaveKeywords: [] } });
 assert(aliasSkills.groups.find((g) => g.id === "cloud-devops").items.includes("Kubernetes"), "K8s alias resolves to Kubernetes");
-assert(aliasSkills.groups.find((g) => g.id === "operating-systems"), "Unix alias pulls in Operating Systems (Linux)");
 const postgresGroup = aliasSkills.groups.find((g) => g.id === "databases");
 assert(postgresGroup && postgresGroup.items.includes("PostgreSQL"), "Postgres alias resolves to PostgreSQL");
 

@@ -72,10 +72,13 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let job;
       try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
       progress?.("Analyzing job requirements");
-      const [keywordModule, coverageModule, identityModule, renderModule, verifyModule, pricingModule, pageFittingModule, fileNameModule, fallbackModule, finalizeModule, warningsModule, emphasisModule, rankingModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "postRenderVerification", "modelPricing", "pageFitting", "resumeFileName", "fallbackSelection", "finalizeSelection", "resumeWarnings", "roleEmphasis", "bulletRanking"].map((name) => load(path.join(generateDir, `${name}.js`))));
+      const [keywordModule, coverageModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, emphasisModule, baseModule, tailoringModule] = await Promise.all(["keywordExtraction", "coverageScoring", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackSelection", "resumeWarnings", "roleEmphasis", "baseResumes", "tailoringDiff"].map((name) => load(path.join(generateDir, `${name}.js`))));
       stage = "content-bank";
       let bank;
       try { bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8")); } catch (error) { throw codedError("VALIDATION_FAILED", `The resume content bank is missing or corrupt: ${error.message}`); }
+      const baseResumeId = job.baseResumeId || "swe-cloud";
+      let canonicalBase;
+      try { canonicalBase = baseModule.getCanonicalBaseResume(baseResumeId); } catch (error) { throw codedError("VALIDATION_FAILED", error.message); }
       stage = "identity";
       let identity; try { identity = identityModule.resolveResumeIdentity({ profile: getDefaultProfile(), bank }); } catch (error) { throw codedError("MISSING_PROFILE", error.message); }
       // Validate the final rendered identity: name, ten-digit phone, email, and
@@ -94,8 +97,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         analyzed = await analyzeJob({ client, apiKey, job, signal, generateDir });
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
-        const fallbackVariant = fallbackModule.chooseFallbackVariant(bank, { extraction });
-        analyzed = { analysis: fallbackModule.buildFallbackAnalysis({ extraction, job, variant: fallbackVariant }), usage: null, model: analyzeModelName() };
+        analyzed = { analysis: fallbackModule.buildFallbackAnalysis({ extraction, job, variant: canonicalBase.variant }), usage: null, model: analyzeModelName() };
         usedAnalysisFallback = true;
       }
 
@@ -104,7 +106,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       // the concrete resume variant (so an enterprise-AI JD renders the ai-llm
       // variant with the enterprise summary, not the inference summary).
       const emphasisResult = emphasisModule.classifyEmphases({ job, extraction, analysis: analyzed.analysis });
-      const variant = emphasisResult.variant;
+      const variant = canonicalBase.variant;
 
       progress?.("Selecting resume variant");
       const preliminaryCoverage = coverageModule.scoreCoverage(bank, extraction, { analysis: analyzed.analysis });
@@ -118,15 +120,15 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let usedSelectionFallback = false;
       let selectionFallbackReason = null;
       try {
-        generated = await generateResumeSelection({ client, apiKey, bank, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, variant, emphasis: emphasisResult.primary, emphases: emphasisResult.emphases, signal, generateDir, progress });
+        generated = await generateResumeSelection({ client, apiKey, bank, canonicalBases: baseModule.canonicalBases, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, signal, generateDir, progress });
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
-        generated = buildFallbackGenerated({ fallbackModule, finalizeModule, bank, extraction, analysis: analyzed.analysis, variant, emphasisResult });
+        generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
         usedSelectionFallback = true;
         selectionFallbackReason = error.message;
       }
 
-      progress?.("Fitting content to one page");
+      progress?.("Rendering tailored canonical base");
       stage = "template";
       const templatePath = paths.template("main.tex");
       if (!fs.existsSync(templatePath)) throw codedError("MISSING_TEMPLATE", "The resume template is missing.");
@@ -134,51 +136,20 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       paths.ensureOutputDir();
       const texFileName = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}.tex`;
 
-      // Compile-verify loop (Phase 8): the PDF page count is ground truth. If it
-      // exceeds one page, deterministically drop the lowest-value nonmandatory
-      // bullet and recompile. Retry up to three times; mandatory content is never
-      // removed. No extra API call is made during trimming.
       stage = "render-compile";
-      const jdContext = { extraction, analysis: analyzed.analysis };
-      const rankScores = rankingModule.computeAllRankScores(bank, rankingModule.buildRankingContext({ extraction, analysis: analyzed.analysis, emphases: emphasisResult.emphases }));
-      let currentSelection = generated.selection;
-      let rendered;
-      let compiled;
-      let pageCount = null;
+      const rendered = renderModule.renderCanonicalBase({ bank, base: generated.base, template, identity });
+      const finalSelection = tailoringModule.tailoredBaseEvidenceSelection(bank, generated.base);
+      rendered.finalSelection = finalSelection;
+      rendered.renderedSkills = finalSelection.renderedSkills;
+      rendered.budget = { included: [], excluded: [], usedLines: null, availableLines: null, remainingLines: null };
+      fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
+      progress?.("Compiling resume PDF");
+      const compiled = await compileResumeTex(texFileName);
+      if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
+      const pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
+      if (pageCount !== 1) throw codedError("VALIDATION_FAILED", `Tailored canonical resume is ${pageCount || "an unknown number of"} pages.`);
       const removedForFit = [];
       const addedForFit = [];
-      for (let attempt = 0; attempt <= 3; attempt += 1) {
-        rendered = renderModule.renderResume({ bank, selection: currentSelection, template, identity, jdContext });
-        fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
-        progress?.(attempt === 0 ? "Compiling resume PDF" : `Refitting to one page (attempt ${attempt})`);
-        compiled = await compileResumeTex(texFileName);
-        if (!compiled.ok) throw codedError(compiled.error.code, compiled.error.message);
-        pageCount = countPages(paths.resolveGeneratedFile(compiled.pdfFileName, ".pdf"));
-        if (pageCount === 1) break;
-        if (attempt === 3) throw codedError("VALIDATION_FAILED", `Generated resume is ${pageCount || "an unknown number of"} pages after trimming.`);
-        const trim = pageFittingModule.trimOneBullet(bank, currentSelection, rankScores);
-        if (!trim) throw codedError("VALIDATION_FAILED", "Resume exceeds one page and no nonmandatory bullet can be trimmed.");
-        removedForFit.push(trim.removed);
-        currentSelection = trim.selection;
-      }
-
-      // A sparse but valid one-page render gets a bounded chance to add one
-      // high-value, already-ranked bullet. Never add filler and revert if the
-      // PDF grows past one page.
-      for (let attempt = 0; attempt < 2 && rendered?.budget?.availableLines - rendered?.budget?.usedLines >= 3; attempt += 1) {
-        const expansion = pageFittingModule.addOneRelevantBullet(bank, currentSelection, rankScores);
-        if (!expansion) break;
-        const expanded = renderModule.renderResume({ bank, selection: expansion.selection, template, identity, jdContext });
-        fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), expanded.tex, "utf8");
-        const expandedCompiled = await compileResumeTex(texFileName);
-        const expandedPages = expandedCompiled.ok ? countPages(paths.resolveGeneratedFile(expandedCompiled.pdfFileName, ".pdf")) : null;
-        if (!expandedCompiled.ok || expandedPages !== 1) {
-          fs.writeFileSync(paths.resolveGeneratedFile(texFileName, ".tex"), rendered.tex, "utf8");
-          compiled = await compileResumeTex(texFileName);
-          break;
-        }
-        currentSelection = expansion.selection; rendered = expanded; compiled = expandedCompiled; pageCount = expandedPages; addedForFit.push(expansion.added);
-      }
 
       progress?.("Verifying PDF text layer");
       stage = "ats-verification";
@@ -192,7 +163,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
 
       progress?.("Checking final keyword coverage");
       stage = "final-verification";
-      const finalVerification = verifyModule.verifyFinalResume({ bank, extraction, analysis: analyzed.analysis, finalSelection: rendered.finalSelection, budget: rendered.budget, pageCount });
+      const finalVerification = tailoringModule.verifyTailoredBase({ bank, base: generated.base, extraction, analysis: analyzed.analysis, pageCount });
+      finalVerification.densityRatio = generated.densityRatio;
 
       // Eligibility / mismatch warnings never block generation; they explain the
       // mismatch alongside the finished resume. Coverage here reflects only the
@@ -216,8 +188,9 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       };
       return {
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
-        baseResumeId: job.baseResumeId,
+        baseResumeId: canonicalBase.id,
         selection: rendered.finalSelection, budget: rendered.budget, finalCoverage: finalVerification.coverage,
+        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING, removedForFit, addedForFit,
         warnings,

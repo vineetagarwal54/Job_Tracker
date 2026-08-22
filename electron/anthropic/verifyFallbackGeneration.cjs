@@ -31,17 +31,7 @@ const VALID_ANALYSIS = {
   niceToHaveKeywords: ["redis", "postgresql"], responsibilities: ["build apis"],
   blockers: [], recommendedVariant: "cloud-backend", reasoningSummary: "Verified backend match.",
 };
-const VALID_SELECTION = {
-  version: 1, variant: "cloud-backend", educationId: "umd-meng-software-engineering",
-  skillGroupIds: ["cloud-devops", "backend", "languages"],
-  skills: [
-    { groupId: "backend", items: ["FastAPI", "REST APIs", "WebSocket"] },
-    { groupId: "cloud-devops", items: ["AWS", "Docker", "Kubernetes"] },
-    { groupId: "security", items: ["JWT", "RBAC"] },
-  ],
-  experience: [{ entryId: "xelpmoc-software-engineer", bullets: [{ id: "xelpmoc-api-performance" }] }],
-  projects: [{ entryId: "terrapin-events", bullets: [{ id: "terrapin-events-platform" }] }],
-};
+const VALID_SELECTION = { version: 1, baseResumeId: "swe-cloud", bulletChanges: [], skillChanges: [] };
 
 // Mock client: analysisMode / selectionMode are "ok" | "throw".
 function makeClient({ analysis = "ok", selection = "ok" } = {}) {
@@ -52,7 +42,7 @@ function makeClient({ analysis = "ok", selection = "ok" } = {}) {
         return { content: [{ type: "text", text: JSON.stringify(VALID_ANALYSIS) }], usage: {}, stop_reason: "end_turn" };
       }
       if (selection === "throw") throw new Error("simulated selection outage");
-      return { text: JSON.stringify(VALID_SELECTION), usage: null, stopReason: "end_turn" };
+      return { text: JSON.stringify({ ...VALID_SELECTION, baseResumeId: body.output_config.format.schema.properties.baseResumeId.enum[0] }), usage: null, stopReason: "end_turn" };
     },
   };
 }
@@ -71,12 +61,12 @@ function coverClient() {
     version: 1,
     opening: filler,
     bodyParagraphs: [
-      `Delivered a documentation assistant for 100 users and cut API response time from 75 seconds to under 10 seconds. ${"detail ".repeat(20).trim()}`,
+      `Delivered platform automation for 100 employees and cut API response time from 75 seconds to under 10 seconds. ${"detail ".repeat(20).trim()}`,
       filler,
     ],
     closing: filler,
     claimEvidence: [
-      { sentence: "Delivered a documentation assistant for 100 users and cut API response time from 75 seconds to under 10 seconds.", evidenceIds: ["servbeyond-rag-manual-lookup", "xelpmoc-api-performance"] },
+      { sentence: "Delivered platform automation for 100 employees and cut API response time from 75 seconds to under 10 seconds.", evidenceIds: ["servbeyond-platform-integrations", "xelpmoc-sql-redis"] },
     ],
   };
   const humanized = { ...draft, opening: `Direct opening line here. ${"note ".repeat(42).trim()}` };
@@ -89,19 +79,15 @@ function coverClient() {
   };
 }
 
-function assertResumeShape(result, label) {
+function assertResumeShape(result, label, expectedBase = "swe-cloud") {
   assert(result && result.pdfFileName, `${label}: produced a PDF`);
   assert(result.pageCount === 1, `${label}: resume is one page (got ${result.pageCount})`);
   assert(result.atsIntegrity && result.atsIntegrity.valid, `${label}: ATS text layer valid`);
   assert(Array.isArray(result.renderedSkills) && result.renderedSkills.length > 0, `${label}: individual skills rendered`);
-  const groupIds = result.renderedSkills.map((g) => g.id);
-  for (const mandatory of ["applied-ai", "languages", "backend", "frontend", "cloud-devops"]) {
-    assert(groupIds.includes(mandatory), `${label}: mandatory skill category ${mandatory} present`);
-  }
+  assert(result.baseResumeId === expectedBase, `${label}: selected canonical base retained`);
+  assert(result.tailoring && result.tailoring.densityRatio >= 0.85, `${label}: bounded tailoring metadata returned`);
   const expIds = (result.selection.experience || []).map((e) => e.entryId);
-  for (const mandatory of ["servbeyond-enterprise-ai-platform-intern", "runara-ml-inference-engineer-intern", "xelpmoc-software-engineer"]) {
-    assert(expIds.includes(mandatory), `${label}: mandatory employer ${mandatory} present`);
-  }
+  assert(expIds.includes("servbeyond-enterprise-ai-platform-intern") && expIds.includes("xelpmoc-software-engineer"), `${label}: protected base employers present`);
   assert((result.selection.projects || []).some((e) => e.entryId === "locra"), `${label}: mandatory project Locra present`);
 }
 
@@ -134,7 +120,12 @@ async function main() {
   const recovered = await makeOrchestrator(makeClient({})).call(null, { job });
   assertResumeShape(recovered, "recovery");
 
-  // 5. Enterprise-AI JD renders the enterprise summary (not inference) and one page.
+  const mobileJob = { ...job, resumeOption: "Mobile / React Native", baseResumeId: "mobile" };
+  const mobile = await makeOrchestrator(makeClient({})).call(null, { job: mobileJob });
+  assertResumeShape(mobile, "mobile-choice", "mobile");
+
+  // 5. JD classification remains available, but the saved resume choice keeps
+  //    the canonical base authoritative.
   const enterpriseJob = { company: "Acme", title: "Enterprise AI Builder", description: "Ship internal AI tools and automations, agentic GenAI workflows, Salesforce and ServiceNow integrations, and drive adoption and measurable business impact. LangChain and RAG." };
   const enterprise = await makeOrchestrator(makeClient({ selection: "throw" })).call(null, { job: enterpriseJob });
   assertResumeShape(enterprise, "enterprise");
@@ -155,10 +146,11 @@ async function main() {
     selectionFallbackCompiles: true,
     analysisAndSelectionFallbackCompiles: true,
     recoveryAfterFailure: true,
-    enterpriseEmphasisAndSummary: true,
+    selectedJobResumeOptionAuthoritative: true,
+    selectedBaseRemainsAuthoritative: true,
     coverLetterOnlyReusesResume: true,
     humanizerRan: cover.humanized,
-    onePage: [normal.pageCount, selFallback.pageCount, bothFallback.pageCount, recovered.pageCount, enterprise.pageCount, cover.pageCount],
+    onePage: [normal.pageCount, selFallback.pageCount, bothFallback.pageCount, recovered.pageCount, mobile.pageCount, enterprise.pageCount, cover.pageCount],
   }, null, 2));
 }
 

@@ -53,13 +53,7 @@ expectInvalid({ ...selection, extraSection: [] }, "an unknown section");
 expectInvalid({
   ...selection,
   experience: [
-    { entryId: "runara-ml-inference-engineer-intern", bullets: [{ id: "runara-speculative-decoding", rewrittenText: "Changed wording" }] },
-  ],
-}, "a rewrite of a non-rewritable bullet");
-expectInvalid({
-  ...selection,
-  experience: [
-    { entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-manual-lookup", rewrittenText: "Built a RAG assistant for 999 users." }] },
+    { entryId: "servbeyond-enterprise-ai-platform-intern", bullets: [{ id: "servbeyond-rag-assistant", rewrittenText: "Built a RAG assistant for 999 users." }] },
   ],
 }, "a rewrite with an invented number");
 

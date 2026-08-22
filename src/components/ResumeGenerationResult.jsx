@@ -75,13 +75,16 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Covered must-haves" value={values(coverage.mustHave?.covered)} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
-        <Detail label="Generation mode" value={result.fallback?.selection ? `Deterministic fallback from verified bank${result.fallback?.reason ? ` (${result.fallback.reason})` : ""}` : result.fallback?.analysis ? "Model selection with fallback analysis" : "Model selection"} />
+        <Detail label="Generation mode" value={result.fallback?.selection ? `Canonical base unchanged after tailoring fallback${result.fallback?.reason ? ` (${result.fallback.reason})` : ""}` : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
+        <Detail label="Base resume" value={result.baseResumeId} />
+        <Detail label="Accepted tailoring changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
+        <Detail label="Rejected tailoring changes" value={String(result.tailoring?.rejected?.length || 0)} />
         <Detail label="Included bullets" value={included.join(", ")} />
         <Detail label="Excluded bullets" value={excluded.map(item => `${item.id} (${item.reason})`).join(", ") || "None"} />
         <Detail label="Trimmed to fit" value={removed.map(item => `${item.bulletId} (${item.entryId})`).join(", ") || "None"} />
         <Detail label="Models" value={`${result.models?.analysis || ""}; ${result.models?.resumeSelection || ""}`} />
         <Detail label="Analysis usage" value={formatUsage(result.usage?.analysis)} />
-        <Detail label="Resume selection usage" value={formatUsage(result.usage?.resumeSelection)} />
+        <Detail label="Tailoring diff usage" value={formatUsage(result.usage?.resumeSelection)} />
         <Detail label="Files" value={`${result.pdfFileName}; ${result.texFileName}`} />
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
           <Action onClick={() => onReveal(result.pdfFileName)}>Reveal Resume</Action>
