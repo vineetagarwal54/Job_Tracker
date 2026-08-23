@@ -1,4 +1,5 @@
 import { textContainsTerm, canonicalizeTerm } from "./protectedTerms.js";
+import { evaluateRequirementCoverage } from "./requirementCoverage.js";
 
 function bankSources(bank, options) {
   const allowedBullets = options?.bulletIds ? new Set(options.bulletIds) : null;
@@ -50,19 +51,7 @@ export function scoreCoverage(bank, extraction, options = {}) {
     return { ...keyword, matchingIds: ids, covered: ids.length > 0 };
   });
 
-  const group = (terms = []) =>
-    terms
-      .map((term) => canonicalizeTerm(term))
-      .filter(Boolean)
-      .map(
-        (term) =>
-          matches.find((item) => item.normalized === term) || {
-            normalized: term,
-            value: term,
-            matchingIds: sources.filter((source) => textContainsTerm(source.text, term)).map((s) => s.id),
-            covered: sources.some((source) => textContainsTerm(source.text, term)),
-          }
-      );
+  const group = (terms = []) => terms.filter((term) => canonicalizeTerm(term)).map((term) => evaluateRequirementCoverage(sources, term));
 
   const percent = (items) =>
     items.length ? Math.round((items.filter((item) => item.covered).length * 10000) / items.length) / 100 : 100;
@@ -70,7 +59,7 @@ export function scoreCoverage(bank, extraction, options = {}) {
   const mustHave = group(options.analysis?.mustHaveKeywords);
   const niceToHave = group(options.analysis?.niceToHaveKeywords);
   const byCategory = (category) => matches.filter((item) => item.category === category);
-  const responsibilities = byCategory("responsibility");
+  const responsibilities = options.analysis?.responsibilities?.length ? group(options.analysis.responsibilities) : byCategory("responsibility");
   const qualifications = byCategory("qualification");
 
   // Weighted score: must-haves count triple, preferred single. Gives a single
@@ -90,6 +79,7 @@ export function scoreCoverage(bank, extraction, options = {}) {
     matchingBulletIds: [...new Set(matches.flatMap((item) => item.matchingIds))],
     coveragePercentage: percent(matches),
     weightedCoveragePercentage: weighted,
+    requirementCoverage: { mustHave, preferred: niceToHave, responsibilities },
     mustHave: {
       covered: mustHave.filter((item) => item.covered),
       missing: mustHave.filter((item) => !item.covered),

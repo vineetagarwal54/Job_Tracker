@@ -76,14 +76,15 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
           <Metric label="Nice-to-have coverage" value={`${coverage.niceToHave?.percentage ?? 0}%`} /><Metric label="Estimated API cost" value={`$${Number(result.estimatedCostUsd || 0).toFixed(4)}`} />
         </div>
         <Detail label="Blockers" value={(result.analysis?.blockers || []).join(", ") || "None identified"} />
-        <Detail label="Covered keywords" value={values(coverage.coveredKeywords)} />
-        <Detail label="Missing keywords" value={values(coverage.uncoveredKeywords)} />
         <Detail label="Missing must-haves" value={values(coverage.mustHave?.missing)} />
         <Detail label="Covered must-haves" value={values(coverage.mustHave?.covered)} />
+        <Detail label="Missing preferred requirements" value={values(coverage.niceToHave?.missing)} />
+        <Detail label="Covered preferred requirements" value={values(coverage.niceToHave?.covered)} />
         <Detail label="Coverage before / after" value={`${result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? 0}% / ${coverage.weightedCoveragePercentage ?? 0}% weighted; ${result.tailoring?.beforeCoverage?.coveragePercentage ?? 0}% / ${coverage.coveragePercentage ?? 0}% matched terms`} />
         <Detail label="Newly covered terms" value={(coverageImprovement.newlyCoveredTerms || []).join(", ") || "None"} />
         <Detail label="Coverage lost" value={(coverageImprovement.noLongerCoveredTerms || []).join(", ") || "None"} />
         <Detail label="Unsupported JD gaps" value={(result.tailoring?.unsupportedMissing || []).map((item) => item.term).join(", ") || "None"} />
+        <Detail label="Raw lexical coverage" value={`${coverage.coveragePercentage ?? 0}% (diagnostic only; requirement coverage above is authoritative)`} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
         <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />

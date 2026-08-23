@@ -1,5 +1,5 @@
 import { scoreCoverage } from "./coverageScoring.js";
-import { canonicalizeTerm, textContainsTerm } from "./protectedTerms.js";
+import { ALIASES, canonicalizeTerm, textContainsTerm } from "./protectedTerms.js";
 import { skillClassification, skillClassificationForTerm } from "./skillInventory.js";
 
 export const MIN_RELEVANCE_BENEFIT = 6;
@@ -14,18 +14,19 @@ const COMPATIBLE_SKILL_GROUPS = Object.freeze({
 
 const NUMBER_PATTERN = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
 const LOW_SIGNAL_TERMS = new Set(["ability", "build", "develop", "experience", "have", "implement", "knowledge", "maintain", "must", "preferred", "required", "responsibilities", "responsibility", "skills", "support", "using", "work"]);
-const NON_TECHNICAL_GAP_TERMS = new Set(`about apply applying benefits best candidate candidates careers company compensation culture dental employee employees employer environment equal excellent family flexible great health holidays insurance join life looking opportunity opportunities paid people perks position remote salary team vacation vision what workplace`.split(/\s+/));
-const KNOWN_TECHNICAL_GAPS = new Set(["asp.net", "asp.net core", "aws cdk", "c#", "cdk", "elixir", "eventbridge", "image processing", "pdf", "pdf processing", "pulumi", "rust"]);
+const NON_TECHNICAL_GAP_TERMS = new Set(`about apply applying benefits best candidate candidates careers change company compensation copy culture dental employee employees employer environment equal excellent family flexible great health holidays including insurance join life looking opportunity opportunities paid people perks position remote salary same sites team vacation vision what without workplace`.split(/\s+/));
+const KNOWN_TECHNICAL_GAPS = new Set(["asp.net", "asp.net core", "aws cdk", "c#", "cdk", "elixir", "eventbridge", "image processing", "pdf", "pdf processing", "playwright", "pulumi", "rust", "unity", "webgl"]);
+const ACTIONABLE_REQUIREMENT = /\b(api|application|automation|backend|cloud|container|database|data store|distributed|frontend|full-stack|infrastructure|language|library|platform|processing|security|service|system|testing|tool)\b/;
+const ACTIONABLE_QUALIFICATION = /\b(bachelor|citizenship|clearance|degree|enrolled|master|phd|work authorization)\b/;
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
 function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 function frequency(text, term) {
   const normalizedText = String(text || "").toLowerCase();
-  const normalized = String(term || "").toLowerCase().trim();
-  if (!normalized) return 0;
-  const matches = normalizedText.match(new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(normalized)}(?=$|[^a-z0-9+#.])`, "g"));
-  return matches?.length || 0;
+  const canonical = canonicalizeTerm(term);
+  const forms = ALIASES[canonical] || [String(term || "").toLowerCase().trim()];
+  return Math.max(0, ...forms.map((form) => normalizedText.match(new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(form)}(?=$|[^a-z0-9+#.])`, "g"))?.length || 0));
 }
 
 function baseEvidence(base) {
@@ -181,9 +182,12 @@ export function buildRelevancePlan({ bank, base, job, extraction, analysis }) {
   candidates.sort((a, b) => b.expectedGain - a.expectedGain || a.id.localeCompare(b.id));
   const usefulCandidates = candidates.slice(0, 20);
   const supportedText = allBankText(bank);
+  const coveredRequirements = [...(baseCoverage.mustHave?.covered || []), ...(baseCoverage.niceToHave?.covered || []), ...(baseCoverage.responsibilities?.covered || [])];
   const unsupportedMissing = gaps.filter((record) => {
-    if (NON_TECHNICAL_GAP_TERMS.has(record.term)) return false;
-    const technicallyRelevant = record.isTechnical || record.isMustHave || record.isResponsibility || KNOWN_TECHNICAL_GAPS.has(record.term) || /[+#./]/.test(record.term);
+    if (NON_TECHNICAL_GAP_TERMS.has(record.term) || /^\d+\+?$/.test(record.term)) return false;
+    if (coveredRequirements.some((requirement) => textContainsTerm(requirement.value, record.term))) return false;
+    const isQualification = record.categories.includes("qualification");
+    const technicallyRelevant = record.isTechnical || KNOWN_TECHNICAL_GAPS.has(record.term) || /[+#./]/.test(record.term) || ACTIONABLE_REQUIREMENT.test(record.term) || (isQualification && ACTIONABLE_QUALIFICATION.test(record.term));
     return technicallyRelevant && !textContainsTerm(supportedText, record.term);
   }).map((record) => ({ term: record.term, priority: record.weight, frequency: record.frequency, isMustHave: record.isMustHave }));
   return { version: 1, baseResumeId: base.id, minimumBenefit: MIN_RELEVANCE_BENEFIT, baseCoverage, terms, gaps, unsupportedMissing, candidates: usefulCandidates };
