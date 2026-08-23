@@ -131,6 +131,7 @@ async function main() {
   assert(validationFallback.usage.resumeSelection.cacheCreationInputTokens === 200 && validationFallback.usage.resumeSelection.cacheReadInputTokens === 10, "post-response-validation-fallback: cache usage preserved");
   assert(validationFallback.tailoring.requestMetrics?.serializedRequestBytes > 0 && validationFallback.tailoring.requestMetrics?.catalogBytes > 0 && validationFallback.tailoring.requestMetrics?.dynamicBytes > 0 && validationFallback.tailoring.requestMetrics?.approximateInputTokens > 0, "post-response-validation-fallback: safe request metrics preserved");
   assert(validationFallback.models.resumeSelection && validationFallback.timings.tailoringApiMs >= 0 && validationFallback.estimatedCostUsd > 0, "post-response-validation-fallback: model, duration, and cost preserved");
+  assert(validationFallback.tailoring.failedRequirementTrace?.[0]?.id === "req-invalid" && validationFallback.tailoring.failedRequirementTrace[0].knowledgeSkillIds[0] === "skill:not-real", "post-response-validation-fallback: sanitized failed requirement trace preserved");
 
   // 4. Recovery after failure: a prior failure never blocks a later generation.
   const recovered = await makeOrchestrator(makeClient({})).call(null, { job });

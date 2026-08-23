@@ -147,12 +147,12 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
   const terms = normalizedTerms(extraction, analysis);
   const semanticMode = Array.isArray(semanticRequirements);
   const semanticById = new Map((semanticRequirements || []).map((requirement) => [requirement.id, requirement]));
-  const semanticChangeIsValid = (change, evidenceIds) => {
+  const semanticChangeIsValid = (change, evidenceIds, { allowKnowledgeSkill = false } = {}) => {
     if (!semanticMode || !Array.isArray(change?.requirementIds) || !change.requirementIds.length || typeof change.justification !== "string" || !change.justification.trim()) return !semanticMode;
     return change.requirementIds.every((id) => semanticById.has(id)) && change.requirementIds.some((id) => {
       const requirement = semanticById.get(id);
-      return ["coverable", "knowledge-only"].includes(requirement.status)
-        && evidenceIds.some((evidenceId) => requirement.candidateEvidenceIds.includes(evidenceId));
+      return (requirement.status === "coverable" && evidenceIds.some((evidenceId) => requirement.candidateEvidenceIds.includes(evidenceId)))
+        || (allowKnowledgeSkill && requirement.status === "knowledge-only" && evidenceIds.some((evidenceId) => requirement.knowledgeSkillIds.includes(evidenceId)));
     });
   };
   const candidate = diff && typeof diff === "object" && !Array.isArray(diff) ? diff : {};
@@ -275,7 +275,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
     const verifiedItem = verified?.item;
     if (!group) { reject(rejected, "skill", "Skill change must target an existing base skill category.", change); continue; }
     if (!verifiedItem) { reject(rejected, "skill", "Skill addition must reference a verified item compatible with the targeted category.", change); continue; }
-    if (semanticMode ? !semanticChangeIsValid(change, [skillEvidenceId(verifiedItem)]) : (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant))) { reject(rejected, "skill", "Skill change is not justified by verified requirement evidence.", change); continue; }
+    if (semanticMode ? !semanticChangeIsValid(change, [skillEvidenceId(verifiedItem)], { allowKnowledgeSkill: true }) : (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant))) { reject(rejected, "skill", "Skill change is not justified by verified requirement evidence.", change); continue; }
     if (!semanticMode && !matchesJd(verifiedItem, terms)) { reject(rejected, "skill", "Skill change does not add a JD term.", change); continue; }
     if (tailored.skills.some((candidateGroup) => candidateGroup.items.some((item) => item.toLowerCase() === verifiedItem.toLowerCase()))) { reject(rejected, "skill", "Skill is already present in the base.", change); continue; }
     const next = clone(tailored);

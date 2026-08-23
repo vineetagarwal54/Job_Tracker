@@ -156,7 +156,7 @@ function diagnosticText(result) {
     accepted: [accepted.summaryChange, ...(accepted.bulletChanges || []), accepted.projectSwap, ...(accepted.skillChanges || [])].filter(Boolean).map((item) => ({ candidateId: item.candidateId, requirementIds: item.requirementIds || [], type: item.type || (item.summaryId ? "summary" : item.replacementProjectId ? "project" : "skill") })),
     rejected: (result.tailoring?.rejected || []).map((item) => ({ type: item.type, reason: item.reason, requirementIds: item.change?.requirementIds || [] })),
     backedOff: (result.tailoring?.backedOffForFit || []).map((item) => ({ type: item.type, candidateId: item.candidateId, requirementIds: item.requirementIds || [] })),
-    requirementTrace: (coverage.requirements || []).map((item) => ({
+    requirementTrace: result.fallback?.selection ? (result.tailoring?.failedRequirementTrace || []) : (coverage.requirements || []).map((item) => ({
       id: item.id, text: item.text, priority: item.priority, kind: item.kind,
       optimizerStatus: item.optimizerStatus,
       currentEvidenceIds: item.currentEvidenceIds || [],

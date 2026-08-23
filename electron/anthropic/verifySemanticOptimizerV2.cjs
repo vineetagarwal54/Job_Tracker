@@ -54,10 +54,10 @@ async function main() {
   assert(groupedLanguage.currentEvidenceIds.every((id) => evidenceIndex.has(id)) && groupedLanguage.knowledgeSkillIds.length === 0, "grouped programming-language requirement cites individual canonical skill IDs without free-form knowledge text");
 
   let arbitrarySkillRejected;
-  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("arbitrary", "Arbitrary technology", { status: "knowledge-only", candidate: ["skill:not-real"], knowledgeIds: ["skill:not-real"] })] }, catalog, evidenceIndex); } catch (error) { arbitrarySkillRejected = error; }
+  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("arbitrary", "Arbitrary technology", { status: "knowledge-only", knowledgeIds: ["skill:not-real"] })] }, catalog, evidenceIndex); } catch (error) { arbitrarySkillRejected = error; }
   assert(arbitrarySkillRejected, "unsupported arbitrary skill IDs are rejected deterministically");
   let handsOnAsKnowledgeRejected;
-  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("python-knowledge", "Python knowledge", { status: "knowledge-only", candidate: ["skill:python"], knowledgeIds: ["skill:python"] })] }, catalog, evidenceIndex); } catch (error) { handsOnAsKnowledgeRejected = error; }
+  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("python-knowledge", "Python knowledge", { status: "knowledge-only", knowledgeIds: ["skill:python"] })] }, catalog, evidenceIndex); } catch (error) { handsOnAsKnowledgeRejected = error; }
   assert(handsOnAsKnowledgeRejected, "hands-on skill IDs cannot be mislabeled as knowledge-only");
 
   const gcpSkill = evidenceModule.catalogSkillInventory(catalog).find((skill) => skill.skill === "Google Cloud Platform (GCP)");
@@ -65,8 +65,9 @@ async function main() {
   let misclassifiedKnowledge;
   try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("docker-only", "professional container implementation", { kind: "experience", current: ["skill:docker"] })] }, catalog, evidenceIndex); } catch (error) { misclassifiedKnowledge = error; }
   assert(misclassifiedKnowledge, "skill-only knowledge evidence cannot be mislabeled as covered accomplishment experience");
-  const gcpRequirement = requirement("gcp", "GCP/GKE/Cloud Run knowledge", { status: "knowledge-only", candidate: [gcpSkill.id], knowledgeIds: [gcpSkill.id] });
+  const gcpRequirement = requirement("gcp", "GCP/GKE/Cloud Run knowledge", { status: "knowledge-only", knowledgeIds: [gcpSkill.id] });
   validateRequirements({ version: 2, baseResumeId: base.id, requirements: [gcpRequirement] }, catalog, evidenceIndex);
+  assert(!gcpRequirement.currentEvidenceIds.length && !gcpRequirement.candidateEvidenceIds.length, "knowledge-only requirements use only knowledgeSkillIds");
   assert(resolveKnowledgeSkillNames([gcpRequirement], catalog)[0].knowledgeSkillNames[0] === gcpSkill.skill, "validated skill IDs resolve deterministically to display names");
   const skillProposal = { version: 2, baseResumeId: base.id, roleFamily: "cloud", seniority: "entry", requirements: [gcpRequirement], diff: { bulletChanges: [], projectChanges: [], summaryChanges: [], skillChanges: [{ type: "add", skill: gcpSkill.skill, targetGroup: "Cloud and DevOps", baseItem: "", requirementIds: [gcpRequirement.id], justification: "The role requests GCP platform knowledge." }] } };
   const expandedSkill = expandSemanticDiff(skillProposal, catalog, evidenceIndex);
@@ -77,7 +78,10 @@ async function main() {
   assert(coverageModule.computeSemanticRequirementCoverage([productionGcp], skillApplied.base, skillApplied.acceptedDiff).mustHave.missing.length === 1, "knowledge-only skill cannot satisfy professional implementation experience");
 
   const baseBullet = base.experience.find((entry) => entry.entryId === "iiit-hyderabad-software-intern").bullets[0];
-  const rewriteRequirement = { ...gcpRequirement, candidateEvidenceIds: [...gcpRequirement.candidateEvidenceIds, baseBullet.sourceBulletId] };
+  const knowledgeBulletProposal = { version: 2, baseResumeId: base.id, roleFamily: "cloud", seniority: "entry", requirements: [gcpRequirement], diff: { bulletChanges: [{ type: "rewrite", baseBulletId: baseBullet.sourceBulletId, replacementBulletId: "", rewrittenText: baseBullet.text, requirementIds: [gcpRequirement.id], justification: "Invalidly attempts to use knowledge-only evidence." }], projectChanges: [], summaryChanges: [], skillChanges: [] } };
+  const rejectedKnowledgeBullet = expandSemanticDiff(knowledgeBulletProposal, catalog, evidenceIndex);
+  assert(!rejectedKnowledgeBullet.diff.bulletChanges.length && rejectedKnowledgeBullet.rejected.some((item) => item.type === "bullet"), "knowledgeSkillIds cannot justify an experience bullet change");
+  const rewriteRequirement = { ...gcpRequirement, status: "coverable", knowledgeSkillIds: [], candidateEvidenceIds: [baseBullet.sourceBulletId] };
   const forbiddenRewrite = tailoringModule.applyTailoringDiff({ bank, base, semanticRequirements: [rewriteRequirement], diff: { version: 1, baseResumeId: base.id, summaryChange: null, projectSwap: null, skillChanges: [], bulletChanges: [{ candidateId: "v2:forbidden", type: "rewrite", entryId: "iiit-hyderabad-software-intern", baseBulletId: baseBullet.sourceBulletId, rewrittenText: baseBullet.text.replace("Python and Selenium", "Python, Selenium, and Google Cloud Platform (GCP)"), requirementIds: [rewriteRequirement.id], justification: "The role requests GCP platform knowledge." }] } });
   assert(!forbiddenRewrite.acceptedDiff.bulletChanges.length && forbiddenRewrite.rejected.some((item) => /Knowledge skill|unsupported technology/i.test(item.reason)), "knowledge-only technology cannot become accomplishment evidence");
 

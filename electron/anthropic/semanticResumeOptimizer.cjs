@@ -3,6 +3,7 @@ const { pathToFileURL } = require("url");
 const { SEMANTIC_OPTIMIZER_SYSTEM } = require("./prompts.cjs");
 const { parseJsonText } = require("./validation.cjs");
 const { MODELS } = require("./models.cjs");
+const { sanitizeDiagnosticMessage } = require("./tailoringDiagnostics.cjs");
 
 const MODEL = MODELS.writing;
 const REQUIREMENT_PRIORITIES = ["must", "preferred"];
@@ -108,8 +109,10 @@ function validateRequirements(result, catalog, evidenceIndex) {
     if (["covered", "coverable"].includes(requirement.status) && cited.length && cited.every((item) => item.kind === "skill" && item.value.classification !== "hands-on")) fail(`Requirement '${requirement.id}' must classify skill-only knowledge evidence as knowledge-only.`);
     if (["experience", "responsibility"].includes(requirement.kind) && ["covered", "coverable"].includes(requirement.status) && cited.every((item) => item.kind === "skill")) fail(`Requirement '${requirement.id}' demands accomplishment evidence, not only Skills entries.`);
     if (["covered", "coverable", "unsupported"].includes(requirement.status) && requirement.knowledgeSkillIds.length) fail(`Requirement '${requirement.id}' may populate knowledgeSkillIds only when status is knowledge-only.`);
-    if (requirement.status === "knowledge-only" && (!knowledge.length || knowledge.some((skill) => skill.classification !== "knowledge") || knowledge.some((skill) => ![...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds].includes(skill.id)))) fail(`Knowledge-only requirement '${requirement.id}' lacks verified knowledge-only skill evidence.`);
-    if (requirement.status === "unsupported" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length)) fail(`Unsupported requirement '${requirement.id}' cannot cite supporting evidence.`);
+    if (requirement.status === "knowledge-only" && requirement.kind !== "technical-skill") fail(`Knowledge-only requirement '${requirement.id}' must be a technical-skill requirement.`);
+    if (requirement.status === "knowledge-only" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length)) fail(`Knowledge-only requirement '${requirement.id}' must use only knowledgeSkillIds.`);
+    if (requirement.status === "knowledge-only" && (!knowledge.length || knowledge.some((skill) => skill.classification !== "knowledge"))) fail(`Knowledge-only requirement '${requirement.id}' lacks verified knowledge-only skill evidence.`);
+    if (requirement.status === "unsupported" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length || requirement.knowledgeSkillIds.length)) fail(`Unsupported requirement '${requirement.id}' cannot cite supporting evidence.`);
   }
   return ids;
 }
@@ -131,10 +134,11 @@ function expandSemanticDiff(result, catalog, evidenceIndex) {
   const bulletLocations = new Map(catalog.base.experience.flatMap((entry) => entry.bullets.map((bullet) => [bullet.id, entry.entryId])));
   const diff = { version: 1, baseResumeId: catalog.base.id, summaryChange: null, bulletChanges: [], projectSwap: null, skillChanges: [] };
   const rejected = [];
-  const acceptLink = (change, evidenceIds) => requirementsSupportChange(change, requirementIds, requirements)
+  const acceptLink = (change, evidenceIds, allowKnowledgeSkill = false) => requirementsSupportChange(change, requirementIds, requirements)
     && change.requirementIds.some((id) => {
       const requirement = requirements.get(id);
-      return evidenceIds.some((evidenceId) => requirement.currentEvidenceIds.includes(evidenceId) || requirement.candidateEvidenceIds.includes(evidenceId));
+      return evidenceIds.some((evidenceId) => requirement.currentEvidenceIds.includes(evidenceId) || requirement.candidateEvidenceIds.includes(evidenceId)
+        || (allowKnowledgeSkill && requirement.status === "knowledge-only" && requirement.knowledgeSkillIds.includes(evidenceId)));
     });
   for (const [index, change] of (result.diff?.bulletChanges || []).entries()) {
     const entryId = bulletLocations.get(change.baseBulletId);
@@ -144,7 +148,7 @@ function expandSemanticDiff(result, catalog, evidenceIndex) {
   }
   for (const [index, change] of (result.diff?.skillChanges || []).entries()) {
     const skill = catalog.alternatives.skills.inventory.find((item) => normalize(item.skill) === normalize(change.skill));
-    if (!skill || !acceptLink(change, [skill.id])) { rejected.push({ type: "skill", reason: "Semantic skill change lacks a verified skill or requirement-evidence link.", change }); continue; }
+    if (!skill || !acceptLink(change, [skill.id], true)) { rejected.push({ type: "skill", reason: "Semantic skill change lacks a verified skill or requirement-evidence link.", change }); continue; }
     diff.skillChanges.push({ candidateId: `v2:skill:${index}:${skill.id}`, type: change.type, groupLabel: change.targetGroup, baseItem: change.baseItem || undefined, replacementItem: skill.skill, requirementIds: change.requirementIds, justification: change.justification });
   }
   const project = result.diff?.projectChanges?.[0];
@@ -213,6 +217,17 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
   let proposal;
   try { proposal = parseJsonText(response.text, "Sonnet semantic resume optimization", { stopReason: response.stopReason }); }
   catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-response-parsing"; throw withDiagnostics(error); }
+  diagnostics.requirementTrace = Array.isArray(proposal?.requirements) ? proposal.requirements.map((requirement) => ({
+    id: sanitizeDiagnosticMessage(requirement?.id),
+    text: sanitizeDiagnosticMessage(requirement?.text),
+    priority: sanitizeDiagnosticMessage(requirement?.priority),
+    kind: sanitizeDiagnosticMessage(requirement?.kind),
+    status: sanitizeDiagnosticMessage(requirement?.status),
+    currentEvidenceIds: Array.isArray(requirement?.currentEvidenceIds) ? requirement.currentEvidenceIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
+    candidateEvidenceIds: Array.isArray(requirement?.candidateEvidenceIds) ? requirement.candidateEvidenceIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
+    knowledgeSkillIds: Array.isArray(requirement?.knowledgeSkillIds) ? requirement.knowledgeSkillIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
+    reason: sanitizeDiagnosticMessage(requirement?.reason),
+  })) : [];
   let requirementIds;
   let blockers;
   try {
