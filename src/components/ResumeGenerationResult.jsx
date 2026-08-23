@@ -38,6 +38,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <div style={{ color: "#a5b4fc", fontSize: "13px" }}>{result.selection?.variant}</div>
       </div>
       {acceptedChangeLabels.length > 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Accepted changes: {acceptedChangeLabels.join(", ")}</div>}
+      {!semanticCoverageUnavailable && acceptedChangeLabels.length === 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Canonical base already retained; no safe high-value changes were needed.</div>}
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px" }}>
         <Badge ok={onePage}>{onePage ? "One page" : `${result.pageCount || "?"} pages`}</Badge>
@@ -158,14 +159,17 @@ function diagnosticText(result) {
     backedOff: (result.tailoring?.backedOffForFit || []).map((item) => ({ type: item.type, candidateId: item.candidateId, requirementIds: item.requirementIds || [] })),
     requirementTrace: result.fallback?.selection ? (result.tailoring?.failedRequirementTrace || []) : (coverage.requirements || []).map((item) => ({
       id: item.id, text: item.text, priority: item.priority, kind: item.kind,
-      optimizerStatus: item.optimizerStatus,
-      currentEvidenceIds: item.currentEvidenceIds || [],
-      candidateEvidenceIds: item.candidateEvidenceIds || [],
-      knowledgeSkills: item.knowledgeSkillNames || item.knowledgeSkillIds || [],
+      derivedStatus: item.optimizerStatus,
+      validCurrentEvidenceIds: item.currentEvidenceIds || [],
+      validCandidateEvidenceIds: item.candidateEvidenceIds || [],
+      validKnowledgeSkillIds: item.knowledgeSkillIds || [],
+      knowledgeSkills: item.knowledgeSkillNames || [],
+      discardedEvidence: item.discardedEvidence || [],
       finalCovered: Boolean(item.covered),
       finalSurvivingEvidenceIds: item.survivingEvidenceIds || [],
       reason: item.reason,
     })),
+    requirementIssues: result.tailoring?.requirementIssues || [],
     coverage: {
       beforeWeighted: result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? null,
       afterWeighted: coverage.weightedCoveragePercentage ?? null,

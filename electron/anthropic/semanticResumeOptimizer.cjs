@@ -8,7 +8,6 @@ const { sanitizeDiagnosticMessage } = require("./tailoringDiagnostics.cjs");
 const MODEL = MODELS.writing;
 const REQUIREMENT_PRIORITIES = ["must", "preferred"];
 const REQUIREMENT_KINDS = ["technical-skill", "experience", "responsibility", "qualification"];
-const REQUIREMENT_STATUSES = ["covered", "coverable", "knowledge-only", "unsupported"];
 
 const stringArray = { type: "array", items: { type: "string" } };
 const changeCommon = {
@@ -47,11 +46,10 @@ function semanticOptimizerSchema(base, catalog) {
             id: { type: "string" }, text: { type: "string" },
             priority: { type: "string", enum: REQUIREMENT_PRIORITIES },
             kind: { type: "string", enum: REQUIREMENT_KINDS },
-            status: { type: "string", enum: REQUIREMENT_STATUSES },
             currentEvidenceIds: stringArray, candidateEvidenceIds: stringArray,
             knowledgeSkillIds: { type: "array", items: { type: "string", enum: knowledgeSkillIds } }, reason: { type: "string" },
           },
-          required: ["id", "text", "priority", "kind", "status", "currentEvidenceIds", "candidateEvidenceIds", "knowledgeSkillIds", "reason"],
+          required: ["id", "text", "priority", "kind", "currentEvidenceIds", "candidateEvidenceIds", "knowledgeSkillIds", "reason"],
         },
       },
       diff: {
@@ -91,31 +89,45 @@ function semanticOptimizerSchema(base, catalog) {
 const fail = (message, stage = "semantic-validation") => { const error = Object.assign(new Error(message), { code: "VALIDATION_FAILED", tailoringStage: stage }); throw error; };
 const normalize = (value) => String(value || "").trim().toLowerCase();
 
-function validateRequirements(result, catalog, evidenceIndex) {
+function normalizeRequirements(result, catalog, evidenceIndex) {
   if (result?.version !== 2 || result?.baseResumeId !== catalog.base.id || !Array.isArray(result?.requirements)) fail("Semantic optimizer returned an invalid top-level contract.");
   const ids = new Set();
   const skillById = new Map(catalogSkillRecords(catalog).map((skill) => [skill.id, skill]));
+  const requirements = [];
+  const issues = [];
   for (const requirement of result.requirements) {
-    if (!requirement?.id || ids.has(requirement.id) || !String(requirement.text || "").trim()) fail("Semantic optimizer returned a missing or duplicate requirement ID.");
-    ids.add(requirement.id);
-    if (!REQUIREMENT_PRIORITIES.includes(requirement.priority) || !REQUIREMENT_KINDS.includes(requirement.kind) || !REQUIREMENT_STATUSES.includes(requirement.status)) fail(`Requirement '${requirement.id}' has an invalid classification.`);
-    for (const id of [...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds]) if (!evidenceIndex.has(id)) fail(`Requirement '${requirement.id}' references unknown evidence '${id}'.`);
-    for (const id of requirement.currentEvidenceIds) if (!evidenceIndex.get(id).current) fail(`Requirement '${requirement.id}' labels non-current evidence '${id}' as current.`);
-    const knowledge = requirement.knowledgeSkillIds.map((id) => skillById.get(id));
-    const cited = [...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds].map((id) => evidenceIndex.get(id));
-    if (knowledge.some((skill) => !skill)) fail(`Requirement '${requirement.id}' references an unknown knowledge skill ID.`);
-    if (requirement.status === "covered" && !requirement.currentEvidenceIds.length) fail(`Covered requirement '${requirement.id}' lacks current evidence.`);
-    if (requirement.status === "coverable" && !requirement.candidateEvidenceIds.length) fail(`Coverable requirement '${requirement.id}' lacks candidate evidence.`);
-    if (["covered", "coverable"].includes(requirement.status) && cited.length && cited.every((item) => item.kind === "skill" && item.value.classification !== "hands-on")) fail(`Requirement '${requirement.id}' must classify skill-only knowledge evidence as knowledge-only.`);
-    if (["experience", "responsibility"].includes(requirement.kind) && ["covered", "coverable"].includes(requirement.status) && cited.every((item) => item.kind === "skill")) fail(`Requirement '${requirement.id}' demands accomplishment evidence, not only Skills entries.`);
-    if (["covered", "coverable", "unsupported"].includes(requirement.status) && requirement.knowledgeSkillIds.length) fail(`Requirement '${requirement.id}' may populate knowledgeSkillIds only when status is knowledge-only.`);
-    if (requirement.status === "knowledge-only" && requirement.kind !== "technical-skill") fail(`Knowledge-only requirement '${requirement.id}' must be a technical-skill requirement.`);
-    if (requirement.status === "knowledge-only" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length)) fail(`Knowledge-only requirement '${requirement.id}' must use only knowledgeSkillIds.`);
-    if (requirement.status === "knowledge-only" && (!knowledge.length || knowledge.some((skill) => skill.classification !== "knowledge"))) fail(`Knowledge-only requirement '${requirement.id}' lacks verified knowledge-only skill evidence.`);
-    if (requirement.status === "unsupported" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length || requirement.knowledgeSkillIds.length)) fail(`Unsupported requirement '${requirement.id}' cannot cite supporting evidence.`);
+    const id = String(requirement?.id || "").trim();
+    if (!id || ids.has(id) || !String(requirement?.text || "").trim() || !REQUIREMENT_PRIORITIES.includes(requirement?.priority) || !REQUIREMENT_KINDS.includes(requirement?.kind)) {
+      issues.push({ requirementId: id || null, discardedEvidenceId: null, field: "requirement", reason: "Requirement record is missing a unique ID, text, priority, or kind and was discarded." });
+      continue;
+    }
+    ids.add(id);
+    const discardedEvidence = [];
+    const discard = (evidenceId, field, reason) => { const issue = { requirementId: sanitizeDiagnosticMessage(id), discardedEvidenceId: sanitizeDiagnosticMessage(evidenceId), field, reason }; discardedEvidence.push(issue); issues.push(issue); };
+    const accomplishmentRequired = ["experience", "responsibility"].includes(requirement.kind);
+    const validEvidence = (values, field, requireCurrent) => [...new Set(Array.isArray(values) ? values.map(String) : [])].filter((evidenceId) => {
+      const evidence = evidenceIndex.get(evidenceId);
+      if (!evidence) { discard(evidenceId, field, "Unknown evidence ID."); return false; }
+      if (requireCurrent && !evidence.current) { discard(evidenceId, field, "Evidence is not current in the selected canonical base."); return false; }
+      if (accomplishmentRequired && evidence.kind === "skill") { discard(evidenceId, field, "Skills-only evidence cannot satisfy an experience or responsibility requirement."); return false; }
+      return true;
+    });
+    const currentEvidenceIds = validEvidence(requirement.currentEvidenceIds, "currentEvidenceIds", true);
+    const candidateEvidenceIds = validEvidence(requirement.candidateEvidenceIds, "candidateEvidenceIds", false);
+    const knowledgeSkillIds = [...new Set(Array.isArray(requirement.knowledgeSkillIds) ? requirement.knowledgeSkillIds.map(String) : [])].filter((skillId) => {
+      const skill = skillById.get(skillId);
+      if (requirement.kind !== "technical-skill") { discard(skillId, "knowledgeSkillIds", "Knowledge-only evidence is ignored for non-technical requirements."); return false; }
+      if (!skill) { discard(skillId, "knowledgeSkillIds", "Unknown skill evidence ID."); return false; }
+      if (skill.classification !== "knowledge") { discard(skillId, "knowledgeSkillIds", "Skill is classified as hands-on, not knowledge-only."); return false; }
+      return true;
+    });
+    const status = currentEvidenceIds.length ? "covered" : candidateEvidenceIds.length ? "coverable" : knowledgeSkillIds.length ? "knowledge-only" : "unsupported";
+    requirements.push({ id, text: String(requirement.text).trim(), priority: requirement.priority, kind: requirement.kind, status, currentEvidenceIds, candidateEvidenceIds, knowledgeSkillIds, reason: String(requirement.reason || "").trim(), discardedEvidence });
   }
-  return ids;
+  return { requirements, requirementIds: new Set(requirements.map((item) => item.id)), issues };
 }
+
+const validateRequirements = normalizeRequirements;
 
 function resolveKnowledgeSkillNames(requirements, catalog) {
   const skillById = new Map(catalogSkillRecords(catalog).map((skill) => [skill.id, skill.skill]));
@@ -182,7 +194,7 @@ function compatibilityAnalysis(result, base, blockers) {
 
 async function generateSemanticResumeOptimization({ client, apiKey, bank, base, job, signal, generateDir, progress }) {
   progress?.("Semantically optimizing verified resume evidence");
-  const [{ buildVerifiedEvidenceCatalog, indexVerifiedEvidenceCatalog }, { applyTailoringDiff }, { validateEligibilityBlockers }] = await Promise.all([
+  const [{ buildVerifiedEvidenceCatalog, indexVerifiedEvidenceCatalog }, { applyTailoringDiff }, { detectExplicitEligibilityBlockers }] = await Promise.all([
     import(pathToFileURL(path.join(generateDir, "evidenceCatalog.js")).href),
     import(pathToFileURL(path.join(generateDir, "tailoringDiff.js")).href),
     import(pathToFileURL(path.join(generateDir, "eligibilityBlockers.js")).href),
@@ -222,21 +234,23 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
     text: sanitizeDiagnosticMessage(requirement?.text),
     priority: sanitizeDiagnosticMessage(requirement?.priority),
     kind: sanitizeDiagnosticMessage(requirement?.kind),
-    status: sanitizeDiagnosticMessage(requirement?.status),
     currentEvidenceIds: Array.isArray(requirement?.currentEvidenceIds) ? requirement.currentEvidenceIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
     candidateEvidenceIds: Array.isArray(requirement?.candidateEvidenceIds) ? requirement.candidateEvidenceIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
     knowledgeSkillIds: Array.isArray(requirement?.knowledgeSkillIds) ? requirement.knowledgeSkillIds.map((id) => sanitizeDiagnosticMessage(id)) : [],
     reason: sanitizeDiagnosticMessage(requirement?.reason),
   })) : [];
-  let requirementIds;
-  let blockers;
+  let normalized;
   try {
-    requirementIds = validateRequirements(proposal, catalog, evidenceIndex);
-    if (!requirementIds.size) fail("Semantic optimizer returned no meaningful requirements.");
-    blockers = validateEligibilityBlockers(proposal.blockers, job.description);
+    normalized = normalizeRequirements(proposal, catalog, evidenceIndex);
   }
   catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-validation"; throw withDiagnostics(error); }
-  proposal = { ...proposal, requirements: resolveKnowledgeSkillNames(proposal.requirements, catalog) };
+  const blockers = detectExplicitEligibilityBlockers(job.description);
+  proposal = { ...proposal, requirements: resolveKnowledgeSkillNames(normalized.requirements, catalog) };
+  diagnostics.requirementTrace = proposal.requirements.map((requirement) => ({
+    id: sanitizeDiagnosticMessage(requirement.id), text: sanitizeDiagnosticMessage(requirement.text), priority: requirement.priority, kind: requirement.kind, derivedStatus: requirement.status,
+    currentEvidenceIds: requirement.currentEvidenceIds, candidateEvidenceIds: requirement.candidateEvidenceIds, knowledgeSkillIds: requirement.knowledgeSkillIds,
+    discardedEvidence: requirement.discardedEvidence, reason: sanitizeDiagnosticMessage(requirement.reason),
+  }));
   const expanded = expandSemanticDiff(proposal, catalog, evidenceIndex);
   let applied;
   try { applied = applyTailoringDiff({ bank, base, diff: expanded.diff, semanticRequirements: proposal.requirements }); }
@@ -249,7 +263,7 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
   }));
   progress?.("Validating bounded semantic tailoring changes");
   return {
-    ...applied, proposedDiff: proposal.diff, requirements: proposal.requirements,
+    ...applied, proposedDiff: proposal.diff, requirements: proposal.requirements, requirementIssues: normalized.issues,
     analysis: compatibilityAnalysis(proposal, base, blockers), usage: diagnostics.usage,
     cacheUsage: diagnostics.cacheUsage,
     model: MODEL, usedFallback: false, apiDurationMs: diagnostics.apiDurationMs,
@@ -258,4 +272,4 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
   };
 }
 
-module.exports = { MODEL, semanticOptimizerSchema, validateRequirements, resolveKnowledgeSkillNames, expandSemanticDiff, generateSemanticResumeOptimization };
+module.exports = { MODEL, semanticOptimizerSchema, normalizeRequirements, validateRequirements, resolveKnowledgeSkillNames, expandSemanticDiff, generateSemanticResumeOptimization };

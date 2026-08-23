@@ -26,7 +26,7 @@ const job = { company: "Test Co", title: "Backend Engineer", description: JD };
 
 const validOptimization = (baseResumeId) => ({
   version: 2, baseResumeId, roleFamily: "backend software engineering", seniority: "entry", blockers: [],
-  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", status: "covered", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Python is rendered in the selected base." }],
+  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Python is rendered in the selected base." }],
   diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] },
 });
 
@@ -39,7 +39,7 @@ function makeClient({ selection = "ok" } = {}) {
       calls += 1;
       if (selection === "throw") throw new Error("simulated selection outage");
       if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
-      if (selection === "invalid-reference") return { text: JSON.stringify({ ...validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0]), requirements: [{ id: "req-invalid", text: "Grouped language", priority: "must", kind: "technical-skill", status: "knowledge-only", currentEvidenceIds: [], candidateEvidenceIds: ["skill:not-real"], knowledgeSkillIds: ["skill:not-real"], reason: "Deliberately invalid post-response reference." }] }), usage: { input_tokens: 321, output_tokens: 45, cache_creation_input_tokens: 200, cache_read_input_tokens: 10 }, stopReason: "end_turn" };
+      if (selection === "invalid-reference") return { text: JSON.stringify({ ...validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0]), requirements: [{ id: "req-invalid", text: "Grouped language", priority: "must", kind: "technical-skill", currentEvidenceIds: [], candidateEvidenceIds: ["skill:not-real"], knowledgeSkillIds: ["skill:not-real"], reason: "Deliberately invalid post-response reference." }] }), usage: { input_tokens: 321, output_tokens: 45, cache_creation_input_tokens: 200, cache_read_input_tokens: 10 }, stopReason: "end_turn" };
       assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal optimizer uses a provider-compatible structured-output schema");
       return { text: JSON.stringify(validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0])), usage: { input_tokens: 1000, output_tokens: 100 }, stopReason: "end_turn" };
     },
@@ -124,14 +124,14 @@ async function main() {
   assert(malformedSelection.fallback.diagnostic?.classification === "response parsing failure", "malformed-selection: parsing failure classified");
   assert(JSON.stringify(malformedSelection.selection) === JSON.stringify(normal.selection), "malformed-selection: malformed output did not alter the canonical base");
 
-  const validationFallback = await makeOrchestrator(makeClient({ selection: "invalid-reference" })).call(null, { job });
-  assertResumeShape(validationFallback, "post-response-validation-fallback");
-  assert(validationFallback.fallback.selection && validationFallback.fallback.diagnostic?.stage === "semantic-validation", "post-response-validation-fallback: validation stage preserved");
-  assert(validationFallback.usage.resumeSelection.inputTokens === 321 && validationFallback.usage.resumeSelection.outputTokens === 45, "post-response-validation-fallback: provider usage preserved");
-  assert(validationFallback.usage.resumeSelection.cacheCreationInputTokens === 200 && validationFallback.usage.resumeSelection.cacheReadInputTokens === 10, "post-response-validation-fallback: cache usage preserved");
-  assert(validationFallback.tailoring.requestMetrics?.serializedRequestBytes > 0 && validationFallback.tailoring.requestMetrics?.catalogBytes > 0 && validationFallback.tailoring.requestMetrics?.dynamicBytes > 0 && validationFallback.tailoring.requestMetrics?.approximateInputTokens > 0, "post-response-validation-fallback: safe request metrics preserved");
-  assert(validationFallback.models.resumeSelection && validationFallback.timings.tailoringApiMs >= 0 && validationFallback.estimatedCostUsd > 0, "post-response-validation-fallback: model, duration, and cost preserved");
-  assert(validationFallback.tailoring.failedRequirementTrace?.[0]?.id === "req-invalid" && validationFallback.tailoring.failedRequirementTrace[0].knowledgeSkillIds[0] === "skill:not-real", "post-response-validation-fallback: sanitized failed requirement trace preserved");
+  const semanticDegradation = await makeOrchestrator(makeClient({ selection: "invalid-reference" })).call(null, { job });
+  assertResumeShape(semanticDegradation, "per-requirement-degradation");
+  assert(!semanticDegradation.fallback.selection, "per-requirement-degradation: invalid evidence did not trigger global fallback");
+  assert(semanticDegradation.finalCoverage.requirements[0].optimizerStatus === "unsupported", "per-requirement-degradation: requirement safely became unsupported");
+  assert(semanticDegradation.tailoring.requirementIssues.length === 2 && semanticDegradation.finalCoverage.requirements[0].discardedEvidence.length === 2, "per-requirement-degradation: discarded evidence diagnostics preserved");
+  assert(semanticDegradation.usage.resumeSelection.inputTokens === 321 && semanticDegradation.usage.resumeSelection.outputTokens === 45, "per-requirement-degradation: provider usage preserved");
+  assert(semanticDegradation.usage.resumeSelection.cacheCreationInputTokens === 200 && semanticDegradation.usage.resumeSelection.cacheReadInputTokens === 10, "per-requirement-degradation: cache usage preserved");
+  assert(semanticDegradation.tailoring.requestMetrics?.serializedRequestBytes > 0 && semanticDegradation.tailoring.requestMetrics?.catalogBytes > 0 && semanticDegradation.tailoring.requestMetrics?.dynamicBytes > 0 && semanticDegradation.tailoring.requestMetrics?.approximateInputTokens > 0, "per-requirement-degradation: safe request metrics preserved");
 
   // 4. Recovery after failure: a prior failure never blocks a later generation.
   const recovered = await makeOrchestrator(makeClient({})).call(null, { job });
@@ -171,7 +171,7 @@ async function main() {
     oneCallSemanticOptimizer: normalClient.calls === 1,
     recoveryAfterFailure: true,
     malformedSelectionFallsBack: true,
-    postResponseDiagnosticsSurviveValidationFallback: true,
+    perRequirementDegradationPreservesDiagnostics: true,
     compileFailureExplicit: true,
     selectedJobResumeOptionAuthoritative: true,
     selectedBaseRemainsAuthoritative: true,

@@ -9,7 +9,8 @@ const PATTERNS = {
   sponsorship: /\b(no|not|without|unable to|cannot|will not|do not|does not|won'?t)\b[^.\n]{0,40}\bsponsor(ship)?\b|\bsponsorship\s+(is\s+)?not\b|\bno\s+visa\b/i,
   citizenship: /\b(u\.?s\.?\s*citizen(ship)?|must be a citizen|green card|permanent resident|citizens? only)\b/i,
   clearance: /\b(security clearance|active clearance|ts\/sci|secret clearance|polygraph|clearable)\b/i,
-  undergraduateOnly: /\b(undergraduate (students? )?only|currently (enrolled|pursuing)[^.\n]{0,40}\b(bachelor|undergraduate)\b|rising (junior|senior|sophomore)|pursuing a bachelor)\b/i,
+  undergraduateOnly: /\b(undergraduate (students? )?only|bachelor'?s students? only|currently (enrolled|pursuing)[^.\n]{0,40}\b(bachelor|undergraduate)\b|rising (junior|senior|sophomore)|pursuing a bachelor)\b/i,
+  graduateAlternative: /\bbachelor'?s?\b[^.\n]{0,40}\b(?:or|and\/?or)\b[^.\n]{0,40}\bmaster'?s?\b|\bmaster'?s?\b[^.\n]{0,40}\b(?:or|and\/?or)\b[^.\n]{0,40}\bbachelor'?s?\b/i,
   graduateOnly: /\b(ph\.?d\b|doctoral|master'?s (degree )?(is )?required|graduate students? only|must have a master)\b/i,
 };
 
@@ -53,7 +54,7 @@ export function buildResumeWarnings({
     push(warnings, "sponsorship", "info",
       "This posting mentions visa sponsorship restrictions. Generation was not blocked; verify this against your work authorization.");
   }
-  if (PATTERNS.undergraduateOnly.test(description) && !PATTERNS.graduateOnly.test(description)) {
+  if (PATTERNS.undergraduateOnly.test(description) && !PATTERNS.graduateAlternative.test(description) && !PATTERNS.graduateOnly.test(description)) {
     push(warnings, "education-level", "warning",
       "This posting reads as undergraduate-only. Your profile is a graduate student, so this may be a mismatch. The resume was still generated.");
   }
@@ -95,7 +96,7 @@ export function buildResumeWarnings({
   }
   if (usedSelectionFallback) {
     push(warnings, "selection-fallback", "info",
-      "The tailoring diff was unavailable, so the selected canonical base was kept unchanged.");
+      "The semantic optimizer was unavailable, so the selected canonical base was kept unchanged.");
   }
   if (requestedVariant && renderedVariant && requestedVariant !== renderedVariant) {
     push(warnings, "variant-mismatch", "info",

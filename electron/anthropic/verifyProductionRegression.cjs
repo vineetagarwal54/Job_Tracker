@@ -33,7 +33,7 @@ function proposalFor(body, testCase) {
   const currentIds = [systemCatalog.base.summary.id, ...systemCatalog.base.experience.flatMap((entry) => entry.bullets.map((bullet) => bullet.id)), ...systemCatalog.base.renderedSkills.flatMap((group) => group.items.map((skill) => skill.id))];
   const requirements = (testCase.must.length ? testCase.must : ["reliable software delivery"]).map((text, index) => {
     const unsupported = testCase.unsupported && text.toLowerCase() === testCase.unsupported;
-    return { id: `req-${index + 1}`, text, priority: "must", kind: "technical-skill", status: unsupported ? "unsupported" : "covered", currentEvidenceIds: unsupported ? [] : [currentIds[index % currentIds.length]], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: unsupported ? "No supplied evidence supports this technology." : "The selected base contains verified supporting evidence." };
+    return { id: `req-${index + 1}`, text, priority: "must", kind: "technical-skill", currentEvidenceIds: unsupported ? [] : [currentIds[index % currentIds.length]], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: unsupported ? "No supplied evidence supports this technology." : "The selected base contains verified supporting evidence." };
   });
   return { version: 2, baseResumeId, roleFamily: testCase.name, seniority: "entry", blockers: [], requirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } };
 }

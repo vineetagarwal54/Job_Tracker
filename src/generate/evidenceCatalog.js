@@ -18,6 +18,10 @@ export function experienceEvidenceId(entryId) {
   return `experience:${entryId}`;
 }
 
+export function educationEvidenceId(educationId) {
+  return `education:${educationId}`;
+}
+
 function summaryAlternatives(bank, base) {
   const values = [
     ...Object.entries(bank.summary?.byVariant || {}).map(([id, text]) => ({ id: summaryEvidenceId(`variant:${id}`), summaryId: `variant:${id}`, text })),
@@ -31,6 +35,15 @@ export function buildVerifiedEvidenceCatalog(bank, base) {
   const currentProjectIds = new Set(base.projects.map((project) => project.entryId));
   const currentProjectBulletIds = new Set(base.projects.flatMap((entry) => entry.bullets.map((bullet) => bullet.sourceBulletId)));
   const experienceById = new Map((bank.experience || []).map((entry) => [entry.id, entry]));
+  const educationSource = (bank.education || []).find((entry) => entry.id === base.education?.educationId) || {};
+  const education = {
+    id: educationEvidenceId(base.education.educationId),
+    educationId: base.education.educationId,
+    degree: base.education.degree || educationSource.degree,
+    field: String(base.education.degree || educationSource.degree || "").split(",").slice(1).join(",").trim(),
+    institution: educationSource.school,
+    dates: base.education.dates || educationSource.dates,
+  };
 
   const experience = base.experience.map((entry) => ({
     id: experienceEvidenceId(entry.entryId),
@@ -72,6 +85,7 @@ export function buildVerifiedEvidenceCatalog(bank, base) {
     ...currentExperienceBulletIds,
     ...currentProjectBulletIds,
     ...base.skills.flatMap((group) => group.items.map(skillEvidenceId)),
+    education.id,
   ]);
   const catalog = {
     version: 2,
@@ -80,6 +94,7 @@ export function buildVerifiedEvidenceCatalog(bank, base) {
       summary: { id: currentSummaryId, text: base.summary },
       experience,
       projects,
+      education,
       renderedSkills: base.skills.map((group) => ({ group: group.label, items: group.items.map((skill) => ({ id: skillEvidenceId(skill), skill })) })),
     },
     alternatives: {
@@ -96,6 +111,7 @@ export function indexVerifiedEvidenceCatalog(catalog) {
   const evidence = new Map();
   const add = (id, value, kind, current = false) => evidence.set(id, { id, value, kind, current });
   add(catalog.base.summary.id, catalog.base.summary, "summary", true);
+  add(catalog.base.education.id, catalog.base.education, "education", true);
   for (const entry of catalog.base.experience) {
     add(entry.id, entry, "experience", true);
     for (const bullet of entry.bullets) add(bullet.id, { ...bullet, entryId: entry.entryId }, "experience-bullet", true);

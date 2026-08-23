@@ -1,7 +1,8 @@
-import { projectEvidenceId, skillEvidenceId, summaryEvidenceId, experienceEvidenceId } from "./evidenceCatalog.js";
+import { projectEvidenceId, skillEvidenceId, summaryEvidenceId, experienceEvidenceId, educationEvidenceId } from "./evidenceCatalog.js";
 
 export function finalRenderedEvidenceIds(base, acceptedDiff = null) {
   const ids = new Set([summaryEvidenceId(`base:${base.id}`)]);
+  if (base.education?.educationId) ids.add(educationEvidenceId(base.education.educationId));
   if (acceptedDiff?.summaryChange?.summaryId) {
     ids.delete(summaryEvidenceId(`base:${base.id}`));
     ids.add(summaryEvidenceId(acceptedDiff.summaryChange.summaryId));
@@ -30,6 +31,7 @@ function item(requirement, covered, survivingEvidenceIds) {
     candidateEvidenceIds: [...(requirement.candidateEvidenceIds || [])],
     knowledgeSkillIds: [...(requirement.knowledgeSkillIds || [])],
     knowledgeSkillNames: [...(requirement.knowledgeSkillNames || [])],
+    discardedEvidence: [...(requirement.discardedEvidence || [])],
     covered,
     survivingEvidenceIds,
     reason: requirement.reason,
