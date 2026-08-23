@@ -52,6 +52,22 @@ const unsupported = planFor(mobile, "Must have Rust. Rust Rust systems programmi
 assert(unsupported.plan.unsupportedMissing.some((item) => item.term === "rust"), "Unsupported skill was not reported missing");
 assert(!unsupported.plan.candidates.some((candidate) => candidate.matchedTerms.includes("rust")), "Unsupported skill became a tailoring candidate");
 
+// Benefits and generic company prose never become resume gaps, while concrete
+// unsupported technologies and processing requirements remain visible.
+const noisyDescription = "What makes this a great company for people: paid vacation, health benefits, and excellent culture. Must have ASP.NET Core, C#, AWS CDK, EventBridge, PDF processing, and image processing.";
+const noisyAnalysis = analysis(["ASP.NET Core", "C#", "AWS CDK", "EventBridge", "PDF processing", "image processing"]);
+const noisy = planFor(mobile, noisyDescription, noisyAnalysis);
+const noisyGaps = new Set(noisy.plan.unsupportedMissing.map((item) => item.term));
+for (const term of ["great", "company", "people", "vacation", "paid", "what", "health", "benefits", "culture"]) assert(!noisyGaps.has(term), `Generic JD prose '${term}' leaked into unsupported gaps`);
+for (const term of ["asp.net core", "c#", "aws cdk", "eventbridge", "pdf processing", "image processing"]) assert(noisyGaps.has(term), `Technical unsupported gap '${term}' was filtered out`);
+
+// Conservative synonyms resolve to existing verified knowledge instead of
+// becoming false unsupported gaps.
+const aliasDescription = "Object-oriented programming, relational databases, SNS/SQS, code review, and distributed caching are required.";
+const aliases = planFor(mobile, aliasDescription, analysis(["object-oriented programming", "relational databases", "SNS/SQS", "code review", "distributed caching"]));
+const aliasGaps = new Set(aliases.plan.unsupportedMissing.map((item) => item.term));
+for (const term of ["object-oriented programming", "relational databases", "sns", "sqs", "code review", "distributed caching"]) assert(!aliasGaps.has(term), `Verified alias '${term}' was reported unsupported`);
+
 // A quantified source bullet cannot be offered in exchange for weaker keyword-only evidence.
 const metricBank = {
   summary: { byVariant: {}, byEmphasis: {} }, skillGroups: [], projects: [],
@@ -66,4 +82,4 @@ const metricExtraction = extractJobKeywords(metricJd);
 const metricPlan = buildRelevancePlan({ bank: metricBank, base: metricBase, job: { description: metricJd }, extraction: metricExtraction, analysis: analysis(["Kubernetes"]) });
 assert(!metricPlan.candidates.some((candidate) => candidate.type === "bullet-swap" && candidate.baseBulletId === "measured"), "Quantified bullet was offered for a weaker keyword-only replacement");
 
-console.log(JSON.stringify({ wellMatchedZeroChange: true, supportedMustHaveChanged: true, repeatedTermPriority: true, unsupportedNeverInvented: true, strongMetricPreserved: true, coverageImprovedOrPreserved: true }, null, 2));
+console.log(JSON.stringify({ wellMatchedZeroChange: true, supportedMustHaveChanged: true, repeatedTermPriority: true, unsupportedNeverInvented: true, noisyProseFiltered: true, technicalGapsPreserved: true, conservativeAliasesResolved: true, strongMetricPreserved: true, coverageImprovedOrPreserved: true }, null, 2));

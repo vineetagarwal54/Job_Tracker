@@ -14,6 +14,8 @@ const COMPATIBLE_SKILL_GROUPS = Object.freeze({
 
 const NUMBER_PATTERN = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
 const LOW_SIGNAL_TERMS = new Set(["ability", "build", "develop", "experience", "have", "implement", "knowledge", "maintain", "must", "preferred", "required", "responsibilities", "responsibility", "skills", "support", "using", "work"]);
+const NON_TECHNICAL_GAP_TERMS = new Set(`about apply applying benefits best candidate candidates careers company compensation culture dental employee employees employer environment equal excellent family flexible great health holidays insurance join life looking opportunity opportunities paid people perks position remote salary team vacation vision what workplace`.split(/\s+/));
+const KNOWN_TECHNICAL_GAPS = new Set(["asp.net", "asp.net core", "aws cdk", "c#", "cdk", "elixir", "eventbridge", "image processing", "pdf", "pdf processing", "pulumi", "rust"]);
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
@@ -73,7 +75,8 @@ function termRecords({ job, extraction, analysis, coverage, base }) {
     const weight = (isMustHave ? 14 : isResponsibility ? 9 : technical ? 6 : nice.has(record.term) ? 4 : 3) + Math.min(9, Math.max(0, count - 1) * 3);
     const covered = Boolean(match?.covered);
     const weak = covered && !hasBulletEvidence && (isMustHave || count >= 2);
-    return { term: record.term, frequency: count, categories: [...record.categories].sort(), isMustHave, isResponsibility, weight, covered, weak, matchingIds, hasBulletEvidence, status: covered ? (weak ? "weak" : "covered") : "missing" };
+    const isTechnical = [...record.categories].some((category) => ["language", "framework", "platform", "tool", "database", "technical"].includes(category));
+    return { term: record.term, frequency: count, categories: [...record.categories].sort(), isMustHave, isResponsibility, isTechnical, weight, covered, weak, matchingIds, hasBulletEvidence, status: covered ? (weak ? "weak" : "covered") : "missing" };
   }).sort((a, b) => b.weight - a.weight || b.frequency - a.frequency || a.term.localeCompare(b.term));
 }
 
@@ -178,7 +181,11 @@ export function buildRelevancePlan({ bank, base, job, extraction, analysis }) {
   candidates.sort((a, b) => b.expectedGain - a.expectedGain || a.id.localeCompare(b.id));
   const usefulCandidates = candidates.slice(0, 20);
   const supportedText = allBankText(bank);
-  const unsupportedMissing = gaps.filter((record) => !textContainsTerm(supportedText, record.term)).map((record) => ({ term: record.term, priority: record.weight, frequency: record.frequency, isMustHave: record.isMustHave }));
+  const unsupportedMissing = gaps.filter((record) => {
+    if (NON_TECHNICAL_GAP_TERMS.has(record.term)) return false;
+    const technicallyRelevant = record.isTechnical || record.isMustHave || record.isResponsibility || KNOWN_TECHNICAL_GAPS.has(record.term) || /[+#./]/.test(record.term);
+    return technicallyRelevant && !textContainsTerm(supportedText, record.term);
+  }).map((record) => ({ term: record.term, priority: record.weight, frequency: record.frequency, isMustHave: record.isMustHave }));
   return { version: 1, baseResumeId: base.id, minimumBenefit: MIN_RELEVANCE_BENEFIT, baseCoverage, terms, gaps, unsupportedMissing, candidates: usefulCandidates };
 }
 

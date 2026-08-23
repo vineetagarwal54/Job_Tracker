@@ -37,7 +37,11 @@ async function main() {
   const promptBytes = Buffer.byteLength(`${outgoingBody.system}${outgoingBody.messages[0].content}`);
   assert(schemaBytes < 1500, `candidate-scoped schema is unexpectedly large (${schemaBytes} bytes)`);
   assert(!JSON.stringify(outgoingBody).includes("Synthetic Skill 349"), "unapproved large-inventory skill leaked into outgoing request");
-  assert(outgoingBody.output_config.effort === "high", "tailoring selection did not request high effort");
+  assert(outgoingBody.output_config.effort === "low", "tailoring selection did not request low effort");
+  assert(outgoingBody.thinking?.type === "disabled", "adaptive thinking was not disabled for constrained selection");
+  assert(outgoingBody.max_tokens === 4000, "selection output headroom does not protect against the observed max_tokens truncation");
+  const dynamicInstruction = JSON.parse(outgoingBody.messages[0].content).instruction;
+  assert(/at most 3 bullet/.test(dynamicInstruction) && /at most 1 project/.test(dynamicInstruction) && /at most 4 skill/.test(dynamicInstruction) && /one short sentence/.test(dynamicInstruction), "selection caps or concise-justification instruction missing");
 
   const schemaError = Object.assign(new Error("Invalid schema: maxItems is not supported in output_config.format.schema"), { code: "invalid_request_error", status: 400, requestId: "req_safe" });
   const schemaDiagnostic = classifyTailoringFallback(schemaError);
@@ -55,7 +59,7 @@ async function main() {
   const logText = JSON.stringify(logged);
   assert(!logText.includes("person@example.com") && !logText.includes("sk-ant-secret") && !logText.includes("240-555-1234"), "diagnostic log leaked sensitive values");
 
-  console.log(JSON.stringify({ providerCompatibleSchema: true, largeInventoryCandidateScoped: true, schemaBytes, promptBytes, highEffort: true, classifications: 4, sanitizedLogging: true }, null, 2));
+  console.log(JSON.stringify({ providerCompatibleSchema: true, largeInventoryCandidateScoped: true, schemaBytes, promptBytes, thinkingDisabled: true, lowEffort: true, outputHeadroom: 4000, conciseCappedSelection: true, classifications: 4, sanitizedLogging: true }, null, 2));
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
