@@ -31,7 +31,7 @@ const VALID_ANALYSIS = {
   niceToHaveKeywords: ["redis", "postgresql"], responsibilities: ["build apis"],
   blockers: [], recommendedVariant: "cloud-backend", reasoningSummary: "Verified backend match.",
 };
-const VALID_SELECTION = { version: 1, baseResumeId: "swe-cloud", bulletChanges: [], skillChanges: [] };
+const VALID_SELECTION = { version: 1, baseResumeId: "swe-cloud", changes: [] };
 
 // Mock client modes are "ok", "throw", or "malformed".
 function makeClient({ analysis = "ok", selection = "ok" } = {}) {
@@ -105,6 +105,7 @@ async function main() {
   const normal = await makeOrchestrator(makeClient({})).call(null, { job });
   assertResumeShape(normal, "normal");
   assert(normal.fallback.selection === false && normal.fallback.analysis === false, "normal: no fallback used");
+  assert(["analysisMs", "relevancePlanningMs", "tailoringApiMs", "compilePageFitMs", "finalVerificationMs", "totalMs"].every((key) => Number.isFinite(normal.timings?.[key]) && normal.timings[key] >= 0), "normal: stage timings returned");
 
   // 2. Selection fallback: analysis ok, model selection fails -> deterministic
   //    resume from the verified bank.

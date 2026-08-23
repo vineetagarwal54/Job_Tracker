@@ -22,14 +22,17 @@ let unknownRejected = false;
 try { validateResumeEvidenceSelection(bank, { ...selection, experience: [{ entryId: "missing", bullets: [{ id: "missing" }] }] }); } catch { unknownRejected = true; }
 assert(unknownRejected, "Unknown final-resume evidence was accepted");
 
-const diff = { version: 1, baseResumeId: base.id, bulletChanges: [], skillChanges: [] };
+const proposal = { version: 1, baseResumeId: base.id, changes: [] };
+const relevancePlan = { version: 1, baseResumeId: base.id, minimumBenefit: 6, terms: [], gaps: [], candidates: [{ id: "summary:variant:ai-llm", type: "summary", summaryId: "variant:ai-llm", matchedTerms: ["ai"], expectedGain: 6 }] };
 let requestSchema; let requestMaxTokens; let requestTimeoutMs;
-const generated = await generateResumeSelection({ client: { request: async ({ body, timeoutMs }) => { requestSchema = body.output_config.format.schema; requestMaxTokens = body.max_tokens; requestTimeoutMs = timeoutMs; return { text: JSON.stringify(diff), usage: null, stopReason: "end_turn" }; } }, apiKey: "fake", bank, base, job: {}, analysis: {}, extraction: {}, coverage: {}, generateDir: here });
+let requestEffort;
+const generated = await generateResumeSelection({ client: { request: async ({ body, timeoutMs }) => { requestSchema = body.output_config.format.schema; requestMaxTokens = body.max_tokens; requestTimeoutMs = timeoutMs; requestEffort = body.output_config.effort; return { text: JSON.stringify(proposal), usage: null, stopReason: "end_turn" }; } }, apiKey: "fake", bank, base, job: {}, analysis: {}, extraction: {}, coverage: {}, relevancePlan, generateDir: here });
 assert(requestSchema.properties.baseResumeId.enum[0] === "swe-cloud", "Tailoring schema does not lock the selected base");
-assert(!("maxItems" in requestSchema.properties.bulletChanges) && !("maxItems" in requestSchema.properties.skillChanges), "Unsupported maxItems leaked into Anthropic structured-output schema");
-assert(requestMaxTokens === 5000 && requestTimeoutMs === 240000, "Tailoring request bounds changed unexpectedly");
+assert(requestSchema.properties.changes.items.properties.candidateId.enum.length === 1, "Tailoring schema is not candidate-scoped");
+assert(!JSON.stringify(requestSchema).includes('"maxItems"'), "Unsupported maxItems leaked into Anthropic structured-output schema");
+assert(requestMaxTokens === 2000 && requestTimeoutMs === 120000 && requestEffort === "high", "Constrained tailoring request settings changed unexpectedly");
 assert(generated.acceptedDiff.bulletChanges.length === 0 && generated.base.id === "swe-cloud", "Zero-change diff did not preserve the canonical base");
 assert(tailoringDiffSchema(bank, base).additionalProperties === false, "Tailoring schema permits structural fields");
 const safeReason = "Canonical base validation failed.";
 assert(messageForResumeError({ code: "VALIDATION_FAILED", message: safeReason }) === safeReason, "Safe validation reason was hidden");
-console.log(JSON.stringify({ finalEvidenceValidated: true, rewriteMetricsProtected: true, unknownEvidenceRejected: true, canonicalBaseLocked: true, providerCompatibleSchema: true, deterministicTailoringCaps: true, requestBounds: true, safeErrors: true }, null, 2));
+console.log(JSON.stringify({ finalEvidenceValidated: true, rewriteMetricsProtected: true, unknownEvidenceRejected: true, canonicalBaseLocked: true, candidateScopedSchema: true, providerCompatibleSchema: true, deterministicTailoringCaps: true, highEffortRequest: true, requestBounds: true, safeErrors: true }, null, 2));

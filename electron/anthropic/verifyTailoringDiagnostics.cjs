@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { tailoringDiffSchema } = require("./generateResumeSelection.cjs");
+const { generateResumeSelection, tailoringDiffSchema } = require("./generateResumeSelection.cjs");
 const { classifyTailoringFallback, logTailoringFallback } = require("./tailoringDiagnostics.cjs");
 
 const assert = (condition, message) => { if (!condition) throw new Error(`FAIL: ${message}`); };
@@ -12,12 +12,32 @@ async function main() {
   const bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8"));
   const { getCanonicalBaseResume } = await import(pathToFileURL(path.join(generateDir, "baseResumes.js")).href);
   const base = getCanonicalBaseResume("swe-cloud");
-  const schema = tailoringDiffSchema(bank, base, { candidates: [], gaps: [], unsupportedMissing: [] });
+  const schema = tailoringDiffSchema(bank, base, { candidates: [{ id: "candidate-only", type: "skill-edit" }], gaps: [], unsupportedMissing: [] });
 
   // Regression for the real API failure: raw Anthropic structured outputs do
   // not accept maxItems. Caps are enforced after parsing by applyTailoringDiff.
   const serialized = JSON.stringify(schema);
   assert(!serialized.includes('"maxItems"'), "provider-incompatible maxItems constraint returned");
+
+  const largeBank = JSON.parse(JSON.stringify(bank));
+  largeBank.skillGroups.push({ id: "synthetic-large-inventory", label: "Synthetic", items: Array.from({ length: 350 }, (_, index) => `Synthetic Skill ${index}`) });
+  const scopedPlan = { version: 1, baseResumeId: base.id, minimumBenefit: 6, terms: [], gaps: [], unsupportedMissing: [], candidates: [{ id: "summary:variant:ai-llm", type: "summary", summaryId: "variant:ai-llm", matchedTerms: ["ai"], expectedGain: 6, reason: "Verified summary candidate." }] };
+  const smallSchema = tailoringDiffSchema(bank, base, scopedPlan);
+  const largeSchema = tailoringDiffSchema(largeBank, base, scopedPlan);
+  assert(JSON.stringify(smallSchema) === JSON.stringify(largeSchema), "bank-wide skills changed the candidate-scoped schema");
+  const rewriteSchema = tailoringDiffSchema(bank, base, { ...scopedPlan, candidates: [...scopedPlan.candidates, { id: "bullet-rewrite:test", type: "bullet-rewrite" }] });
+  assert(!rewriteSchema.properties.changes.items.properties.candidateId.enum.includes("bullet-rewrite:test"), "rewrite candidate leaked into ordinary changes");
+  assert(rewriteSchema.properties.bulletRewrites.items.required.includes("rewrittenText"), "rewrite contract does not require rewritten text");
+  let outgoingBody;
+  await generateResumeSelection({
+    client: { request: async ({ body }) => { outgoingBody = body; return { text: JSON.stringify({ version: 1, baseResumeId: base.id, changes: [] }), usage: null, stopReason: "end_turn" }; } },
+    apiKey: "fake", bank: largeBank, base, job: { title: "AI Engineer", description: "Build verified AI systems." }, analysis: {}, extraction: {}, coverage: {}, relevancePlan: scopedPlan, generateDir,
+  });
+  const schemaBytes = Buffer.byteLength(JSON.stringify(outgoingBody.output_config.format.schema));
+  const promptBytes = Buffer.byteLength(`${outgoingBody.system}${outgoingBody.messages[0].content}`);
+  assert(schemaBytes < 1500, `candidate-scoped schema is unexpectedly large (${schemaBytes} bytes)`);
+  assert(!JSON.stringify(outgoingBody).includes("Synthetic Skill 349"), "unapproved large-inventory skill leaked into outgoing request");
+  assert(outgoingBody.output_config.effort === "high", "tailoring selection did not request high effort");
 
   const schemaError = Object.assign(new Error("Invalid schema: maxItems is not supported in output_config.format.schema"), { code: "invalid_request_error", status: 400, requestId: "req_safe" });
   const schemaDiagnostic = classifyTailoringFallback(schemaError);
@@ -35,7 +55,7 @@ async function main() {
   const logText = JSON.stringify(logged);
   assert(!logText.includes("person@example.com") && !logText.includes("sk-ant-secret") && !logText.includes("240-555-1234"), "diagnostic log leaked sensitive values");
 
-  console.log(JSON.stringify({ providerCompatibleSchema: true, classifications: 4, sanitizedLogging: true }, null, 2));
+  console.log(JSON.stringify({ providerCompatibleSchema: true, largeInventoryCandidateScoped: true, schemaBytes, promptBytes, highEffort: true, classifications: 4, sanitizedLogging: true }, null, 2));
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

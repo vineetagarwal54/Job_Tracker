@@ -34,14 +34,11 @@ function analysisFor(testCase) {
 
 function proposalFor(body) {
   const dynamic = JSON.parse(body.messages[0].content);
-  const diff = { version: 1, baseResumeId: dynamic.selectedBase.id, bulletChanges: [], skillChanges: [] };
+  const diff = { version: 1, baseResumeId: dynamic.selectedBase.id, changes: [] };
   const candidate = dynamic.approvedCandidates.find((item) => item.type !== "bullet-rewrite");
   if (!candidate) return diff;
   const justification = `${candidate.matchedTerms[0]} is an explicit or repeated JD requirement.`;
-  if (candidate.type === "bullet-swap") diff.bulletChanges.push({ candidateId: candidate.id, type: "swap", entryId: candidate.entryId, baseBulletId: candidate.baseBulletId, replacementBulletId: candidate.replacementBulletId, justification });
-  if (candidate.type === "skill-edit") diff.skillChanges.push({ candidateId: candidate.id, type: "add", groupLabel: candidate.groupLabel, replacementItem: candidate.replacementItem, justification });
-  if (candidate.type === "project-swap") diff.projectSwap = { candidateId: candidate.id, baseProjectId: candidate.baseProjectId, replacementProjectId: candidate.replacementProjectId, justification };
-  if (candidate.type === "summary") diff.summaryChange = { candidateId: candidate.id, summaryId: candidate.summaryId, justification };
+  diff.changes.push({ candidateId: candidate.id, justification });
   return diff;
 }
 

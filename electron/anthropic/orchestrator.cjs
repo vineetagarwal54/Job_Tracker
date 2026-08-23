@@ -61,6 +61,8 @@ function renderedResumeText(rendered) {
 function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, compileResumeTex, paths, logger = console }) {
   const generateDir = path.join(rootDir, "src", "generate");
   return async function orchestrate({ job: rawJob, signal, progress }) {
+    const generationStartedAt = Date.now();
+    const timings = { analysisMs: null, relevancePlanningMs: null, tailoringApiMs: null, compilePageFitMs: null, finalVerificationMs: null, totalMs: null };
     // Stage tracking (task Part 1): every genuine technical failure carries the
     // exact stage that failed so the UI can show a useful message while keeping
     // the technical detail in advanced diagnostics.
@@ -92,6 +94,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       // classification problem is never fatal: a failed analysis falls back to
       // a deterministic classification derived from the keyword extraction. ---
       stage = "analysis";
+      const analysisStartedAt = Date.now();
       let analyzed;
       let usedAnalysisFallback = false;
       try {
@@ -101,11 +104,14 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         analyzed = { analysis: fallbackModule.buildFallbackAnalysis({ extraction, job, variant: canonicalBase.variant }), usage: null, model: analyzeModelName() };
         usedAnalysisFallback = true;
       }
+      timings.analysisMs = Date.now() - analysisStartedAt;
 
       const variant = canonicalBase.variant;
 
       progress?.("Selecting resume variant");
+      const relevanceStartedAt = Date.now();
       const relevancePlan = relevanceModule.buildRelevancePlan({ bank, base: canonicalBase, job, extraction, analysis: analyzed.analysis });
+      timings.relevancePlanningMs = Date.now() - relevanceStartedAt;
       const preliminaryCoverage = relevancePlan.baseCoverage;
 
       // --- Selection (Sonnet) with universal deterministic fallback. If the
@@ -116,8 +122,10 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let usedSelectionFallback = false;
       let selectionFallbackReason = null;
       let selectionFallbackDiagnostic = null;
+      const selectionStartedAt = Date.now();
       try {
         generated = await generateResumeSelection({ client, apiKey, bank, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, relevancePlan, signal, generateDir, progress });
+        timings.tailoringApiMs = generated.apiDurationMs ?? (Date.now() - selectionStartedAt);
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
         generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis, relevancePlan }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
@@ -125,6 +133,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         selectionFallbackDiagnostic = classifyTailoringFallback(error);
         selectionFallbackReason = selectionFallbackDiagnostic.message;
         logTailoringFallback(logger, selectionFallbackDiagnostic, error);
+        timings.tailoringApiMs = Date.now() - selectionStartedAt;
       }
 
       progress?.("Rendering tailored canonical base");
@@ -136,6 +145,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       const texFileName = `${renderModule.safeResumeFileName(job.company, job.title)}-resume-${Date.now()}.tex`;
 
       stage = "render-compile";
+      const compileStartedAt = Date.now();
       const pageFit = await pageFitModule.fitTailoredBaseToOnePage({
         canonicalBase, tailoredBase: generated.base, acceptedDiff: generated.acceptedDiff, relevancePlan,
         renderAndCompile: async (candidateBase, attempt) => {
@@ -153,6 +163,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       generated = { ...generated, base: pageFit.base, acceptedDiff: pageFit.acceptedDiff, densityRatio: pageFit.densityRatio };
       const { rendered, compiled } = pageFit.result;
       const pageCount = pageFit.pageCount;
+      timings.compilePageFitMs = Date.now() - compileStartedAt;
 
       progress?.("Verifying PDF text layer");
       stage = "ats-verification";
@@ -166,9 +177,12 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
 
       progress?.("Checking final keyword coverage");
       stage = "final-verification";
+      const verificationStartedAt = Date.now();
       const finalVerification = tailoringModule.verifyTailoredBase({ bank, base: generated.base, extraction, analysis: analyzed.analysis, pageCount });
       finalVerification.densityRatio = generated.densityRatio;
       const coverageImprovement = relevanceModule.summarizeCoverageChange(preliminaryCoverage, finalVerification.coverage);
+      timings.finalVerificationMs = Date.now() - verificationStartedAt;
+      timings.totalMs = Date.now() - generationStartedAt;
 
       // Eligibility / mismatch warnings never block generation; they explain the
       // mismatch alongside the finished resume. Coverage here reflects only the
@@ -199,6 +213,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         atsIntegrity, atsWarning: ATS_WARNING,
         warnings,
         fallback: { analysis: usedAnalysisFallback, selection: usedSelectionFallback, reason: selectionFallbackReason, diagnostic: selectionFallbackDiagnostic },
+        timings,
         renderedSkills: rendered.renderedSkills || finalVerification.renderedSkills || null,
         suggestedFileName: fileNameModule.userFacingFileName({ kind: "resume", company: job.company, role: job.title }),
         models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,

@@ -5,6 +5,7 @@ const BASE_LABELS = Object.freeze({ ai: "AI / LLM", mobile: "Mobile / React Nati
 
 export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder, onGenerateAgain, onGenerateCoverLetter, coverActive }) {
   const [saveMsg, setSaveMsg] = useState(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
   if (!result) return null;
   const included = result.verification?.includedBulletIds || [];
   const coverage = result.finalCoverage || {};
@@ -20,6 +21,11 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
     const r = await window.resume?.saveCopy?.({ fileName: result.pdfFileName, suggestedName: result.suggestedFileName });
     if (r?.ok) setSaveMsg(`Saved to ${r.savedPath}`);
     else if (!r?.canceled) setSaveMsg("Save failed. Try Open Output Folder instead.");
+  };
+  const copyDiagnostics = async () => {
+    await navigator.clipboard?.writeText?.(diagnosticText(result));
+    setDiagnosticsCopied(true);
+    setTimeout(() => setDiagnosticsCopied(false), 2000);
   };
 
   return (
@@ -37,7 +43,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
       </div>
 
       {warnings.length > 0 && (
-        <div style={{ marginTop: "14px", background: "#1a1608", border: "1px solid #4a3f15", borderRadius: "8px", padding: "12px 14px" }}>
+        <div style={{ marginTop: "14px", background: "#1a1608", border: "1px solid #4a3f15", borderRadius: "8px", padding: "12px 14px", userSelect: "text" }}>
           <div style={{ color: "#facc15", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             {warnings.length} {warnings.length === 1 ? "note" : "notes"} · resume was still generated
           </div>
@@ -63,7 +69,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
       </div>
       {saveMsg && <div style={{ marginTop: "10px", fontSize: "12px", color: "#a5b4fc" }}>{saveMsg}</div>}
 
-      <details style={{ marginTop: "16px" }}>
+      <details style={{ marginTop: "16px", userSelect: "text" }}>
         <summary style={{ cursor: "pointer", color: "#5a6070", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>Advanced details</summary>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "12px" }}>
           <Metric label="Role family" value={result.analysis?.roleFamily} /><Metric label="Seniority" value={result.analysis?.seniority} />
@@ -92,8 +98,10 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Models" value={`${result.models?.analysis || ""}; ${result.models?.resumeSelection || ""}`} />
         <Detail label="Analysis usage" value={formatUsage(result.usage?.analysis)} />
         <Detail label="Tailoring diff usage" value={formatUsage(result.usage?.resumeSelection)} />
+        <Detail label="Stage timings" value={formatTimings(result.timings)} />
         <Detail label="Files" value={`${result.pdfFileName}; ${result.texFileName}`} />
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
+          <Action onClick={copyDiagnostics}>{diagnosticsCopied ? "Diagnostics copied" : "Copy diagnostics"}</Action>
           <Action onClick={() => onReveal(result.pdfFileName)}>Reveal Resume</Action>
           <Action onClick={onOpenFolder}>Open Output Folder</Action>
         </div>
@@ -110,3 +118,32 @@ function Metric({ label, value }) { return <div style={{ background: "#12121c", 
 function Detail({ label, value }) { return <div style={{ marginTop: "12px", fontSize: "12px", lineHeight: 1.6 }}><span style={{ color: "#5a6070", textTransform: "uppercase", fontWeight: 700 }}>{label}: </span><span style={{ color: "#b0b8c8" }}>{value || "None"}</span></div>; }
 function Action({ children, primary, ...props }) { return <button className="btn" {...props} style={{ background: primary ? "#6366f1" : "#1a1f3a", color: primary ? "#fff" : "#a5b4fc", padding: "8px 12px", borderRadius: "7px", opacity: props.disabled ? 0.5 : 1 }}>{children}</button>; }
 function formatUsage(usage) { return usage ? `${usage.inputTokens} input, ${usage.outputTokens} output, ${usage.cacheCreationInputTokens} cache write, ${usage.cacheReadInputTokens} cache read tokens` : "Unavailable"; }
+function formatTimings(timings) {
+  if (!timings) return "Unavailable";
+  return `analysis ${timings.analysisMs ?? "?"} ms; relevance ${timings.relevancePlanningMs ?? "?"} ms; tailoring API ${timings.tailoringApiMs ?? "?"} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
+}
+function diagnosticText(result) {
+  const accepted = result.tailoring?.acceptedDiff || {};
+  const coverage = result.finalCoverage || {};
+  const diagnostic = {
+    fallback: result.fallback?.selection ? {
+      type: result.fallback?.diagnostic?.classification || "Unclassified tailoring failure",
+      reason: result.fallback?.reason || "No reason was provided",
+      stageCode: `${result.fallback?.diagnostic?.stage || "selection"} / ${result.fallback?.diagnostic?.code || "UNKNOWN_ERROR"}`,
+    } : null,
+    timings: result.timings || null,
+    candidateCount: result.tailoring?.candidateCount ?? null,
+    accepted: { summary: Boolean(accepted.summaryChange), bullets: accepted.bulletChanges?.length || 0, project: Boolean(accepted.projectSwap), skills: accepted.skillChanges?.length || 0 },
+    rejected: (result.tailoring?.rejected || []).map((item) => ({ type: item.type, reason: item.reason })),
+    backedOff: (result.tailoring?.backedOffForFit || []).map((item) => item.type),
+    coverage: {
+      beforeWeighted: result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? null,
+      afterWeighted: coverage.weightedCoveragePercentage ?? null,
+      beforeMatched: result.tailoring?.beforeCoverage?.coveragePercentage ?? null,
+      afterMatched: coverage.coveragePercentage ?? null,
+      missingMustHaves: (coverage.mustHave?.missing || []).map((item) => item.value || item.normalized || item),
+      unsupportedGaps: (result.tailoring?.unsupportedMissing || []).map((item) => item.term),
+    },
+  };
+  return `JobTrack resume diagnostics\n${JSON.stringify(diagnostic, null, 2)}`;
+}
