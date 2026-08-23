@@ -4,7 +4,6 @@ const { createOrchestrator } = require("./orchestrator.cjs");
 const { createCoverLetterOrchestrator } = require("./coverLetterOrchestrator.cjs");
 const { createResumePaths } = require("../resume/paths.cjs");
 const { checkTectonic, compileGeneratedTex } = require("../resume/compiler.cjs");
-const { MODELS } = require("./models.cjs");
 
 const root = path.resolve(__dirname, "..", "..");
 const generateDir = path.join(root, "src", "generate");
@@ -28,24 +27,20 @@ const cases = [
   { name: "Base already strongly matched", option: "Mobile / React Native", base: "mobile", variant: "mobile", jd: "React Native TypeScript Redux Toolkit WebRTC mobile development with Expo and Android.", must: ["React Native", "TypeScript", "WebRTC"], expectZero: true },
 ];
 
-function analysisFor(testCase) {
-  return { roleFamily: testCase.name, seniority: "entry", mustHaveKeywords: testCase.must, niceToHaveKeywords: [], responsibilities: [], blockers: [], recommendedVariant: testCase.variant, reasoningSummary: "Mocked deterministic regression analysis." };
-}
-
-function proposalFor(body) {
-  const dynamic = JSON.parse(body.messages[0].content);
-  const diff = { version: 1, baseResumeId: dynamic.selectedBase.id, changes: [] };
-  const candidate = dynamic.approvedCandidates.find((item) => item.type !== "bullet-rewrite");
-  if (!candidate) return diff;
-  const justification = `${candidate.matchedTerms[0]} is an explicit or repeated JD requirement.`;
-  diff.changes.push({ candidateId: candidate.id, justification });
-  return diff;
+function proposalFor(body, testCase) {
+  const baseResumeId = body.output_config.format.schema.properties.baseResumeId.enum[0];
+  const systemCatalog = JSON.parse(body.system[1].text.replace(/^VERIFIED EVIDENCE CATALOG\n/, ""));
+  const currentIds = [systemCatalog.base.summary.id, ...systemCatalog.base.experience.flatMap((entry) => entry.bullets.map((bullet) => bullet.id)), ...systemCatalog.base.renderedSkills.flatMap((group) => group.items.map((skill) => skill.id))];
+  const requirements = (testCase.must.length ? testCase.must : ["reliable software delivery"]).map((text, index) => {
+    const unsupported = testCase.unsupported && text.toLowerCase() === testCase.unsupported;
+    return { id: `req-${index + 1}`, text, priority: "must", kind: "technical-skill", status: unsupported ? "unsupported" : "covered", currentEvidenceIds: unsupported ? [] : [currentIds[index % currentIds.length]], candidateEvidenceIds: [], knowledgeSkills: [], reason: unsupported ? "No supplied evidence supports this technology." : "The selected base contains verified supporting evidence." };
+  });
+  return { version: 2, baseResumeId, roleFamily: testCase.name, seniority: "entry", requirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } };
 }
 
 function resumeClient(testCase) {
   return { request: async ({ body }) => {
-    if (body.model === MODELS.analysis) return { content: [{ type: "text", text: JSON.stringify(analysisFor(testCase)) }], usage: { input_tokens: 20, output_tokens: 10 }, stop_reason: "end_turn" };
-    return { text: JSON.stringify(proposalFor(body)), usage: { input_tokens: 100, output_tokens: 20 }, stopReason: "end_turn" };
+    return { text: JSON.stringify(proposalFor(body, testCase)), usage: { input_tokens: 100, output_tokens: 20 }, stopReason: "end_turn" };
   } };
 }
 
@@ -72,7 +67,7 @@ async function main() {
     assert(resume.tailoring.acceptedDiff.bulletChanges.length <= 3 && resume.tailoring.acceptedDiff.skillChanges.length <= 4 && Number(Boolean(resume.tailoring.acceptedDiff.projectSwap)) <= 1, `${testCase.name}: tailoring cap exceeded`);
     assert(resume.tailoring.coverageImprovement.weightedPercentageDelta >= 0, `${testCase.name}: relevant coverage decreased`);
     validateResumeEvidenceSelection(bank, resume.selection);
-    if (testCase.unsupported) assert(resume.tailoring.unsupportedMissing.some((item) => item.term === testCase.unsupported), `${testCase.name}: unsupported requirement was not retained as a gap`);
+    if (testCase.unsupported) assert(resume.tailoring.unsupportedMissing.some((item) => item.term.toLowerCase() === testCase.unsupported), `${testCase.name}: unsupported requirement was not retained as a gap`);
     if (testCase.expectZero) assert(!resume.tailoring.acceptedDiff.summaryChange && !resume.tailoring.acceptedDiff.projectSwap && !resume.tailoring.acceptedDiff.bulletChanges.length && !resume.tailoring.acceptedDiff.skillChanges.length, `${testCase.name}: strongly matched base was changed`);
 
     const coverClient = { calls: 0, request: async function request() { this.calls += 1; throw new Error("simulated writing failure"); } };

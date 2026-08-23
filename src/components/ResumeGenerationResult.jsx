@@ -84,7 +84,8 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Newly covered terms" value={(coverageImprovement.newlyCoveredTerms || []).join(", ") || "None"} />
         <Detail label="Coverage lost" value={(coverageImprovement.noLongerCoveredTerms || []).join(", ") || "None"} />
         <Detail label="Unsupported JD gaps" value={(result.tailoring?.unsupportedMissing || []).map((item) => item.term).join(", ") || "None"} />
-        <Detail label="Raw lexical coverage" value={`${coverage.coveragePercentage ?? 0}% (diagnostic only; requirement coverage above is authoritative)`} />
+        <Detail label="Unsupported requirements" value={(coverage.unsupported || []).map((item) => item.value || item.text).join(", ") || "None"} />
+        <Detail label="Raw lexical coverage" value={`${result.verification?.lexicalCoverage?.coveragePercentage ?? 0}% (diagnostic only; requirement coverage above is authoritative)`} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
         <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
@@ -99,6 +100,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Models" value={`${result.models?.analysis || ""}; ${result.models?.resumeSelection || ""}`} />
         <Detail label="Analysis usage" value={formatUsage(result.usage?.analysis)} />
         <Detail label="Tailoring diff usage" value={formatUsage(result.usage?.resumeSelection)} />
+        <Detail label="Optimizer request size" value={formatRequestMetrics(result.tailoring?.requestMetrics)} />
         <Detail label="Stage timings" value={formatTimings(result.timings)} />
         <Detail label="Files" value={`${result.pdfFileName}; ${result.texFileName}`} />
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
@@ -119,9 +121,10 @@ function Metric({ label, value }) { return <div style={{ background: "#12121c", 
 function Detail({ label, value }) { return <div style={{ marginTop: "12px", fontSize: "12px", lineHeight: 1.6 }}><span style={{ color: "#5a6070", textTransform: "uppercase", fontWeight: 700 }}>{label}: </span><span style={{ color: "#b0b8c8" }}>{value || "None"}</span></div>; }
 function Action({ children, primary, ...props }) { return <button className="btn" {...props} style={{ background: primary ? "#6366f1" : "#1a1f3a", color: primary ? "#fff" : "#a5b4fc", padding: "8px 12px", borderRadius: "7px", opacity: props.disabled ? 0.5 : 1 }}>{children}</button>; }
 function formatUsage(usage) { return usage ? `${usage.inputTokens} input, ${usage.outputTokens} output, ${usage.cacheCreationInputTokens} cache write, ${usage.cacheReadInputTokens} cache read tokens` : "Unavailable"; }
+function formatRequestMetrics(metrics) { return metrics ? `${metrics.serializedRequestBytes} serialized bytes; approximately ${metrics.approximateInputTokens} tokens; ${metrics.catalogBytes} catalog bytes; ${metrics.dynamicBytes} dynamic bytes` : "Unavailable"; }
 function formatTimings(timings) {
   if (!timings) return "Unavailable";
-  return `analysis ${timings.analysisMs ?? "?"} ms; relevance ${timings.relevancePlanningMs ?? "?"} ms; tailoring API ${timings.tailoringApiMs ?? "?"} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
+  return `legacy analysis ${timings.analysisMs ?? "?"} ms; legacy relevance planning ${timings.relevancePlanningMs ?? "?"} ms; semantic optimizer API ${timings.tailoringApiMs ?? "?"} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
 }
 function diagnosticText(result) {
   const accepted = result.tailoring?.acceptedDiff || {};

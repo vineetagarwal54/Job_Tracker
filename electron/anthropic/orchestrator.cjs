@@ -2,8 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const { pathToFileURL } = require("url");
-const { analyzeJob } = require("./analyzeJob.cjs");
-const { generateResumeSelection } = require("./generateResumeSelection.cjs");
+const { generateSemanticResumeOptimization } = require("./semanticResumeOptimizer.cjs");
 const { sanitizeJob } = require("./validation.cjs");
 const { verifyPdfAtsIntegrity } = require("../resume/pdfVerify.cjs");
 const { MODELS } = require("./models.cjs");
@@ -74,8 +73,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       stage = "job-validation";
       let job;
       try { job = sanitizeJob(rawJob); } catch (error) { throw codedError(/description/i.test(error.message) ? "MISSING_JOB_DESCRIPTION" : "VALIDATION_FAILED", error.message); }
-      progress?.("Analyzing job requirements");
-      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, fallbackModule, warningsModule, baseModule, tailoringModule, relevanceModule, pageFitModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "fallbackAnalysis", "resumeWarnings", "baseResumes", "tailoringDiff", "relevanceIntelligence", "pageFitBackoff"].map((name) => load(path.join(generateDir, `${name}.js`))));
+      progress?.("Preparing verified resume evidence");
+      const [keywordModule, identityModule, renderModule, pricingModule, fileNameModule, warningsModule, baseModule, tailoringModule, pageFitModule, semanticCoverageModule] = await Promise.all(["keywordExtraction", "profileIdentity", "renderResume", "modelPricing", "resumeFileName", "resumeWarnings", "baseResumes", "tailoringDiff", "pageFitBackoff", "semanticRequirementCoverage"].map((name) => load(path.join(generateDir, `${name}.js`))));
       stage = "content-bank";
       let bank;
       try { bank = JSON.parse(fs.readFileSync(path.join(generateDir, "content-bank.json"), "utf8")); } catch (error) { throw codedError("VALIDATION_FAILED", `The resume content bank is missing or corrupt: ${error.message}`); }
@@ -90,29 +89,9 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       const identityWarnings = (identityModule.validateFinalIdentity(identity).warnings || []).map((message) => ({ type: "identity", severity: "info", message }));
       const extraction = keywordModule.extractJobKeywords(job.description);
 
-      // --- Analysis (Haiku) with deterministic fallback. An eligibility or
-      // classification problem is never fatal: a failed analysis falls back to
-      // a deterministic classification derived from the keyword extraction. ---
-      stage = "analysis";
-      const analysisStartedAt = Date.now();
-      let analyzed;
-      let usedAnalysisFallback = false;
-      try {
-        analyzed = await analyzeJob({ client, apiKey, job, signal, generateDir });
-      } catch (error) {
-        if (isCancellation(error, signal)) throw error;
-        analyzed = { analysis: fallbackModule.buildFallbackAnalysis({ extraction, job, variant: canonicalBase.variant }), usage: null, model: analyzeModelName() };
-        usedAnalysisFallback = true;
-      }
-      timings.analysisMs = Date.now() - analysisStartedAt;
-
       const variant = canonicalBase.variant;
-
-      progress?.("Selecting resume variant");
-      const relevanceStartedAt = Date.now();
-      const relevancePlan = relevanceModule.buildRelevancePlan({ bank, base: canonicalBase, job, extraction, analysis: analyzed.analysis });
-      timings.relevancePlanningMs = Date.now() - relevanceStartedAt;
-      const preliminaryCoverage = relevancePlan.baseCoverage;
+      timings.analysisMs = 0;
+      timings.relevancePlanningMs = 0;
 
       // --- Selection (Sonnet) with universal deterministic fallback. If the
       // model response or its validation fails, keep the selected canonical base
@@ -124,17 +103,20 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let selectionFallbackDiagnostic = null;
       const selectionStartedAt = Date.now();
       try {
-        generated = await generateResumeSelection({ client, apiKey, bank, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, relevancePlan, signal, generateDir, progress });
+        generated = await generateSemanticResumeOptimization({ client, apiKey, bank, base: canonicalBase, job, signal, generateDir, progress });
         timings.tailoringApiMs = generated.apiDurationMs ?? (Date.now() - selectionStartedAt);
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
-        generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis, relevancePlan }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
+        generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id } }), proposedDiff: null, requirements: [], analysis: { roleFamily: job.title, seniority: "unknown", mustHaveKeywords: [], niceToHaveKeywords: [], responsibilities: [], blockers: [], recommendedVariant: canonicalBase.variant, reasoningSummary: "Semantic optimization failed; the selected canonical base was preserved unchanged." }, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true, backoffPlan: { candidates: [] }, requestMetrics: null };
         usedSelectionFallback = true;
         selectionFallbackDiagnostic = classifyTailoringFallback(error);
         selectionFallbackReason = selectionFallbackDiagnostic.message;
         logTailoringFallback(logger, selectionFallbackDiagnostic, error);
         timings.tailoringApiMs = Date.now() - selectionStartedAt;
       }
+      const analyzed = { analysis: generated.analysis, usage: null, model: null };
+      const usedAnalysisFallback = false;
+      const preliminaryCoverage = semanticCoverageModule.computeSemanticRequirementCoverage(generated.requirements, canonicalBase, { version: 1, summaryChange: null, bulletChanges: [], projectSwap: null, skillChanges: [] });
 
       progress?.("Rendering tailored canonical base");
       stage = "template";
@@ -147,7 +129,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       stage = "render-compile";
       const compileStartedAt = Date.now();
       const pageFit = await pageFitModule.fitTailoredBaseToOnePage({
-        canonicalBase, tailoredBase: generated.base, acceptedDiff: generated.acceptedDiff, relevancePlan,
+        canonicalBase, tailoredBase: generated.base, acceptedDiff: generated.acceptedDiff, relevancePlan: generated.backoffPlan,
         renderAndCompile: async (candidateBase, attempt) => {
           const renderedAttempt = renderModule.renderCanonicalBase({ bank, base: candidateBase, template, identity });
           const finalSelection = tailoringModule.tailoredBaseEvidenceSelection(bank, candidateBase);
@@ -175,12 +157,15 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       // along as a warning next to the returned resume.
       const atsWarnings = (atsIntegrity.warnings || []).map((message) => ({ type: "ats-text-layer", severity: "info", message }));
 
-      progress?.("Checking final keyword coverage");
+      progress?.("Checking final verified requirement coverage");
       stage = "final-verification";
       const verificationStartedAt = Date.now();
       const finalVerification = tailoringModule.verifyTailoredBase({ bank, base: generated.base, extraction, analysis: analyzed.analysis, pageCount });
+      finalVerification.lexicalCoverage = finalVerification.coverage;
+      finalVerification.coverage = semanticCoverageModule.computeSemanticRequirementCoverage(generated.requirements, generated.base, generated.acceptedDiff);
+      finalVerification.missingSkills = finalVerification.coverage.requirements.filter((item) => !item.covered && item.kind === "technical-skill").map((item) => item.text);
       finalVerification.densityRatio = generated.densityRatio;
-      const coverageImprovement = relevanceModule.summarizeCoverageChange(preliminaryCoverage, finalVerification.coverage);
+      const coverageImprovement = semanticCoverageModule.summarizeSemanticCoverageChange(preliminaryCoverage, finalVerification.coverage);
       timings.finalVerificationMs = Date.now() - verificationStartedAt;
       timings.totalMs = Date.now() - generationStartedAt;
 
@@ -200,7 +185,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       ];
 
       const usage = {
-        analysis: pricingModule.normalizeUsage(analyzed.model, analyzed.usage || {}),
+        analysis: pricingModule.normalizeUsage(null, {}),
         resumeSelection: pricingModule.normalizeUsage(generated.model, generated.usage || {}),
         coverLetter: pricingModule.normalizeUsage(generated.model, {}),
       };
@@ -208,7 +193,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
         baseResumeId: canonicalBase.id,
         selection: rendered.finalSelection, finalCoverage: finalVerification.coverage,
-        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: relevancePlan.candidates.length, meaningfulGaps: relevancePlan.gaps, unsupportedMissing: relevancePlan.unsupportedMissing, beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts },
+        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, densityRatio: generated.densityRatio, candidateCount: null, meaningfulGaps: finalVerification.coverage.requirements.filter((item) => !item.covered), unsupportedMissing: finalVerification.coverage.unsupported.map((item) => ({ term: item.text, requirementId: item.id })), beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts, optimizerVersion: 2, requestMetrics: generated.requestMetrics },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING,
         warnings,
@@ -216,7 +201,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         timings,
         renderedSkills: rendered.renderedSkills || finalVerification.renderedSkills || null,
         suggestedFileName: fileNameModule.userFacingFileName({ kind: "resume", company: job.company, role: job.title }),
-        models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,
+        models: { analysis: null, resumeSelection: generated.model }, usage,
         estimatedCostUsd: pricingModule.estimateGenerationCostUsd({ analysis: usage.analysis, resumeSelection: usage.resumeSelection }),
         outputDisplayPath: paths.displayPath,
       };
@@ -226,7 +211,5 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
     }
   };
 }
-
-function analyzeModelName() { return MODELS.analysis; }
 
 module.exports = { createOrchestrator, countPages, ATS_WARNING };

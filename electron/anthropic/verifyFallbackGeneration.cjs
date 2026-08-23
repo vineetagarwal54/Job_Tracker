@@ -12,7 +12,6 @@ const { createOrchestrator } = require("./orchestrator.cjs");
 const { createCoverLetterOrchestrator } = require("./coverLetterOrchestrator.cjs");
 const { createResumePaths } = require("../resume/paths.cjs");
 const { checkTectonic, compileGeneratedTex } = require("../resume/compiler.cjs");
-const { MODELS } = require("./models.cjs");
 
 const root = path.resolve(__dirname, "..", "..");
 const assert = (condition, message) => { if (!condition) throw new Error(`FAIL: ${message}`); };
@@ -25,27 +24,23 @@ const keyProvider = { readKey: () => "fake-key-for-mock" };
 const JD = "Backend Engineer. Required: Python, FastAPI, PostgreSQL, Docker, Kubernetes, AWS, REST, WebSocket, JWT, RBAC, system design, microservices. Preferred: Redis, GraphQL, Node.js.";
 const job = { company: "Test Co", title: "Backend Engineer", description: JD };
 
-const VALID_ANALYSIS = {
-  roleFamily: "backend", seniority: "entry",
-  mustHaveKeywords: ["python", "aws", "docker", "kubernetes", "rest"],
-  niceToHaveKeywords: ["redis", "postgresql"], responsibilities: ["build apis"],
-  blockers: [], recommendedVariant: "cloud-backend", reasoningSummary: "Verified backend match.",
-};
-const VALID_SELECTION = { version: 1, baseResumeId: "swe-cloud", changes: [] };
+const validOptimization = (baseResumeId) => ({
+  version: 2, baseResumeId, roleFamily: "backend software engineering", seniority: "entry",
+  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", status: "covered", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkills: [], reason: "Python is rendered in the selected base." }],
+  diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] },
+});
 
 // Mock client modes are "ok", "throw", or "malformed".
-function makeClient({ analysis = "ok", selection = "ok" } = {}) {
+function makeClient({ selection = "ok" } = {}) {
+  let calls = 0;
   return {
+    get calls() { return calls; },
     request: async ({ body }) => {
-      if (body.model === MODELS.analysis) {
-        if (analysis === "throw") throw new Error("simulated analysis outage");
-        if (analysis === "malformed") return { content: [{ type: "text", text: JSON.stringify({ roleFamily: "backend" }) }], usage: {}, stop_reason: "end_turn" };
-        return { content: [{ type: "text", text: JSON.stringify(VALID_ANALYSIS) }], usage: {}, stop_reason: "end_turn" };
-      }
+      calls += 1;
       if (selection === "throw") throw new Error("simulated selection outage");
       if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
-      assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal selection uses a provider-compatible structured-output schema");
-      return { text: JSON.stringify({ ...VALID_SELECTION, baseResumeId: body.output_config.format.schema.properties.baseResumeId.enum[0] }), usage: null, stopReason: "end_turn" };
+      assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal optimizer uses a provider-compatible structured-output schema");
+      return { text: JSON.stringify(validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0])), usage: { input_tokens: 1000, output_tokens: 100 }, stopReason: "end_turn" };
     },
   };
 }
@@ -102,9 +97,12 @@ async function main() {
   }
 
   // 1. Normal generation: model succeeds end to end.
-  const normal = await makeOrchestrator(makeClient({})).call(null, { job });
+  const normalClient = makeClient({});
+  const normal = await makeOrchestrator(normalClient).call(null, { job });
   assertResumeShape(normal, "normal");
   assert(normal.fallback.selection === false && normal.fallback.analysis === false, "normal: no fallback used");
+  assert(normalClient.calls === 1, "normal: one semantic optimizer request used");
+  assert(normal.finalCoverage.mustHave.covered.some((item) => item.id === "req-python"), "normal: semantic requirement coverage returned");
   assert(["analysisMs", "relevancePlanningMs", "tailoringApiMs", "compilePageFitMs", "finalVerificationMs", "totalMs"].every((key) => Number.isFinite(normal.timings?.[key]) && normal.timings[key] >= 0), "normal: stage timings returned");
 
   // 2. Selection fallback: analysis ok, model selection fails -> deterministic
@@ -116,17 +114,6 @@ async function main() {
   assert(selFallback.fallback.reason === "simulated selection outage", "selection-fallback: safe reason returned");
   assert(selFallback.warnings.some((w) => w.type === "selection-fallback"), "selection-fallback: warning surfaced");
   assert(JSON.stringify(selFallback.selection) === JSON.stringify(normal.selection), "selection-fallback: canonical base remained byte-for-byte equivalent at the selection layer");
-
-  // 3. Analysis + selection fallback: both model calls fail -> resume still ships.
-  const bothFallback = await makeOrchestrator(makeClient({ analysis: "throw", selection: "throw" })).call(null, { job });
-  assertResumeShape(bothFallback, "both-fallback");
-  assert(bothFallback.fallback.analysis === true && bothFallback.fallback.selection === true, "both-fallback: both fallbacks flagged");
-  assert(bothFallback.warnings.some((w) => w.type === "analysis-fallback"), "both-fallback: analysis fallback warning surfaced");
-  assert(JSON.stringify(bothFallback.selection) === JSON.stringify(normal.selection), "both-fallback: model outages did not weaken the canonical base");
-
-  const malformedAnalysis = await makeOrchestrator(makeClient({ analysis: "malformed" })).call(null, { job });
-  assertResumeShape(malformedAnalysis, "malformed-analysis");
-  assert(malformedAnalysis.fallback.analysis === true, "malformed-analysis: deterministic analysis fallback used");
 
   const malformedSelection = await makeOrchestrator(makeClient({ selection: "malformed" })).call(null, { job });
   assertResumeShape(malformedSelection, "malformed-selection");
@@ -169,16 +156,15 @@ async function main() {
   console.log(JSON.stringify({
     normalGeneration: true,
     selectionFallbackCompiles: true,
-    analysisAndSelectionFallbackCompiles: true,
+    oneCallSemanticOptimizer: normalClient.calls === 1,
     recoveryAfterFailure: true,
-    malformedAnalysisFallsBack: true,
     malformedSelectionFallsBack: true,
     compileFailureExplicit: true,
     selectedJobResumeOptionAuthoritative: true,
     selectedBaseRemainsAuthoritative: true,
     coverLetterOnlyReusesResume: true,
     singleCoverLetterCall: coverApi.calls === 1,
-    onePage: [normal.pageCount, selFallback.pageCount, bothFallback.pageCount, recovered.pageCount, mobile.pageCount, enterprise.pageCount, cover.pageCount],
+    onePage: [normal.pageCount, selFallback.pageCount, recovered.pageCount, mobile.pageCount, enterprise.pageCount, cover.pageCount],
   }, null, 2));
 }
 
