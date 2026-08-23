@@ -1,3 +1,5 @@
+import contentBank from "./content-bank.json" with { type: "json" };
+
 // Shared term matching, aliases, acronyms and protected technical compounds
 // (task Phases 3 and 6).
 //
@@ -32,7 +34,7 @@ function escapeRegex(value) {
 // Alias groups: canonical term -> every surface form that should count as the
 // same term. Exactly the aliases the task calls out, plus a few unambiguous
 // ones. Order within a group does not matter.
-export const ALIASES = Object.freeze({
+const BASE_ALIASES = {
   "node.js": ["node.js", "nodejs", "node"],
   postgresql: ["postgresql", "postgres"],
   kubernetes: ["kubernetes", "k8s"],
@@ -41,7 +43,14 @@ export const ALIASES = Object.freeze({
   "ci/cd": ["ci/cd", "cicd"],
   "tensorrt-llm": ["tensorrt-llm", "tensorrt llm"],
   linux: ["linux", "unix"],
-});
+};
+
+const inventoryAliases = Object.fromEntries(Object.entries(contentBank.skillMetadata?.aliases || {}).map(([canonical, forms]) => {
+  const normalized = normalizeText(canonical).trim();
+  return [normalized, [...new Set([normalized, ...forms.map((form) => normalizeText(form).trim())])]];
+}));
+
+export const ALIASES = Object.freeze({ ...BASE_ALIASES, ...inventoryAliases });
 
 const ALIAS_LOOKUP = (() => {
   const map = new Map();

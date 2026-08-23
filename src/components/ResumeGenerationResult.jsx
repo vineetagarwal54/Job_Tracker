@@ -81,6 +81,9 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
         <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
+        {result.fallback?.selection && <Detail label="Tailoring fallback type" value={result.fallback?.diagnostic?.classification || "Unclassified tailoring failure"} />}
+        {result.fallback?.selection && <Detail label="Tailoring fallback reason" value={result.fallback?.reason || "No reason was provided"} />}
+        {result.fallback?.selection && <Detail label="Tailoring fallback stage / code" value={`${result.fallback?.diagnostic?.stage || "selection"} / ${result.fallback?.diagnostic?.code || "UNKNOWN_ERROR"}`} />}
         <Detail label="Base resume" value={BASE_LABELS[result.baseResumeId] || "Software Engineer / FullStack / Cloud"} />
         <Detail label="Accepted tailoring changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
         <Detail label="Rejected tailoring changes" value={String(result.tailoring?.rejected?.length || 0)} />

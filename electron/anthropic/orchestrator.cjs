@@ -7,6 +7,7 @@ const { generateResumeSelection } = require("./generateResumeSelection.cjs");
 const { sanitizeJob } = require("./validation.cjs");
 const { verifyPdfAtsIntegrity } = require("../resume/pdfVerify.cjs");
 const { MODELS } = require("./models.cjs");
+const { classifyTailoringFallback, logTailoringFallback } = require("./tailoringDiagnostics.cjs");
 
 // A failure that is a user cancellation, never a candidate for fallback.
 function isCancellation(error, signal) {
@@ -57,7 +58,7 @@ function renderedResumeText(rendered) {
   return parts.join(" ");
 }
 
-function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, compileResumeTex, paths }) {
+function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, compileResumeTex, paths, logger = console }) {
   const generateDir = path.join(rootDir, "src", "generate");
   return async function orchestrate({ job: rawJob, signal, progress }) {
     // Stage tracking (task Part 1): every genuine technical failure carries the
@@ -114,13 +115,16 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       let generated;
       let usedSelectionFallback = false;
       let selectionFallbackReason = null;
+      let selectionFallbackDiagnostic = null;
       try {
         generated = await generateResumeSelection({ client, apiKey, bank, base: canonicalBase, job, analysis: analyzed.analysis, extraction, coverage: preliminaryCoverage, relevancePlan, signal, generateDir, progress });
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
         generated = { ...tailoringModule.applyTailoringDiff({ bank, base: canonicalBase, diff: { ...tailoringModule.EMPTY_TAILORING_DIFF, baseResumeId: canonicalBase.id }, extraction, analysis: analyzed.analysis, relevancePlan }), proposedDiff: null, usage: null, cacheUsage: null, model: MODELS.writing, usedFallback: true };
         usedSelectionFallback = true;
-        selectionFallbackReason = error.message;
+        selectionFallbackDiagnostic = classifyTailoringFallback(error);
+        selectionFallbackReason = selectionFallbackDiagnostic.message;
+        logTailoringFallback(logger, selectionFallbackDiagnostic, error);
       }
 
       progress?.("Rendering tailored canonical base");
@@ -194,7 +198,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING,
         warnings,
-        fallback: { analysis: usedAnalysisFallback, selection: usedSelectionFallback, reason: selectionFallbackReason },
+        fallback: { analysis: usedAnalysisFallback, selection: usedSelectionFallback, reason: selectionFallbackReason, diagnostic: selectionFallbackDiagnostic },
         renderedSkills: rendered.renderedSkills || finalVerification.renderedSkills || null,
         suggestedFileName: fileNameModule.userFacingFileName({ kind: "resume", company: job.company, role: job.title }),
         models: { analysis: analyzed.model, resumeSelection: generated.model }, usage,

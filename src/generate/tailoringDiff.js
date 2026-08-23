@@ -3,6 +3,7 @@ import { textContainsTerm } from "./protectedTerms.js";
 import { scoreCoverage } from "./coverageScoring.js";
 import { missingJobSkills } from "./resumeGapReporting.js";
 import { MIN_RELEVANCE_BENEFIT, relevanceUtility } from "./relevanceIntelligence.js";
+import { inventorySkills, isHandsOnSkill } from "./skillInventory.js";
 
 export const TAILORING_CAPS = Object.freeze({ bulletChanges: 3, projectSwaps: 1, skillChanges: 4 });
 
@@ -104,22 +105,22 @@ function bankIndex(bank) {
 
 const BASE_SKILL_GROUP_COMPATIBILITY = Object.freeze({
   languages: ["languages"],
-  backend: ["backend"],
+  backend: ["backend", "distributed-messaging"],
   frontend: ["frontend"],
-  mobile: ["frontend"],
+  mobile: ["mobile", "frontend"],
   databases: ["databases"],
-  "cloud and devops": ["cloud-devops"],
-  "cloud & devops": ["cloud-devops"],
-  "backend & cloud": ["backend", "cloud-devops"],
-  "real-time & data": ["backend", "databases"],
+  "cloud and devops": ["aws-cloud", "azure-cloud", "cloud-devops", "observability"],
+  "cloud & devops": ["aws-cloud", "azure-cloud", "cloud-devops", "observability"],
+  "backend & cloud": ["backend", "distributed-messaging", "aws-cloud", "azure-cloud", "cloud-devops", "observability"],
+  "real-time & data": ["backend", "distributed-messaging", "databases"],
   "applied ai": ["applied-ai", "llm-inference"],
   "ai / llm": ["applied-ai", "llm-inference"],
-  "on-device ai": ["applied-ai", "llm-inference"],
-  "genai automation": ["applied-ai"],
+  "on-device ai": ["applied-ai", "llm-inference", "mobile"],
+  "genai automation": ["applied-ai", "enterprise-automation", "salesforce", "azure-cloud"],
   "llm inference & optimization": ["llm-inference"],
-  "core engineering": ["core-engineering"],
-  "core concepts": ["core-engineering"],
-  "architecture and practices": ["core-engineering"],
+  "core engineering": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
+  "core concepts": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
+  "architecture and practices": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
 });
 
 function reject(rejected, type, reason, change) {
@@ -202,8 +203,10 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
       if (!source || !text) { reject(rejected, "bullet", "Rewrite must target verified evidence and provide text.", change); continue; }
       const sourceForValidation = { ...source, text: located.bullet.text, lockedMetrics: [...new Set([...(source.lockedMetrics || []).filter((metric) => located.bullet.text.includes(metric)), ...(located.bullet.text.match(NUMBER_PATTERN) || [])])] };
       const violation = rewriteViolation(sourceForValidation, text);
+      const surfacedKnowledge = inventorySkills(bank).find((skill) => !isHandsOnSkill(bank, skill.name) && !textContainsTerm(located.bullet.text, skill.name) && textContainsTerm(text, skill.name));
       const lengthRatio = text.length / located.bullet.text.length;
       if (violation) { reject(rejected, "bullet", `Rewrite ${violation}.`, change); continue; }
+      if (surfacedKnowledge) { reject(rejected, "bullet", `Knowledge skill '${surfacedKnowledge.name}' cannot be inserted into accomplishment evidence.`, change); continue; }
       if (similarity(located.bullet.text, text) < 0.55 || lengthRatio < 0.75 || lengthRatio > 1.25) { reject(rejected, "bullet", "Rewrite is not a light edit of the base bullet.", change); continue; }
       if (!matchesJd(text, terms) || (relevant && !relevant.matchedTerms.some((term) => textContainsTerm(text, term)))) { reject(rejected, "bullet", "Rewrite does not surface the approved JD term.", change); continue; }
       replacement = { sourceBulletId: source.id, text };

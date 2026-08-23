@@ -1,14 +1,15 @@
 import { scoreCoverage } from "./coverageScoring.js";
 import { canonicalizeTerm, textContainsTerm } from "./protectedTerms.js";
+import { skillClassification, skillClassificationForTerm } from "./skillInventory.js";
 
 export const MIN_RELEVANCE_BENEFIT = 6;
 
 const COMPATIBLE_SKILL_GROUPS = Object.freeze({
-  languages: ["languages"], backend: ["backend"], frontend: ["frontend"], mobile: ["frontend"], databases: ["databases"],
-  "cloud and devops": ["cloud-devops"], "cloud & devops": ["cloud-devops"], "backend & cloud": ["backend", "cloud-devops"],
-  "real-time & data": ["backend", "databases"], "applied ai": ["applied-ai", "llm-inference"], "ai / llm": ["applied-ai", "llm-inference"],
-  "on-device ai": ["applied-ai", "llm-inference"], "genai automation": ["applied-ai"], "llm inference & optimization": ["llm-inference"],
-  "core engineering": ["core-engineering"], "core concepts": ["core-engineering"], "architecture and practices": ["core-engineering"],
+  languages: ["languages"], backend: ["backend", "distributed-messaging"], frontend: ["frontend"], mobile: ["mobile", "frontend"], databases: ["databases"],
+  "cloud and devops": ["aws-cloud", "azure-cloud", "cloud-devops", "observability"], "cloud & devops": ["aws-cloud", "azure-cloud", "cloud-devops", "observability"], "backend & cloud": ["backend", "distributed-messaging", "aws-cloud", "azure-cloud", "cloud-devops", "observability"],
+  "real-time & data": ["backend", "distributed-messaging", "databases"], "applied ai": ["applied-ai", "llm-inference"], "ai / llm": ["applied-ai", "llm-inference"],
+  "on-device ai": ["applied-ai", "llm-inference", "mobile"], "genai automation": ["applied-ai", "enterprise-automation", "salesforce", "azure-cloud"], "llm inference & optimization": ["llm-inference"],
+  "core engineering": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"], "core concepts": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"], "architecture and practices": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
 });
 
 const NUMBER_PATTERN = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
@@ -140,7 +141,7 @@ export function buildRelevancePlan({ bank, base, job, extraction, analysis }) {
       }
       const source = bankEntry.bullets.find((bullet) => bullet.id === baseBullet.sourceBulletId);
       if (source) {
-        const supported = matches(`${source.text} ${(source.skills || []).join(" ")}`, gaps).filter((record) => !textContainsTerm(baseBullet.text, record.term));
+        const supported = matches(`${source.text} ${(source.skills || []).join(" ")}`, gaps).filter((record) => !textContainsTerm(baseBullet.text, record.term) && skillClassificationForTerm(bank, record.term) !== "knowledge");
         const expectedGain = supported.reduce((sum, record) => sum + record.weight, 0);
         if (expectedGain >= MIN_RELEVANCE_BENEFIT) candidates.push({ id: `bullet-rewrite:${entry.entryId}:${baseBullet.sourceBulletId}`, type: "bullet-rewrite", entryId: entry.entryId, baseBulletId: baseBullet.sourceBulletId, matchedTerms: supported.map((item) => item.term), expectedGain, reason: `May lightly expose already-supported terminology: ${supported.map((item) => item.term).join(", ")}.`, sourceText: baseBullet.text });
       }
@@ -164,7 +165,7 @@ export function buildRelevancePlan({ bank, base, job, extraction, analysis }) {
       if (base.skills.some((baseGroup) => baseGroup.items.some((baseItem) => baseItem.toLowerCase() === item.toLowerCase()))) continue;
       const useful = matches(item, gaps).filter((record) => record.isMustHave || record.frequency >= 2 || record.isResponsibility);
       const expectedGain = useful.reduce((sum, record) => sum + record.weight, 0);
-      if (expectedGain >= MIN_RELEVANCE_BENEFIT) candidates.push({ id: `skill-edit:${group.label}:${item}`, type: "skill-edit", groupLabel: group.label, replacementItem: item, matchedTerms: useful.map((record) => record.term), expectedGain, reason: `Adds a verified skill for ${useful.map((record) => record.term).join(", ")}.` });
+      if (expectedGain >= MIN_RELEVANCE_BENEFIT) candidates.push({ id: `skill-edit:${group.label}:${item}`, type: "skill-edit", groupLabel: group.label, replacementItem: item, classification: skillClassification(bank, item), matchedTerms: useful.map((record) => record.term), expectedGain, reason: `Adds a ${skillClassification(bank, item)} skill for ${useful.map((record) => record.term).join(", ")}.` });
     }
   }
 

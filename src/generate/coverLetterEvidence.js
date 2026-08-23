@@ -1,6 +1,7 @@
 import { extractJobKeywords } from "./keywordExtraction.js";
 import { canonicalizeTerm, textContainsTerm, technologiesIn } from "./protectedTerms.js";
 import { validateResumeEvidenceSelection } from "./resumeEvidenceValidation.js";
+import { inventorySkills, isHandsOnSkill } from "./skillInventory.js";
 
 const NUMBER_PATTERN = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
 const STOP = new Set("a an and are as at be by for from has have in into is it of on or that the their this to was were will with my i our role position work worked working experience using through across".split(" "));
@@ -44,7 +45,7 @@ export function buildCoverLetterEvidence({ bank, job, analysis, selection = null
   const ranked = evidence.map((item) => ({ ...item, relevanceScore: evidenceScore(item, terms, analysis) })).sort((left, right) => right.relevanceScore - left.relevanceScore || numbers(right.text).length - numbers(left.text).length || left.id.localeCompare(right.id));
   const strongest = ranked.slice(0, Math.min(3, ranked.length));
   const renderedSkills = selection?.renderedSkills || [];
-  const resumeSkills = unique(renderedSkills.flatMap((group) => group.items || []));
+  const resumeSkills = unique(renderedSkills.flatMap((group) => group.items || []).filter((item) => isHandsOnSkill(bank, item)));
   return { evidence: strongest, allEvidence: ranked, resumeSkills, relevantTerms: terms };
 }
 
@@ -58,6 +59,8 @@ export function validateEvidenceClaims(content, evidenceBundle, { job, bank }) {
     const sourceTexts = claim.evidenceIds.map((id) => evidence.get(id)).filter(Boolean);
     if (sourceTexts.length !== claim.evidenceIds.length) throw Object.assign(new Error("Cover letter cited evidence outside the final resume."), { code: "VALIDATION_FAILED" });
     const source = sourceTexts.join(" ");
+    const knowledgeClaim = inventorySkills(bank).find((skill) => !isHandsOnSkill(bank, skill.name) && textContainsTerm(claim.sentence, skill.name));
+    if (knowledgeClaim) throw Object.assign(new Error(`Cover-letter claim used knowledge-only skill '${knowledgeClaim.name}' as accomplishment evidence.`), { code: "VALIDATION_FAILED" });
     for (const number of numbers(claim.sentence)) if (!numbers(source).includes(number)) throw Object.assign(new Error(`Cover-letter claim moved or invented metric '${number}'.`), { code: "VALIDATION_FAILED" });
     for (const technology of technologiesIn(claim.sentence)) if (!textContainsTerm(source, technology)) throw Object.assign(new Error(`Cover-letter claim introduced unsupported technology '${technology}'.`), { code: "VALIDATION_FAILED" });
     for (const action of claim.sentence.match(ACTION_GLOBAL) || []) if (!new RegExp(`\\b${action}\\b`, "i").test(source)) throw Object.assign(new Error(`Cover-letter claim introduced unsupported ownership or action '${action}'.`), { code: "VALIDATION_FAILED" });

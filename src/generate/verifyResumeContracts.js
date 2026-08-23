@@ -26,10 +26,10 @@ const diff = { version: 1, baseResumeId: base.id, bulletChanges: [], skillChange
 let requestSchema; let requestMaxTokens; let requestTimeoutMs;
 const generated = await generateResumeSelection({ client: { request: async ({ body, timeoutMs }) => { requestSchema = body.output_config.format.schema; requestMaxTokens = body.max_tokens; requestTimeoutMs = timeoutMs; return { text: JSON.stringify(diff), usage: null, stopReason: "end_turn" }; } }, apiKey: "fake", bank, base, job: {}, analysis: {}, extraction: {}, coverage: {}, generateDir: here });
 assert(requestSchema.properties.baseResumeId.enum[0] === "swe-cloud", "Tailoring schema does not lock the selected base");
-assert(requestSchema.properties.bulletChanges.maxItems === 3 && requestSchema.properties.skillChanges.maxItems === 4, "Tailoring caps are absent from the schema");
+assert(!("maxItems" in requestSchema.properties.bulletChanges) && !("maxItems" in requestSchema.properties.skillChanges), "Unsupported maxItems leaked into Anthropic structured-output schema");
 assert(requestMaxTokens === 5000 && requestTimeoutMs === 240000, "Tailoring request bounds changed unexpectedly");
 assert(generated.acceptedDiff.bulletChanges.length === 0 && generated.base.id === "swe-cloud", "Zero-change diff did not preserve the canonical base");
 assert(tailoringDiffSchema(bank, base).additionalProperties === false, "Tailoring schema permits structural fields");
 const safeReason = "Canonical base validation failed.";
 assert(messageForResumeError({ code: "VALIDATION_FAILED", message: safeReason }) === safeReason, "Safe validation reason was hidden");
-console.log(JSON.stringify({ finalEvidenceValidated: true, rewriteMetricsProtected: true, unknownEvidenceRejected: true, canonicalBaseLocked: true, tailoringCaps: true, requestBounds: true, safeErrors: true }, null, 2));
+console.log(JSON.stringify({ finalEvidenceValidated: true, rewriteMetricsProtected: true, unknownEvidenceRejected: true, canonicalBaseLocked: true, providerCompatibleSchema: true, deterministicTailoringCaps: true, requestBounds: true, safeErrors: true }, null, 2));

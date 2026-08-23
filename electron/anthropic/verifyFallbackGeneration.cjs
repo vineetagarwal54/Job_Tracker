@@ -44,6 +44,7 @@ function makeClient({ analysis = "ok", selection = "ok" } = {}) {
       }
       if (selection === "throw") throw new Error("simulated selection outage");
       if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
+      assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal selection uses a provider-compatible structured-output schema");
       return { text: JSON.stringify({ ...VALID_SELECTION, baseResumeId: body.output_config.format.schema.properties.baseResumeId.enum[0] }), usage: null, stopReason: "end_turn" };
     },
   };
@@ -110,6 +111,8 @@ async function main() {
   const selFallback = await makeOrchestrator(makeClient({ selection: "throw" })).call(null, { job });
   assertResumeShape(selFallback, "selection-fallback");
   assert(selFallback.fallback.selection === true, "selection-fallback: selection fallback flagged");
+  assert(selFallback.fallback.diagnostic?.classification === "API/request failure", "selection-fallback: classified diagnostic returned");
+  assert(selFallback.fallback.reason === "simulated selection outage", "selection-fallback: safe reason returned");
   assert(selFallback.warnings.some((w) => w.type === "selection-fallback"), "selection-fallback: warning surfaced");
   assert(JSON.stringify(selFallback.selection) === JSON.stringify(normal.selection), "selection-fallback: canonical base remained byte-for-byte equivalent at the selection layer");
 
@@ -127,6 +130,7 @@ async function main() {
   const malformedSelection = await makeOrchestrator(makeClient({ selection: "malformed" })).call(null, { job });
   assertResumeShape(malformedSelection, "malformed-selection");
   assert(malformedSelection.fallback.selection === true, "malformed-selection: canonical selection fallback used");
+  assert(malformedSelection.fallback.diagnostic?.classification === "response parsing failure", "malformed-selection: parsing failure classified");
   assert(JSON.stringify(malformedSelection.selection) === JSON.stringify(normal.selection), "malformed-selection: malformed output did not alter the canonical base");
 
   // 4. Recovery after failure: a prior failure never blocks a later generation.

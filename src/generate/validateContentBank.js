@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateSkillInventory } from "./skillInventory.js";
 
 export const VARIANT_IDS = ["ai-llm", "cloud-backend", "fullstack", "mobile", "academic"];
 const REQUIRED_TOP_LEVEL_FIELDS = [
-  "meta", "identity", "summary", "education", "skillGroups", "experience", "projects", "doNotClaim",
+  "meta", "identity", "summary", "education", "skillGroups", "skillMetadata", "experience", "projects", "doNotClaim",
 ];
 const FORBIDDEN_CLAIM_PATTERNS = [
   /cuda\s+(?:kernel|kernels|authoring|optimization)/i,
@@ -67,7 +68,7 @@ export function validateContentBank(bank) {
   for (const field of REQUIRED_TOP_LEVEL_FIELDS) {
     assert(Object.hasOwn(bank || {}, field), `missing top-level '${field}'`, errors);
   }
-  assert(bank?.meta?.version === 1, "meta.version must be 1", errors);
+  assert(bank?.meta?.version === 2, "meta.version must be 2", errors);
   for (const field of ["name", "location", "phone", "email", "links"]) {
     assert(Object.hasOwn(bank?.identity || {}, field), `identity: missing '${field}'`, errors);
   }
@@ -89,8 +90,11 @@ export function validateContentBank(bank) {
     assert(typeof group?.id === "string" && group.id.length > 0, "skillGroups: id must be a non-empty string", errors);
     assert(!ids.has(group?.id), `duplicate id '${group?.id}'`, errors);
     ids.add(group?.id);
+    assert(Array.isArray(group?.items) && group.items.every((item) => typeof item === "string" && item.trim()), `skillGroups:${group?.id}: items must be non-empty strings`, errors);
     validateVariants(group?.variants, `skillGroups:${group?.id}`, errors);
   }
+  const inventory = validateSkillInventory(bank);
+  errors.push(...inventory.errors.map((error) => `skillMetadata: ${error}`));
   validateEntries(bank?.experience, "experience", ids, errors);
   validateEntries(bank?.projects, "projects", ids, errors);
   assert(Array.isArray(bank?.doNotClaim) && bank.doNotClaim.length > 0, "doNotClaim must be a non-empty array", errors);
