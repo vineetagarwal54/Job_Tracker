@@ -47,7 +47,7 @@ export function documentHistoryEntry(type, result, job = null, sourceResume = nu
     // Persist the verified evidence for a generated resume so a later
     // cover-letter-only generation can reuse it without regenerating the resume.
     ...(type === "resume" && result.selection && result.analysis
-      ? { source: { analysis: result.analysis, selection: result.selection, bulletEvidence: result.selection.rankedBullets || [], renderedSkills: result.renderedSkills || [], company: result.job?.company || "", role: result.job?.title || "", createdAt: new Date().toISOString(), pdfFileName: result.pdfFileName } }
+      ? { source: { analysis: result.analysis, selection: result.selection, requirements: result.requirements || [], finalCoverage: result.finalCoverage || null, bulletEvidence: result.selection.rankedBullets || [], renderedSkills: result.renderedSkills || [], company: result.job?.company || "", role: result.job?.title || "", createdAt: new Date().toISOString(), pdfFileName: result.pdfFileName } }
       : {}),
     ...(type === "cover-letter" ? { jobDescription: String(job?.description || job?.jd || ""), company: String(job?.company || ""), role: String(job?.title || job?.role || ""), sourceResumeId: sourceResume?.id || null, sourceResumeFileName: sourceResume?.pdfFileName || null, origin: "cover-letter" } : { origin: "generated" }),
   };
@@ -64,6 +64,8 @@ export function coverLetterSources({ documents = [], liveResult = null, liveJob 
       label: `Just generated: ${liveJob?.company || liveResult.job?.company || "resume"}`,
       analysis: liveResult.analysis,
       selection: liveResult.selection,
+      requirements: liveResult.requirements || [],
+      finalCoverage: liveResult.finalCoverage || null,
     });
   }
   for (const document of documents) {
@@ -73,6 +75,8 @@ export function coverLetterSources({ documents = [], liveResult = null, liveJob 
       label: `${document.company || "Resume"} · ${new Date(document.createdAt).toLocaleDateString()}`,
       analysis: document.source.analysis,
       selection: document.source.selection,
+      requirements: document.source.requirements || [],
+      finalCoverage: document.source.finalCoverage || null,
       createdAt: document.createdAt,
     });
   }

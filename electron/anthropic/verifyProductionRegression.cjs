@@ -33,9 +33,9 @@ function proposalFor(body, testCase) {
   const currentIds = [systemCatalog.base.summary.id, ...systemCatalog.base.experience.flatMap((entry) => entry.bullets.map((bullet) => bullet.id)), ...systemCatalog.base.renderedSkills.flatMap((group) => group.items.map((skill) => skill.id))];
   const requirements = (testCase.must.length ? testCase.must : ["reliable software delivery"]).map((text, index) => {
     const unsupported = testCase.unsupported && text.toLowerCase() === testCase.unsupported;
-    return { id: `req-${index + 1}`, text, priority: "must", kind: "technical-skill", status: unsupported ? "unsupported" : "covered", currentEvidenceIds: unsupported ? [] : [currentIds[index % currentIds.length]], candidateEvidenceIds: [], knowledgeSkills: [], reason: unsupported ? "No supplied evidence supports this technology." : "The selected base contains verified supporting evidence." };
+    return { id: `req-${index + 1}`, text, priority: "must", kind: "technical-skill", status: unsupported ? "unsupported" : "covered", currentEvidenceIds: unsupported ? [] : [currentIds[index % currentIds.length]], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: unsupported ? "No supplied evidence supports this technology." : "The selected base contains verified supporting evidence." };
   });
-  return { version: 2, baseResumeId, roleFamily: testCase.name, seniority: "entry", requirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } };
+  return { version: 2, baseResumeId, roleFamily: testCase.name, seniority: "entry", blockers: [], requirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } };
 }
 
 function resumeClient(testCase) {
@@ -73,13 +73,14 @@ async function main() {
     const coverClient = { calls: 0, request: async function request() { this.calls += 1; throw new Error("simulated writing failure"); } };
     let cover;
     try {
-      cover = await createCoverLetterOrchestrator({ rootDir: root, client: coverClient, keyProvider, getDefaultProfile, compileResumeTex: compile, paths })({ job: { company: "Regression Co", title: testCase.name, description: testCase.jd }, analysis: resume.analysis, selection: resume.selection });
+      cover = await createCoverLetterOrchestrator({ rootDir: root, client: coverClient, keyProvider, getDefaultProfile, compileResumeTex: compile, paths })({ job: { company: "Regression Co", title: testCase.name, description: testCase.jd }, selection: resume.selection, requirements: resume.requirements, finalCoverage: resume.finalCoverage });
     } catch (error) {
       throw new Error(`${testCase.name}: cover-letter regression failed: ${error.message}`, { cause: error });
     }
     const finalIds = new Set([...resume.selection.experience, ...resume.selection.projects].flatMap((entry) => entry.bullets.map((bullet) => bullet.id)));
     assert(cover.pageCount === 1 && cover.atsIntegrity.valid, `${testCase.name}: cover letter is not a one-page ATS-readable PDF`);
     assert(cover.modelCalls === 1 && coverClient.calls === 1, `${testCase.name}: cover letter made more than one model call`);
+    assert(cover.fallbackDiagnostics?.fallbackType === "request failure", `${testCase.name}: cover-letter fallback diagnostic was not surfaced`);
     assert(cover.evidenceIds.every((id) => finalIds.has(id)), `${testCase.name}: cover letter did not use final post-backoff resume evidence`);
     results.push({ case: testCase.name, base: resume.baseResumeId, accepted: resume.tailoring.acceptedDiff.bulletChanges.length + resume.tailoring.acceptedDiff.skillChanges.length + Number(Boolean(resume.tailoring.acceptedDiff.projectSwap)) + Number(Boolean(resume.tailoring.acceptedDiff.summaryChange)), backedOff: resume.tailoring.backedOffForFit.length, resumePages: resume.pageCount, coverPages: cover.pageCount, atsReadable: resume.atsIntegrity.valid && cover.atsIntegrity.valid });
   }

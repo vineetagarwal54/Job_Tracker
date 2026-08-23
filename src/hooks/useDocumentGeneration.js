@@ -81,7 +81,7 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
       if (documentChoice !== "resume-and-cover-letter") return { resumeResult: resume, coverLetterResult: null };
 
       setProgress("Drafting cover letter");
-      const coverResponse = await window.resume.generateCoverLetter({ job: normalizedJob, analysis: resume.analysis, selection: resume.selection });
+      const coverResponse = await window.resume.generateCoverLetter({ job: normalizedJob, selection: resume.selection, requirements: resume.requirements, finalCoverage: resume.finalCoverage });
       if (!coverResponse?.ok) {
         if (coverResponse?.error?.code === "CANCELLED") setProgress("Resume completed");
         else setCoverLetterError(messageForResumeError(coverResponse?.error));
@@ -103,9 +103,8 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
     }
   }, [cleanup, onCoverLetterComplete, onResumeComplete, status]);
 
-  // Cover-letter-only generation reuses stored resume evidence. Its new JD is
-  // classified deterministically in the main process, so this path neither
-  // reuses stale analysis from another job nor repeats the Haiku call.
+  // Generated resume sources reuse their stored V2 requirement/evidence map.
+  // Local PDF sources remain evidence-only and never trigger legacy JD analysis.
   const generateCoverLetterOnly = useCallback(async ({ job, source }) => {
     if (activeRef.current) { setCoverLetterError(messageForResumeError({ code: "GENERATION_ACTIVE" })); return null; }
     if (!source?.resumeText && !source?.selection) { setCoverLetterError("Select a generated resume or readable local PDF to base the cover letter on."); return null; }
@@ -123,7 +122,7 @@ export function useDocumentGeneration({ status, onResumeComplete, onCoverLetterC
     });
     timerRef.current = setInterval(() => setElapsedSeconds(seconds => seconds + 1), 1000);
     try {
-      const response = await window.resume.generateCoverLetter({ job: normalizedJob, selection: source.selection, resumeText: source.resumeText || "" });
+      const response = await window.resume.generateCoverLetter({ job: normalizedJob, selection: source.selection, resumeText: source.resumeText || "", requirements: source.requirements || [], finalCoverage: source.finalCoverage || null });
       if (!response?.ok) {
         if (response?.error?.code === "CANCELLED") { setMode("choice"); setProgress(""); }
         else setCoverLetterError(messageForResumeError(response?.error));

@@ -15,6 +15,9 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
   const renderedSkills = result.renderedSkills || result.verification?.renderedSkills || [];
   const coverageImprovement = result.tailoring?.coverageImprovement || {};
   const backedOffForFit = result.tailoring?.backedOffForFit || [];
+  const semanticCoverageUnavailable = Boolean(result.fallback?.selection);
+  const semanticValues = (items) => semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : values(items);
+  const acceptedChangeLabels = describeAcceptedChanges(result.tailoring?.acceptedDiff);
 
   const save = async () => {
     setSaveMsg(null);
@@ -34,11 +37,12 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <div><div style={{ color: "#4ade80", fontSize: "12px", fontWeight: 700 }}>RESUME COMPLETED</div><div style={{ fontFamily: "Syne, sans-serif", fontSize: "20px", fontWeight: 700, marginTop: "4px" }}>{result.job?.company} · {result.job?.title}</div></div>
         <div style={{ color: "#a5b4fc", fontSize: "13px" }}>{result.selection?.variant}</div>
       </div>
+      {acceptedChangeLabels.length > 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Accepted changes: {acceptedChangeLabels.join(", ")}</div>}
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px" }}>
         <Badge ok={onePage}>{onePage ? "One page" : `${result.pageCount || "?"} pages`}</Badge>
         <Badge ok={atsOk}>{atsOk === null ? "ATS text layer unchecked" : atsOk ? "ATS text layer" : "ATS text layer failed"}</Badge>
-        <Badge ok={true} neutral>Must-have coverage {coverage.mustHave?.percentage ?? 0}%</Badge>
+        <Badge ok={true} neutral>{semanticCoverageUnavailable ? "Must-have coverage unavailable" : `Must-have coverage ${coverage.mustHave?.percentage ?? 0}%`}</Badge>
         {backedOffForFit.length > 0 && <Badge ok={null} warn>Reverted {backedOffForFit.length} change{backedOffForFit.length > 1 ? "s" : ""} for one page</Badge>}
       </div>
 
@@ -73,21 +77,21 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <summary style={{ cursor: "pointer", color: "#5a6070", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>Advanced details</summary>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "12px" }}>
           <Metric label="Role family" value={result.analysis?.roleFamily} /><Metric label="Seniority" value={result.analysis?.seniority} />
-          <Metric label="Nice-to-have coverage" value={`${coverage.niceToHave?.percentage ?? 0}%`} /><Metric label="Estimated API cost" value={`$${Number(result.estimatedCostUsd || 0).toFixed(4)}`} />
+          <Metric label="Nice-to-have coverage" value={semanticCoverageUnavailable ? "Unavailable" : `${coverage.niceToHave?.percentage ?? 0}%`} /><Metric label="Estimated API cost" value={`$${Number(result.estimatedCostUsd || 0).toFixed(4)}`} />
         </div>
         <Detail label="Blockers" value={(result.analysis?.blockers || []).join(", ") || "None identified"} />
-        <Detail label="Missing must-haves" value={values(coverage.mustHave?.missing)} />
-        <Detail label="Covered must-haves" value={values(coverage.mustHave?.covered)} />
-        <Detail label="Missing preferred requirements" value={values(coverage.niceToHave?.missing)} />
-        <Detail label="Covered preferred requirements" value={values(coverage.niceToHave?.covered)} />
-        <Detail label="Coverage before / after" value={`${result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? 0}% / ${coverage.weightedCoveragePercentage ?? 0}% weighted; ${result.tailoring?.beforeCoverage?.coveragePercentage ?? 0}% / ${coverage.coveragePercentage ?? 0}% matched terms`} />
-        <Detail label="Newly covered terms" value={(coverageImprovement.newlyCoveredTerms || []).join(", ") || "None"} />
-        <Detail label="Coverage lost" value={(coverageImprovement.noLongerCoveredTerms || []).join(", ") || "None"} />
-        <Detail label="Unsupported JD gaps" value={(result.tailoring?.unsupportedMissing || []).map((item) => item.term).join(", ") || "None"} />
-        <Detail label="Unsupported requirements" value={(coverage.unsupported || []).map((item) => item.value || item.text).join(", ") || "None"} />
-        <Detail label="Raw lexical coverage" value={`${result.verification?.lexicalCoverage?.coveragePercentage ?? 0}% (diagnostic only; requirement coverage above is authoritative)`} />
+        <Detail label="Missing must-haves" value={semanticValues(coverage.mustHave?.missing)} />
+        <Detail label="Covered must-haves" value={semanticValues(coverage.mustHave?.covered)} />
+        <Detail label="Missing preferred requirements" value={semanticValues(coverage.niceToHave?.missing)} />
+        <Detail label="Covered preferred requirements" value={semanticValues(coverage.niceToHave?.covered)} />
+        <Detail label="Coverage before / after" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : `${result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? 0}% / ${coverage.weightedCoveragePercentage ?? 0}% weighted; ${result.tailoring?.beforeCoverage?.coveragePercentage ?? 0}% / ${coverage.coveragePercentage ?? 0}% matched terms`} />
+        <Detail label="Newly covered terms" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (coverageImprovement.newlyCoveredTerms || []).join(", ") || "None"} />
+        <Detail label="Coverage lost" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (coverageImprovement.noLongerCoveredTerms || []).join(", ") || "None"} />
+        <Detail label="Unsupported JD gaps" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (result.tailoring?.unsupportedMissing || []).map((item) => item.term).join(", ") || "None"} />
+        <Detail label="Unsupported requirements" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (coverage.unsupported || []).map((item) => item.value || item.text).join(", ") || "None"} />
+        <Detail label="Raw lexical coverage" value={result.verification?.lexicalCoverage ? `${result.verification.lexicalCoverage.coveragePercentage}% (diagnostic only)` : "Disabled in the V2 production path"} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
-        <Detail label="Missing JD skills" value={(result.verification?.missingSkills || []).join(", ") || "None"} />
+        <Detail label="Missing JD skills" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (result.verification?.missingSkills || []).join(", ") || "None"} />
         <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
         {result.fallback?.selection && <Detail label="Tailoring fallback type" value={result.fallback?.diagnostic?.classification || "Unclassified tailoring failure"} />}
         {result.fallback?.selection && <Detail label="Tailoring fallback reason" value={result.fallback?.reason || "No reason was provided"} />}
@@ -126,6 +130,15 @@ function formatTimings(timings) {
   if (!timings) return "Unavailable";
   return `legacy analysis ${timings.analysisMs ?? "?"} ms; legacy relevance planning ${timings.relevancePlanningMs ?? "?"} ms; semantic optimizer API ${timings.tailoringApiMs ?? "?"} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
 }
+function describeAcceptedChanges(diff = {}) {
+  const bullets = diff.bulletChanges?.length || 0;
+  return [
+    ...(bullets ? [`${bullets} experience bullet update${bullets === 1 ? "" : "s"}`] : []),
+    ...(diff.projectSwap ? ["1 project swap"] : []),
+    ...(diff.skillChanges || []).map((item) => `${item.type === "add" ? "added" : "swapped"} skill ${item.replacementItem}`),
+    ...(diff.summaryChange ? ["summary update"] : []),
+  ];
+}
 function diagnosticText(result) {
   const accepted = result.tailoring?.acceptedDiff || {};
   const coverage = result.finalCoverage || {};
@@ -135,11 +148,24 @@ function diagnosticText(result) {
       reason: result.fallback?.reason || "No reason was provided",
       stageCode: `${result.fallback?.diagnostic?.stage || "selection"} / ${result.fallback?.diagnostic?.code || "UNKNOWN_ERROR"}`,
     } : null,
+    optimizerVersion: result.tailoring?.optimizerVersion || null,
+    requestMetrics: result.tailoring?.requestMetrics || null,
+    providerUsage: result.usage?.resumeSelection || null,
     timings: result.timings || null,
     candidateCount: result.tailoring?.candidateCount ?? null,
-    accepted: { summary: Boolean(accepted.summaryChange), bullets: accepted.bulletChanges?.length || 0, project: Boolean(accepted.projectSwap), skills: accepted.skillChanges?.length || 0 },
-    rejected: (result.tailoring?.rejected || []).map((item) => ({ type: item.type, reason: item.reason })),
-    backedOff: (result.tailoring?.backedOffForFit || []).map((item) => item.type),
+    accepted: [accepted.summaryChange, ...(accepted.bulletChanges || []), accepted.projectSwap, ...(accepted.skillChanges || [])].filter(Boolean).map((item) => ({ candidateId: item.candidateId, requirementIds: item.requirementIds || [], type: item.type || (item.summaryId ? "summary" : item.replacementProjectId ? "project" : "skill") })),
+    rejected: (result.tailoring?.rejected || []).map((item) => ({ type: item.type, reason: item.reason, requirementIds: item.change?.requirementIds || [] })),
+    backedOff: (result.tailoring?.backedOffForFit || []).map((item) => ({ type: item.type, candidateId: item.candidateId, requirementIds: item.requirementIds || [] })),
+    requirementTrace: (coverage.requirements || []).map((item) => ({
+      id: item.id, text: item.text, priority: item.priority, kind: item.kind,
+      optimizerStatus: item.optimizerStatus,
+      currentEvidenceIds: item.currentEvidenceIds || [],
+      candidateEvidenceIds: item.candidateEvidenceIds || [],
+      knowledgeSkills: item.knowledgeSkillNames || item.knowledgeSkillIds || [],
+      finalCovered: Boolean(item.covered),
+      finalSurvivingEvidenceIds: item.survivingEvidenceIds || [],
+      reason: item.reason,
+    })),
     coverage: {
       beforeWeighted: result.tailoring?.beforeCoverage?.weightedCoveragePercentage ?? null,
       afterWeighted: coverage.weightedCoveragePercentage ?? null,

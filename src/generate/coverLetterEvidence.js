@@ -1,5 +1,4 @@
-import { extractJobKeywords } from "./keywordExtraction.js";
-import { canonicalizeTerm, textContainsTerm, technologiesIn } from "./protectedTerms.js";
+import { textContainsTerm, technologiesIn } from "./protectedTerms.js";
 import { validateResumeEvidenceSelection } from "./resumeEvidenceValidation.js";
 import { inventorySkills, isHandsOnSkill } from "./skillInventory.js";
 
@@ -12,41 +11,37 @@ const unique = (values) => [...new Set(values.filter(Boolean))];
 const words = (text) => unique(String(text || "").toLowerCase().match(/[a-z][a-z0-9+#./-]{2,}/g) || []).filter((word) => !STOP.has(word));
 const numbers = (text) => (String(text || "").match(NUMBER_PATTERN) || []).map((value) => value.toLowerCase());
 
-function relevantTerms(job, analysis) {
-  const extraction = extractJobKeywords(job.description);
-  return unique([
-    ...(analysis?.mustHaveKeywords || []).map(canonicalizeTerm),
-    ...(analysis?.niceToHaveKeywords || []).map(canonicalizeTerm),
-    ...(extraction.keywords || []).filter((item) => item.category === "technical").map((item) => item.normalized),
-  ]);
-}
-
-function evidenceScore(item, terms, analysis) {
-  const must = new Set((analysis?.mustHaveKeywords || []).map(canonicalizeTerm));
-  let score = numbers(item.text).length * 5;
-  for (const term of terms) if (textContainsTerm(item.text, term)) score += must.has(term) ? 15 : 6;
-  if (item.section === "experience") score += 3;
-  return score;
-}
-
 function localEvidence(resumeText) {
   const chunks = String(resumeText || "").split(/\r?\n|(?<=[.!?])\s+/).map((text) => text.trim()).filter((text) => text.length >= 35);
   return chunks.slice(0, 40).map((text, index) => ({ id: `local-resume-${index + 1}`, text, organization: "Local resume", role: "", section: "resume" }));
 }
 
-export function buildCoverLetterEvidence({ bank, job, analysis, selection = null, resumeText = "" }) {
+export function buildCoverLetterEvidence({ bank, selection = null, resumeText = "", requirements = [], finalCoverage = null }) {
   let evidence;
   if (resumeText) evidence = localEvidence(resumeText);
   else {
     const verified = validateResumeEvidenceSelection(bank, selection);
     evidence = verified.rankedBullets.map((item) => ({ id: item.bullet.id, text: item.text, organization: item.entry.org, role: item.entry.role, section: item.section }));
   }
-  const terms = relevantTerms(job, analysis);
-  const ranked = evidence.map((item) => ({ ...item, relevanceScore: evidenceScore(item, terms, analysis) })).sort((left, right) => right.relevanceScore - left.relevanceScore || numbers(right.text).length - numbers(left.text).length || left.id.localeCompare(right.id));
-  const strongest = ranked.slice(0, Math.min(3, ranked.length));
+  const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+  const requirementById = new Map((requirements || []).map((item) => [item.id, item]));
+  const covered = (finalCoverage?.requirements || []).filter((item) => item.covered);
+  const matches = covered.map((item) => {
+    const requirement = requirementById.get(item.id) || item;
+    const evidenceIds = (item.survivingEvidenceIds || []).filter((id) => evidenceById.has(id));
+    return { id: item.id, text: item.text, priority: item.priority, kind: item.kind, optimizerStatus: item.optimizerStatus || requirement.status, evidenceIds };
+  }).filter((item) => item.evidenceIds.length && item.optimizerStatus !== "knowledge-only")
+    .sort((left, right) => (left.priority === right.priority ? 0 : left.priority === "must" ? -1 : 1) || right.evidenceIds.length - left.evidenceIds.length || left.id.localeCompare(right.id));
+  const evidenceWeights = new Map();
+  for (const match of matches) for (const id of match.evidenceIds) evidenceWeights.set(id, (evidenceWeights.get(id) || 0) + (match.priority === "must" ? 10 : 4));
+  const ranked = evidence.map((item, index) => ({ ...item, relevanceScore: (evidenceWeights.get(item.id) || 0) + numbers(item.text).length * 2 + (item.section === "experience" ? 1 : 0), sourceOrder: index }))
+    .sort((left, right) => right.relevanceScore - left.relevanceScore || numbers(right.text).length - numbers(left.text).length || left.sourceOrder - right.sourceOrder);
+  const matchedIds = new Set(matches.flatMap((item) => item.evidenceIds));
+  const strongestPool = matches.length ? ranked.filter((item) => matchedIds.has(item.id)) : ranked;
+  const strongest = strongestPool.slice(0, Math.min(3, strongestPool.length));
   const renderedSkills = selection?.renderedSkills || [];
   const resumeSkills = unique(renderedSkills.flatMap((group) => group.items || []).filter((item) => isHandsOnSkill(bank, item)));
-  return { evidence: strongest, allEvidence: ranked, resumeSkills, relevantTerms: terms };
+  return { evidence: strongest, allEvidence: ranked, resumeSkills, requirementMatches: matches.slice(0, 3), focusRequirements: matches.slice(0, 3).map((item) => item.text), source: matches.length ? "v2-final-coverage" : "local-resume-evidence-only" };
 }
 
 export function validateEvidenceClaims(content, evidenceBundle, { job, bank }) {
@@ -91,8 +86,7 @@ function wordCount(content) { return [content.opening, ...content.bodyParagraphs
 export function buildConservativeCoverLetter({ job, evidenceBundle }) {
   const evidence = evidenceBundle.evidence.slice(0, 3);
   if (!evidence.length) throw Object.assign(new Error("No readable resume evidence is available for a cover letter."), { code: "VALIDATION_FAILED" });
-  const terms = evidenceBundle.relevantTerms.filter((term) => textContainsTerm(job.description, term)).slice(0, 4);
-  const focus = terms.length ? terms.join(", ") : "the responsibilities described in the posting";
+  const focus = evidenceBundle.focusRequirements?.length ? evidenceBundle.focusRequirements.join(", ") : "the responsibilities described in the posting";
   const first = evidence[0]; const second = evidence[1] || evidence[0];
   const opening = `This application concerns the ${job.title} role at ${job.company}. The posting emphasizes ${focus}. The verified work in the final resume offers direct examples relevant to those requirements.`;
   const firstClaim = ensureSentence(first.text);

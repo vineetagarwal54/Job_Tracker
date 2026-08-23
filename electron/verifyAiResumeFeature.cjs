@@ -54,8 +54,8 @@ async function main() {
   assert(jobDetails.includes("Generate") && !jobDetails.includes("ai-resume"), "Saved-job Generate action or tab cleanup missing");
   assert(quickGenerate.includes("navigator.clipboard?.readText") && quickGenerate.includes("looksLikeJobDescription"), "Quick Generate clipboard filtering missing");
   assert(!quickGenerate.includes("addJob(") && quickGenerate.includes("quickGenerationHistoryEntry"), "Quick Generate mutates jobs or lacks history metadata");
-  assert(generationHook.includes("generateCoverLetter({ job: normalizedJob, analysis: resume.analysis, selection: resume.selection })"), "Cover letter does not reuse resume analysis and selection");
+  assert(generationHook.includes("requirements: resume.requirements, finalCoverage: resume.finalCoverage"), "Cover letter does not reuse final V2 requirements and coverage");
   assert(generationHook.includes("clearInterval") && generationHook.includes("subscribeToGeneration"), "Timer or listener cleanup missing");
-  console.log(JSON.stringify({ envParser: true, processPrecedence: true, envGitignored: true, keyBoundary: true, missingKeyStatus: true, invalidKeyError: true, profileOptional: true, identityFallback: true, savedJobFlow: true, quickGenerate: true, reuseResumeAnalysis: true, securePaths: true, listenerCleanup: true }, null, 2));
+  console.log(JSON.stringify({ envParser: true, processPrecedence: true, envGitignored: true, keyBoundary: true, missingKeyStatus: true, invalidKeyError: true, profileOptional: true, identityFallback: true, savedJobFlow: true, quickGenerate: true, reuseFinalV2Coverage: true, securePaths: true, listenerCleanup: true }, null, 2));
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

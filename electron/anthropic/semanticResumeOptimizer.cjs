@@ -15,7 +15,21 @@ const changeCommon = {
   justification: { type: "string" },
 };
 
-function semanticOptimizerSchema(base) {
+function catalogSkillRecords(catalog) {
+  const skills = catalog?.alternatives?.skills || {};
+  const handsOn = skills.handsOnEvidence || {};
+  const byId = new Map();
+  for (const group of catalog?.base?.renderedSkills || []) for (const skill of group.items || []) {
+    byId.set(skill.id, { id: skill.id, skill: skill.skill, classification: Object.hasOwn(handsOn, skill.id) ? "hands-on" : skills.defaultClassification });
+  }
+  for (const skill of skills.inventory || []) {
+    byId.set(skill.id, { ...skill, classification: Object.hasOwn(handsOn, skill.id) ? "hands-on" : skills.defaultClassification });
+  }
+  return [...byId.values()];
+}
+
+function semanticOptimizerSchema(base, catalog) {
+  const knowledgeSkillIds = catalogSkillRecords(catalog).filter((skill) => skill.classification === "knowledge").map((skill) => skill.id);
   return {
     type: "object", additionalProperties: false,
     properties: {
@@ -23,6 +37,7 @@ function semanticOptimizerSchema(base) {
       baseResumeId: { type: "string", enum: [base.id] },
       roleFamily: { type: "string" },
       seniority: { type: "string" },
+      blockers: { type: "array", items: { type: "string", enum: ["citizenship requirement", "security-clearance requirement", "explicit CPT or OPT rejection"] } },
       requirements: {
         type: "array",
         items: {
@@ -33,9 +48,9 @@ function semanticOptimizerSchema(base) {
             kind: { type: "string", enum: REQUIREMENT_KINDS },
             status: { type: "string", enum: REQUIREMENT_STATUSES },
             currentEvidenceIds: stringArray, candidateEvidenceIds: stringArray,
-            knowledgeSkills: stringArray, reason: { type: "string" },
+            knowledgeSkillIds: { type: "array", items: { type: "string", enum: knowledgeSkillIds } }, reason: { type: "string" },
           },
-          required: ["id", "text", "priority", "kind", "status", "currentEvidenceIds", "candidateEvidenceIds", "knowledgeSkills", "reason"],
+          required: ["id", "text", "priority", "kind", "status", "currentEvidenceIds", "candidateEvidenceIds", "knowledgeSkillIds", "reason"],
         },
       },
       diff: {
@@ -68,7 +83,7 @@ function semanticOptimizerSchema(base) {
         required: ["bulletChanges", "projectChanges", "skillChanges", "summaryChanges"],
       },
     },
-    required: ["version", "baseResumeId", "roleFamily", "seniority", "requirements", "diff"],
+    required: ["version", "baseResumeId", "roleFamily", "seniority", "blockers", "requirements", "diff"],
   };
 }
 
@@ -78,24 +93,30 @@ const normalize = (value) => String(value || "").trim().toLowerCase();
 function validateRequirements(result, catalog, evidenceIndex) {
   if (result?.version !== 2 || result?.baseResumeId !== catalog.base.id || !Array.isArray(result?.requirements)) fail("Semantic optimizer returned an invalid top-level contract.");
   const ids = new Set();
-  const skillByName = new Map(catalog.alternatives.skills.inventory.map((skill) => [normalize(skill.skill), { ...skill, classification: Object.hasOwn(catalog.alternatives.skills.handsOnEvidence, skill.id) ? "hands-on" : catalog.alternatives.skills.defaultClassification }]));
+  const skillById = new Map(catalogSkillRecords(catalog).map((skill) => [skill.id, skill]));
   for (const requirement of result.requirements) {
     if (!requirement?.id || ids.has(requirement.id) || !String(requirement.text || "").trim()) fail("Semantic optimizer returned a missing or duplicate requirement ID.");
     ids.add(requirement.id);
     if (!REQUIREMENT_PRIORITIES.includes(requirement.priority) || !REQUIREMENT_KINDS.includes(requirement.kind) || !REQUIREMENT_STATUSES.includes(requirement.status)) fail(`Requirement '${requirement.id}' has an invalid classification.`);
     for (const id of [...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds]) if (!evidenceIndex.has(id)) fail(`Requirement '${requirement.id}' references unknown evidence '${id}'.`);
     for (const id of requirement.currentEvidenceIds) if (!evidenceIndex.get(id).current) fail(`Requirement '${requirement.id}' labels non-current evidence '${id}' as current.`);
-    const knowledge = requirement.knowledgeSkills.map((name) => skillByName.get(normalize(name)));
+    const knowledge = requirement.knowledgeSkillIds.map((id) => skillById.get(id));
     const cited = [...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds].map((id) => evidenceIndex.get(id));
-    if (knowledge.some((skill) => !skill)) fail(`Requirement '${requirement.id}' references an unknown knowledge skill.`);
+    if (knowledge.some((skill) => !skill)) fail(`Requirement '${requirement.id}' references an unknown knowledge skill ID.`);
     if (requirement.status === "covered" && !requirement.currentEvidenceIds.length) fail(`Covered requirement '${requirement.id}' lacks current evidence.`);
     if (requirement.status === "coverable" && !requirement.candidateEvidenceIds.length) fail(`Coverable requirement '${requirement.id}' lacks candidate evidence.`);
     if (["covered", "coverable"].includes(requirement.status) && cited.length && cited.every((item) => item.kind === "skill" && item.value.classification !== "hands-on")) fail(`Requirement '${requirement.id}' must classify skill-only knowledge evidence as knowledge-only.`);
     if (["experience", "responsibility"].includes(requirement.kind) && ["covered", "coverable"].includes(requirement.status) && cited.every((item) => item.kind === "skill")) fail(`Requirement '${requirement.id}' demands accomplishment evidence, not only Skills entries.`);
+    if (["covered", "coverable", "unsupported"].includes(requirement.status) && requirement.knowledgeSkillIds.length) fail(`Requirement '${requirement.id}' may populate knowledgeSkillIds only when status is knowledge-only.`);
     if (requirement.status === "knowledge-only" && (!knowledge.length || knowledge.some((skill) => skill.classification !== "knowledge") || knowledge.some((skill) => ![...requirement.currentEvidenceIds, ...requirement.candidateEvidenceIds].includes(skill.id)))) fail(`Knowledge-only requirement '${requirement.id}' lacks verified knowledge-only skill evidence.`);
-    if (requirement.status === "unsupported" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length || requirement.knowledgeSkills.length)) fail(`Unsupported requirement '${requirement.id}' cannot cite supporting evidence.`);
+    if (requirement.status === "unsupported" && (requirement.currentEvidenceIds.length || requirement.candidateEvidenceIds.length)) fail(`Unsupported requirement '${requirement.id}' cannot cite supporting evidence.`);
   }
   return ids;
+}
+
+function resolveKnowledgeSkillNames(requirements, catalog) {
+  const skillById = new Map(catalogSkillRecords(catalog).map((skill) => [skill.id, skill.skill]));
+  return requirements.map((requirement) => ({ ...requirement, knowledgeSkillNames: requirement.knowledgeSkillIds.map((id) => skillById.get(id)) }));
 }
 
 function requirementsSupportChange(change, requirementIds, evidenceIds) {
@@ -143,23 +164,24 @@ function expandSemanticDiff(result, catalog, evidenceIndex) {
   return { diff, rejected };
 }
 
-function compatibilityAnalysis(result, base) {
+function compatibilityAnalysis(result, base, blockers) {
   return {
     roleFamily: result.roleFamily,
     seniority: result.seniority,
     mustHaveKeywords: result.requirements.filter((item) => item.priority === "must").map((item) => item.text),
     niceToHaveKeywords: result.requirements.filter((item) => item.priority === "preferred").map((item) => item.text),
     responsibilities: result.requirements.filter((item) => item.kind === "responsibility").map((item) => item.text),
-    blockers: [], recommendedVariant: base.variant,
+    blockers, recommendedVariant: base.variant,
     reasoningSummary: "Requirements were mapped semantically to verified resume evidence by Resume Optimizer V2.",
   };
 }
 
 async function generateSemanticResumeOptimization({ client, apiKey, bank, base, job, signal, generateDir, progress }) {
   progress?.("Semantically optimizing verified resume evidence");
-  const [{ buildVerifiedEvidenceCatalog, indexVerifiedEvidenceCatalog }, { applyTailoringDiff }] = await Promise.all([
+  const [{ buildVerifiedEvidenceCatalog, indexVerifiedEvidenceCatalog }, { applyTailoringDiff }, { validateEligibilityBlockers }] = await Promise.all([
     import(pathToFileURL(path.join(generateDir, "evidenceCatalog.js")).href),
     import(pathToFileURL(path.join(generateDir, "tailoringDiff.js")).href),
+    import(pathToFileURL(path.join(generateDir, "eligibilityBlockers.js")).href),
   ]);
   const { catalog } = buildVerifiedEvidenceCatalog(bank, base);
   const evidenceIndex = indexVerifiedEvidenceCatalog(catalog);
@@ -174,21 +196,36 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
       { type: "text", text: SEMANTIC_OPTIMIZER_SYSTEM },
       { type: "text", text: `VERIFIED EVIDENCE CATALOG\n${catalogText}`, cache_control: { type: "ephemeral" } },
     ],
-    output_config: { effort: "low", format: { type: "json_schema", schema: semanticOptimizerSchema(base) } },
+    output_config: { effort: "low", format: { type: "json_schema", schema: semanticOptimizerSchema(base, catalog) } },
     messages: [{ role: "user", content: userText }],
   };
-  const serializedRequestBytes = Buffer.byteLength(JSON.stringify(body));
+  const requestMetrics = { serializedRequestBytes: Buffer.byteLength(JSON.stringify(body)), catalogBytes: Buffer.byteLength(catalogText), dynamicBytes: Buffer.byteLength(userText) };
+  requestMetrics.approximateInputTokens = Math.ceil(requestMetrics.serializedRequestBytes / 4);
+  const diagnostics = { model: MODEL, apiDurationMs: null, usage: null, cacheUsage: null, requestMetrics };
+  const withDiagnostics = (error) => { if (error && !error.optimizerDiagnostics) error.optimizerDiagnostics = { ...diagnostics }; return error; };
   const apiStartedAt = Date.now();
   let response;
   try { response = await client.request({ apiKey, signal, stream: true, timeoutMs: 120000, body }); }
-  catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-optimizer-request"; throw error; }
+  catch (error) { diagnostics.apiDurationMs = Date.now() - apiStartedAt; if (error && !error.tailoringStage) error.tailoringStage = "semantic-optimizer-request"; throw withDiagnostics(error); }
+  diagnostics.apiDurationMs = Date.now() - apiStartedAt;
+  diagnostics.usage = response.usage || null;
+  diagnostics.cacheUsage = response.usage ? { cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? null, cacheReadInputTokens: response.usage.cache_read_input_tokens ?? null } : null;
   let proposal;
   try { proposal = parseJsonText(response.text, "Sonnet semantic resume optimization", { stopReason: response.stopReason }); }
-  catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-response-parsing"; throw error; }
-  const requirementIds = validateRequirements(proposal, catalog, evidenceIndex);
-  if (!requirementIds.size) fail("Semantic optimizer returned no meaningful requirements.");
+  catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-response-parsing"; throw withDiagnostics(error); }
+  let requirementIds;
+  let blockers;
+  try {
+    requirementIds = validateRequirements(proposal, catalog, evidenceIndex);
+    if (!requirementIds.size) fail("Semantic optimizer returned no meaningful requirements.");
+    blockers = validateEligibilityBlockers(proposal.blockers, job.description);
+  }
+  catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-validation"; throw withDiagnostics(error); }
+  proposal = { ...proposal, requirements: resolveKnowledgeSkillNames(proposal.requirements, catalog) };
   const expanded = expandSemanticDiff(proposal, catalog, evidenceIndex);
-  const applied = applyTailoringDiff({ bank, base, diff: expanded.diff, semanticRequirements: proposal.requirements });
+  let applied;
+  try { applied = applyTailoringDiff({ bank, base, diff: expanded.diff, semanticRequirements: proposal.requirements }); }
+  catch (error) { if (error && !error.tailoringStage) error.tailoringStage = "semantic-tailoring-application"; throw withDiagnostics(error); }
   applied.rejected = [...expanded.rejected, ...applied.rejected];
   const requirementById = new Map(proposal.requirements.map((item) => [item.id, item]));
   const candidates = [...applied.acceptedDiff.bulletChanges, ...applied.acceptedDiff.skillChanges, applied.acceptedDiff.projectSwap, applied.acceptedDiff.summaryChange].filter(Boolean).map((change) => ({
@@ -198,12 +235,12 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
   progress?.("Validating bounded semantic tailoring changes");
   return {
     ...applied, proposedDiff: proposal.diff, requirements: proposal.requirements,
-    analysis: compatibilityAnalysis(proposal, base), usage: response.usage || null,
-    cacheUsage: response.usage ? { cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? null, cacheReadInputTokens: response.usage.cache_read_input_tokens ?? null } : null,
-    model: MODEL, usedFallback: false, apiDurationMs: Date.now() - apiStartedAt,
+    analysis: compatibilityAnalysis(proposal, base, blockers), usage: diagnostics.usage,
+    cacheUsage: diagnostics.cacheUsage,
+    model: MODEL, usedFallback: false, apiDurationMs: diagnostics.apiDurationMs,
     backoffPlan: { candidates },
-    requestMetrics: { serializedRequestBytes, catalogBytes: Buffer.byteLength(catalogText), dynamicBytes: Buffer.byteLength(userText), approximateInputTokens: Math.ceil(serializedRequestBytes / 4) },
+    requestMetrics,
   };
 }
 
-module.exports = { MODEL, semanticOptimizerSchema, validateRequirements, expandSemanticDiff, generateSemanticResumeOptimization };
+module.exports = { MODEL, semanticOptimizerSchema, validateRequirements, resolveKnowledgeSkillNames, expandSemanticDiff, generateSemanticResumeOptimization };

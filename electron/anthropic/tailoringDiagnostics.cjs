@@ -23,9 +23,9 @@ function classifyTailoringFallback(error) {
   } else if (code === "MALFORMED_RESPONSE" || /malformed json|empty json|truncated|parse/.test(signal)) {
     classification = "response parsing failure";
     stage = "response-parsing";
-  } else if (stage === "tailoring-validation-application" || /tailoring|candidate|validation|protected structure/.test(signal)) {
+  } else if (/validation/.test(stage) || stage === "tailoring-validation-application" || /tailoring|candidate|validation|protected structure/.test(signal)) {
     classification = "tailoring validation/application failure";
-    stage = "tailoring-validation-application";
+    if (!/validation/.test(stage)) stage = "tailoring-validation-application";
   }
 
   return {

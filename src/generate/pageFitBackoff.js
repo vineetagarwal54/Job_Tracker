@@ -105,7 +105,7 @@ export async function fitTailoredBaseToOnePage({ canonicalBase, tailoredBase, ac
     current = revertAction(current, canonicalBase, action);
     remainingDiff = removeAcceptedAction(remainingDiff, action);
     validateBaseProtections(canonicalBase, current);
-    backedOff.push({ type: action.kind, candidateId: action.change.candidateId || null, relevanceGain: action.relevanceGain, resolution: "reverted", reason: "page-overflow" });
+    backedOff.push({ type: action.kind, candidateId: action.change.candidateId || null, requirementIds: [...(action.change.requirementIds || [])], relevanceGain: action.relevanceGain, resolution: "reverted", reason: "page-overflow" });
     result = await compile(`reverted-${action.kind}`);
     if (result.pageCount === 1) return { base: current, acceptedDiff: remainingDiff, backedOff, attempts, pageCount: 1, result, ...validateBaseProtections(canonicalBase, current) };
   }

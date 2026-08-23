@@ -1,6 +1,7 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { generateSemanticResumeOptimization, validateRequirements, expandSemanticDiff } = require("./semanticResumeOptimizer.cjs");
+const { generateSemanticResumeOptimization, semanticOptimizerSchema, validateRequirements, resolveKnowledgeSkillNames, expandSemanticDiff } = require("./semanticResumeOptimizer.cjs");
+const { SEMANTIC_OPTIMIZER_SYSTEM, SELECTION_SYSTEM } = require("./promptModules.cjs");
 
 const root = path.resolve(__dirname, "..", "..");
 const generateDir = path.join(root, "src", "generate");
@@ -8,8 +9,8 @@ const load = (name) => import(pathToFileURL(path.join(generateDir, `${name}.js`)
 const bank = require("../../src/generate/content-bank.json");
 const assert = (condition, message) => { if (!condition) throw new Error(`FAIL: ${message}`); };
 
-const requirement = (id, text, { priority = "must", kind = "technical-skill", status = "covered", current = [], candidate = [], knowledge = [] } = {}) => ({
-  id, text, priority, kind, status, currentEvidenceIds: current, candidateEvidenceIds: candidate, knowledgeSkills: knowledge,
+const requirement = (id, text, { priority = "must", kind = "technical-skill", status = "covered", current = [], candidate = [], knowledgeIds = [] } = {}) => ({
+  id, text, priority, kind, status, currentEvidenceIds: current, candidateEvidenceIds: candidate, knowledgeSkillIds: knowledgeIds,
   reason: status === "unsupported" ? "No supplied verified evidence supports this requirement." : "Supplied evidence semantically supports this requirement.",
 });
 
@@ -24,6 +25,11 @@ async function main() {
   const catalogText = JSON.stringify(catalog);
   assert(!/vineet|@gmail|240353|linkedin|portfolio/i.test(catalogText), "catalog excludes identity and contact information");
   assert(catalog.base.id === "swe-cloud" && catalog.alternatives.experienceBullets.every((bullet) => base.experience.some((entry) => entry.entryId === bullet.entryId)), "catalog limits alternative experience bullets to the same base experiences");
+  const allowedKnowledgeIds = semanticOptimizerSchema(base, catalog).properties.requirements.items.properties.knowledgeSkillIds.items.enum;
+  assert(allowedKnowledgeIds.includes("skill:google-cloud-platform-gcp") && !allowedKnowledgeIds.includes("skill:python") && !allowedKnowledgeIds.includes("skill:not-real"), "structured output constrains knowledge references to verified knowledge-only skill IDs");
+  assert(!catalog.alternatives.skills.inventory.some((skill) => skill.skill === "Python or JavaScript/TypeScript"), "grouped language wording requires no synthetic inventory skill");
+  assert(!SEMANTIC_OPTIMIZER_SYSTEM.includes("For every selected candidate, return its candidate ID") && SEMANTIC_OPTIMIZER_SYSTEM.includes("Never return a candidate ID"), "V2 prompt uses its schema-specific rewrite contract");
+  assert(SELECTION_SYSTEM.includes("For every selected candidate, return its candidate ID"), "legacy compatibility prompt remains unchanged");
 
   const semanticCases = [
     { area: "backend", requirement: requirement("backend-rest", "REST/API development", { current: ["xelpmoc-tourism-backend"] }) },
@@ -32,7 +38,7 @@ async function main() {
     { area: "AI/RAG", requirement: requirement("rag", "retrieval augmented generation", { current: ["servbeyond-sharepoint-retrieval"] }) },
     { area: "LLM infrastructure", requirement: requirement("llm-serving", "LLM inference infrastructure", { current: ["runara-speculative-decoding"] }) },
     { area: "mobile", requirement: requirement("mobile", "cross-platform mobile product development", { current: ["skill:react-native"] }) },
-    { area: "mixed OR", requirement: requirement("language-or", "Python or JavaScript/TypeScript", { current: ["skill:python"] }) },
+    { area: "mixed OR", requirement: requirement("language-or", "Python or JavaScript/TypeScript", { current: ["skill:python", "skill:javascript", "skill:typescript"] }) },
     { area: "browser alternatives", requirement: requirement("browser-automation", "browser automation using Playwright/Puppeteer/Selenium", { current: ["iiit-nlp-extraction"] }) },
     { area: "composite", requirement: requirement("sql-document", "SQL and document-store design", { current: ["skill:sql", "skill:mongodb", "xelpmoc-sql-redis"] }) },
     { area: "already matched", requirement: requirement("shipping", "production shipping experience", { current: ["experience:xelpmoc-software-engineer"] }) },
@@ -44,14 +50,24 @@ async function main() {
     if (item.requirement.status === "unsupported") assert(report.unsupported.length === 1 && report.mustHave.missing.length === 1, `${item.area}: unsupported requirement remains unsupported`);
     else assert(report.mustHave.covered.length === 1, `${item.area}: supplied semantic evidence covers the requirement`);
   }
+  const groupedLanguage = semanticCases.find((item) => item.requirement.id === "language-or").requirement;
+  assert(groupedLanguage.currentEvidenceIds.every((id) => evidenceIndex.has(id)) && groupedLanguage.knowledgeSkillIds.length === 0, "grouped programming-language requirement cites individual canonical skill IDs without free-form knowledge text");
+
+  let arbitrarySkillRejected;
+  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("arbitrary", "Arbitrary technology", { status: "knowledge-only", candidate: ["skill:not-real"], knowledgeIds: ["skill:not-real"] })] }, catalog, evidenceIndex); } catch (error) { arbitrarySkillRejected = error; }
+  assert(arbitrarySkillRejected, "unsupported arbitrary skill IDs are rejected deterministically");
+  let handsOnAsKnowledgeRejected;
+  try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("python-knowledge", "Python knowledge", { status: "knowledge-only", candidate: ["skill:python"], knowledgeIds: ["skill:python"] })] }, catalog, evidenceIndex); } catch (error) { handsOnAsKnowledgeRejected = error; }
+  assert(handsOnAsKnowledgeRejected, "hands-on skill IDs cannot be mislabeled as knowledge-only");
 
   const gcpSkill = evidenceModule.catalogSkillInventory(catalog).find((skill) => skill.skill === "Google Cloud Platform (GCP)");
   assert(gcpSkill?.classification === "knowledge", "GCP is classified as knowledge-only without accomplishment evidence");
   let misclassifiedKnowledge;
   try { validateRequirements({ version: 2, baseResumeId: base.id, requirements: [requirement("docker-only", "professional container implementation", { kind: "experience", current: ["skill:docker"] })] }, catalog, evidenceIndex); } catch (error) { misclassifiedKnowledge = error; }
   assert(misclassifiedKnowledge, "skill-only knowledge evidence cannot be mislabeled as covered accomplishment experience");
-  const gcpRequirement = requirement("gcp", "GCP/GKE/Cloud Run knowledge", { status: "knowledge-only", candidate: [gcpSkill.id], knowledge: [gcpSkill.skill] });
+  const gcpRequirement = requirement("gcp", "GCP/GKE/Cloud Run knowledge", { status: "knowledge-only", candidate: [gcpSkill.id], knowledgeIds: [gcpSkill.id] });
   validateRequirements({ version: 2, baseResumeId: base.id, requirements: [gcpRequirement] }, catalog, evidenceIndex);
+  assert(resolveKnowledgeSkillNames([gcpRequirement], catalog)[0].knowledgeSkillNames[0] === gcpSkill.skill, "validated skill IDs resolve deterministically to display names");
   const skillProposal = { version: 2, baseResumeId: base.id, roleFamily: "cloud", seniority: "entry", requirements: [gcpRequirement], diff: { bulletChanges: [], projectChanges: [], summaryChanges: [], skillChanges: [{ type: "add", skill: gcpSkill.skill, targetGroup: "Cloud and DevOps", baseItem: "", requirementIds: [gcpRequirement.id], justification: "The role requests GCP platform knowledge." }] } };
   const expandedSkill = expandSemanticDiff(skillProposal, catalog, evidenceIndex);
   const skillApplied = tailoringModule.applyTailoringDiff({ bank, base, diff: expandedSkill.diff, semanticRequirements: [gcpRequirement] });
@@ -74,7 +90,7 @@ async function main() {
   let calls = 0; let captured;
   const client = { request: async (request) => {
     calls += 1; captured = request;
-    return { text: JSON.stringify({ version: 2, baseResumeId: base.id, roleFamily: "full stack backend", seniority: "mid", requirements: requestRequirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } }), usage: { input_tokens: 15000, output_tokens: 900, cache_creation_input_tokens: 14000 }, stopReason: "end_turn" };
+    return { text: JSON.stringify({ version: 2, baseResumeId: base.id, roleFamily: "full stack backend", seniority: "mid", blockers: [], requirements: requestRequirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } }), usage: { input_tokens: 15000, output_tokens: 900, cache_creation_input_tokens: 14000 }, stopReason: "end_turn" };
   } };
   const optimized = await generateSemanticResumeOptimization({ client, apiKey: "mock", bank, base, job: { title: "Software Engineer", description: "Representative composite job description." }, generateDir });
   assert(calls === 1 && captured.stream === true, "optimizer uses one streamed Sonnet request");

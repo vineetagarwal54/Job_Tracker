@@ -25,8 +25,8 @@ const JD = "Backend Engineer. Required: Python, FastAPI, PostgreSQL, Docker, Kub
 const job = { company: "Test Co", title: "Backend Engineer", description: JD };
 
 const validOptimization = (baseResumeId) => ({
-  version: 2, baseResumeId, roleFamily: "backend software engineering", seniority: "entry",
-  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", status: "covered", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkills: [], reason: "Python is rendered in the selected base." }],
+  version: 2, baseResumeId, roleFamily: "backend software engineering", seniority: "entry", blockers: [],
+  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", status: "covered", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Python is rendered in the selected base." }],
   diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] },
 });
 
@@ -39,6 +39,7 @@ function makeClient({ selection = "ok" } = {}) {
       calls += 1;
       if (selection === "throw") throw new Error("simulated selection outage");
       if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
+      if (selection === "invalid-reference") return { text: JSON.stringify({ ...validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0]), requirements: [{ id: "req-invalid", text: "Grouped language", priority: "must", kind: "technical-skill", status: "knowledge-only", currentEvidenceIds: [], candidateEvidenceIds: ["skill:not-real"], knowledgeSkillIds: ["skill:not-real"], reason: "Deliberately invalid post-response reference." }] }), usage: { input_tokens: 321, output_tokens: 45, cache_creation_input_tokens: 200, cache_read_input_tokens: 10 }, stopReason: "end_turn" };
       assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal optimizer uses a provider-compatible structured-output schema");
       return { text: JSON.stringify(validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0])), usage: { input_tokens: 1000, output_tokens: 100 }, stopReason: "end_turn" };
     },
@@ -114,12 +115,22 @@ async function main() {
   assert(selFallback.fallback.reason === "simulated selection outage", "selection-fallback: safe reason returned");
   assert(selFallback.warnings.some((w) => w.type === "selection-fallback"), "selection-fallback: warning surfaced");
   assert(JSON.stringify(selFallback.selection) === JSON.stringify(normal.selection), "selection-fallback: canonical base remained byte-for-byte equivalent at the selection layer");
+  const blockerFallback = await makeOrchestrator(makeClient({ selection: "throw" })).call(null, { job: { ...job, description: "U.S. citizenship is required. An active security clearance is required. Candidates on CPT or OPT are not accepted." } });
+  assert(JSON.stringify(blockerFallback.analysis.blockers) === JSON.stringify(["citizenship requirement", "security-clearance requirement", "explicit CPT or OPT rejection"]), "selection-fallback: explicit eligibility blockers remain available without semantic coverage");
 
   const malformedSelection = await makeOrchestrator(makeClient({ selection: "malformed" })).call(null, { job });
   assertResumeShape(malformedSelection, "malformed-selection");
   assert(malformedSelection.fallback.selection === true, "malformed-selection: canonical selection fallback used");
   assert(malformedSelection.fallback.diagnostic?.classification === "response parsing failure", "malformed-selection: parsing failure classified");
   assert(JSON.stringify(malformedSelection.selection) === JSON.stringify(normal.selection), "malformed-selection: malformed output did not alter the canonical base");
+
+  const validationFallback = await makeOrchestrator(makeClient({ selection: "invalid-reference" })).call(null, { job });
+  assertResumeShape(validationFallback, "post-response-validation-fallback");
+  assert(validationFallback.fallback.selection && validationFallback.fallback.diagnostic?.stage === "semantic-validation", "post-response-validation-fallback: validation stage preserved");
+  assert(validationFallback.usage.resumeSelection.inputTokens === 321 && validationFallback.usage.resumeSelection.outputTokens === 45, "post-response-validation-fallback: provider usage preserved");
+  assert(validationFallback.usage.resumeSelection.cacheCreationInputTokens === 200 && validationFallback.usage.resumeSelection.cacheReadInputTokens === 10, "post-response-validation-fallback: cache usage preserved");
+  assert(validationFallback.tailoring.requestMetrics?.serializedRequestBytes > 0 && validationFallback.tailoring.requestMetrics?.catalogBytes > 0 && validationFallback.tailoring.requestMetrics?.dynamicBytes > 0 && validationFallback.tailoring.requestMetrics?.approximateInputTokens > 0, "post-response-validation-fallback: safe request metrics preserved");
+  assert(validationFallback.models.resumeSelection && validationFallback.timings.tailoringApiMs >= 0 && validationFallback.estimatedCostUsd > 0, "post-response-validation-fallback: model, duration, and cost preserved");
 
   // 4. Recovery after failure: a prior failure never blocks a later generation.
   const recovered = await makeOrchestrator(makeClient({})).call(null, { job });
@@ -147,7 +158,7 @@ async function main() {
   const coverApi = coverClient();
   const orchestrateCover = createCoverLetterOrchestrator({ rootDir: root, client: coverApi, keyProvider, getDefaultProfile, compileResumeTex: (fileName) => compileGeneratedTex(paths, fileName), paths });
   const newJd = { company: "Beta Corp", title: "Backend Engineer", description: "Backend engineer building REST APIs on AWS with Redis and PostgreSQL." };
-  const cover = await orchestrateCover({ job: newJd, selection: normal.selection });
+  const cover = await orchestrateCover({ job: newJd, selection: normal.selection, requirements: normal.requirements, finalCoverage: normal.finalCoverage });
   assert(cover.pageCount === 1, `cover-letter-only is one page (got ${cover.pageCount})`);
   assert(cover.atsIntegrity.valid, "cover-letter-only ATS text layer valid");
   assert(cover.modelCalls === 1 && coverApi.calls === 1, "cover-letter-only used exactly one writing-model call");
@@ -159,6 +170,7 @@ async function main() {
     oneCallSemanticOptimizer: normalClient.calls === 1,
     recoveryAfterFailure: true,
     malformedSelectionFallsBack: true,
+    postResponseDiagnosticsSurviveValidationFallback: true,
     compileFailureExplicit: true,
     selectedJobResumeOptionAuthoritative: true,
     selectedBaseRemainsAuthoritative: true,

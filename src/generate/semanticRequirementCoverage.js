@@ -26,6 +26,10 @@ function item(requirement, covered, survivingEvidenceIds) {
     priority: requirement.priority,
     kind: requirement.kind,
     optimizerStatus: requirement.status,
+    currentEvidenceIds: [...(requirement.currentEvidenceIds || [])],
+    candidateEvidenceIds: [...(requirement.candidateEvidenceIds || [])],
+    knowledgeSkillIds: [...(requirement.knowledgeSkillIds || [])],
+    knowledgeSkillNames: [...(requirement.knowledgeSkillNames || [])],
     covered,
     survivingEvidenceIds,
     reason: requirement.reason,
@@ -37,12 +41,12 @@ export function computeSemanticRequirementCoverage(requirements, base, acceptedD
   const records = (requirements || []).map((requirement) => {
     const supplied = [...(requirement.currentEvidenceIds || []), ...(requirement.candidateEvidenceIds || [])];
     const surviving = supplied.filter((id) => rendered.has(id));
-    const renderedKnowledge = (requirement.knowledgeSkills || []).filter((skill) => rendered.has(skillEvidenceId(skill)));
+    const renderedKnowledge = (requirement.knowledgeSkillIds || []).filter((id) => rendered.has(id));
     const knowledgeMayCover = requirement.status === "knowledge-only" && requirement.kind === "technical-skill";
     const covered = requirement.status === "knowledge-only"
       ? knowledgeMayCover && renderedKnowledge.length > 0
       : requirement.status !== "unsupported" && surviving.length > 0;
-    return item(requirement, covered, [...new Set([...surviving, ...renderedKnowledge.map(skillEvidenceId)])]);
+    return item(requirement, covered, [...new Set([...surviving, ...renderedKnowledge])]);
   });
   const split = (priority, covered) => records.filter((record) => record.priority === priority && record.covered === covered);
   const mustCovered = split("must", true); const mustMissing = split("must", false);
