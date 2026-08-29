@@ -18,6 +18,7 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
   const semanticCoverageUnavailable = Boolean(result.fallback?.selection);
   const semanticValues = (items) => semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : values(items);
   const acceptedChangeLabels = describeAcceptedChanges(result.tailoring?.acceptedDiff);
+  const acceptedChangeCount = countAcceptedChanges(result.tailoring?.acceptedDiff);
 
   const save = async () => {
     setSaveMsg(null);
@@ -37,8 +38,8 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <div><div style={{ color: "#4ade80", fontSize: "12px", fontWeight: 700 }}>RESUME COMPLETED</div><div style={{ fontFamily: "Syne, sans-serif", fontSize: "20px", fontWeight: 700, marginTop: "4px" }}>{result.job?.company} · {result.job?.title}</div></div>
         <div style={{ color: "#a5b4fc", fontSize: "13px" }}>{result.selection?.variant}</div>
       </div>
-      {acceptedChangeLabels.length > 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Accepted changes: {acceptedChangeLabels.join(", ")}</div>}
-      {!semanticCoverageUnavailable && acceptedChangeLabels.length === 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Canonical base already retained; no safe high-value changes were needed.</div>}
+      {acceptedChangeLabels.length > 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>Applied {acceptedChangeCount} verified resume change{acceptedChangeCount === 1 ? "" : "s"} for this role: {acceptedChangeLabels.join(", ")}.</div>}
+      {!semanticCoverageUnavailable && acceptedChangeLabels.length === 0 && <div style={{ marginTop: "10px", color: "#b0b8c8", fontSize: "12px", lineHeight: 1.5 }}>The selected canonical base already represented the strongest verified match for this role; no safe high-value changes were needed.</div>}
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px" }}>
         <Badge ok={onePage}>{onePage ? "One page" : `${result.pageCount || "?"} pages`}</Badge>
@@ -93,18 +94,18 @@ export function ResumeGenerationResult({ result, onOpen, onReveal, onOpenFolder,
         <Detail label="Raw lexical coverage" value={result.verification?.lexicalCoverage ? `${result.verification.lexicalCoverage.coveragePercentage}% (diagnostic only)` : "Disabled in the V2 production path"} />
         <Detail label="Skills shown" value={renderedSkills.map((group) => `${group.label}: ${group.items.join(", ")}`).join(" · ") || "None"} />
         <Detail label="Missing JD skills" value={semanticCoverageUnavailable ? "Not evaluated due to optimizer fallback" : (result.verification?.missingSkills || []).join(", ") || "None"} />
-        <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base unchanged after tailoring fallback" : result.fallback?.analysis ? "Minimal base tailoring with fallback analysis" : "Minimal canonical-base tailoring"} />
-        {result.fallback?.selection && <Detail label="Tailoring fallback type" value={result.fallback?.diagnostic?.classification || "Unclassified tailoring failure"} />}
-        {result.fallback?.selection && <Detail label="Tailoring fallback reason" value={result.fallback?.reason || "No reason was provided"} />}
-        {result.fallback?.selection && <Detail label="Tailoring fallback stage / code" value={`${result.fallback?.diagnostic?.stage || "selection"} / ${result.fallback?.diagnostic?.code || "UNKNOWN_ERROR"}`} />}
+        <Detail label="Generation mode" value={result.fallback?.selection ? "Canonical base preserved after semantic optimizer fallback" : "Semantic evidence mapping with deterministic optimization"} />
+        {result.fallback?.selection && <Detail label="Optimizer fallback type" value={result.fallback?.diagnostic?.classification || "Unclassified semantic optimizer failure"} />}
+        {result.fallback?.selection && <Detail label="Optimizer fallback reason" value={result.fallback?.reason || "No reason was provided"} />}
+        {result.fallback?.selection && <Detail label="Optimizer fallback stage / code" value={`${result.fallback?.diagnostic?.stage || "selection"} / ${result.fallback?.diagnostic?.code || "UNKNOWN_ERROR"}`} />}
         <Detail label="Base resume" value={BASE_LABELS[result.baseResumeId] || "Software Engineer / FullStack / Cloud"} />
-        <Detail label="Accepted tailoring changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
-        <Detail label="Rejected tailoring changes" value={String(result.tailoring?.rejected?.length || 0)} />
+        <Detail label="Accepted verified changes" value={`${result.tailoring?.acceptedDiff?.bulletChanges?.length || 0} bullets, ${result.tailoring?.acceptedDiff?.projectSwap ? 1 : 0} project, ${result.tailoring?.acceptedDiff?.skillChanges?.length || 0} skills${result.tailoring?.acceptedDiff?.summaryChange ? ", summary" : ""}`} />
+        <Detail label="Rejected proposed changes" value={String(result.tailoring?.rejected?.length || 0)} />
         <Detail label="Backed off for page fit" value={backedOffForFit.map((item) => item.type).join(", ") || "None"} />
         <Detail label="Included bullets" value={included.join(", ")} />
         <Detail label="Models" value={`${result.models?.analysis || ""}; ${result.models?.resumeSelection || ""}`} />
         <Detail label="Analysis usage" value={formatUsage(result.usage?.analysis)} />
-        <Detail label="Tailoring diff usage" value={formatUsage(result.usage?.resumeSelection)} />
+        <Detail label="Semantic optimizer usage" value={formatUsage(result.usage?.resumeSelection)} />
         <Detail label="Optimizer request size" value={formatRequestMetrics(result.tailoring?.requestMetrics)} />
         <Detail label="Stage timings" value={formatTimings(result.timings)} />
         <Detail label="Files" value={`${result.pdfFileName}; ${result.texFileName}`} />
@@ -129,7 +130,7 @@ function formatUsage(usage) { return usage ? `${usage.inputTokens} input, ${usag
 function formatRequestMetrics(metrics) { return metrics ? `${metrics.serializedRequestBytes} serialized bytes; approximately ${metrics.approximateInputTokens} tokens; ${metrics.catalogBytes} catalog bytes; ${metrics.dynamicBytes} dynamic bytes` : "Unavailable"; }
 function formatTimings(timings) {
   if (!timings) return "Unavailable";
-  return `legacy analysis ${timings.analysisMs ?? "?"} ms; legacy relevance planning ${timings.relevancePlanningMs ?? "?"} ms; semantic optimizer API ${timings.tailoringApiMs ?? "?"} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
+  return `semantic evidence API ${timings.semanticApiMs ?? timings.tailoringApiMs ?? "?"} ms; optional rewrite API ${timings.optionalRewriteApiMs ?? 0} ms; compile/page fit ${timings.compilePageFitMs ?? "?"} ms; final verification ${timings.finalVerificationMs ?? "?"} ms; total ${timings.totalMs ?? "?"} ms`;
 }
 function describeAcceptedChanges(diff = {}) {
   const bullets = diff.bulletChanges?.length || 0;
@@ -139,6 +140,9 @@ function describeAcceptedChanges(diff = {}) {
     ...(diff.skillChanges || []).map((item) => `${item.type === "add" ? "added" : "swapped"} skill ${item.replacementItem}`),
     ...(diff.summaryChange ? ["summary update"] : []),
   ];
+}
+function countAcceptedChanges(diff = {}) {
+  return (diff.bulletChanges?.length || 0) + (diff.skillChanges?.length || 0) + Number(Boolean(diff.projectSwap)) + Number(Boolean(diff.summaryChange));
 }
 function diagnosticText(result) {
   const accepted = result.tailoring?.acceptedDiff || {};
@@ -151,14 +155,18 @@ function diagnosticText(result) {
     } : null,
     optimizerVersion: result.tailoring?.optimizerVersion || null,
     requestMetrics: result.tailoring?.requestMetrics || null,
-    providerUsage: result.usage?.resumeSelection || null,
+    providerUsage: result.tailoring?.primaryUsage || result.usage?.resumeSelection || null,
+    modelCalls: result.tailoring?.modelCalls || null,
+    deterministicPlan: result.tailoring?.deterministicPlan || null,
+    planningCandidates: result.tailoring?.planningCandidates || [],
+    optionalRewrite: result.tailoring?.optionalRewrite || null,
     timings: result.timings || null,
     candidateCount: result.tailoring?.candidateCount ?? null,
     accepted: [accepted.summaryChange, ...(accepted.bulletChanges || []), accepted.projectSwap, ...(accepted.skillChanges || [])].filter(Boolean).map((item) => ({ candidateId: item.candidateId, requirementIds: item.requirementIds || [], type: item.type || (item.summaryId ? "summary" : item.replacementProjectId ? "project" : "skill") })),
     rejected: (result.tailoring?.rejected || []).map((item) => ({ type: item.type, reason: item.reason, requirementIds: item.change?.requirementIds || [] })),
     backedOff: (result.tailoring?.backedOffForFit || []).map((item) => ({ type: item.type, candidateId: item.candidateId, requirementIds: item.requirementIds || [] })),
     requirementTrace: result.fallback?.selection ? (result.tailoring?.failedRequirementTrace || []) : (coverage.requirements || []).map((item) => ({
-      id: item.id, text: item.text, priority: item.priority, kind: item.kind,
+      id: item.id, text: item.text, priority: item.priority, kind: item.kind, evidenceExpectation: item.evidenceExpectation,
       derivedStatus: item.optimizerStatus,
       validCurrentEvidenceIds: item.currentEvidenceIds || [],
       validCandidateEvidenceIds: item.candidateEvidenceIds || [],

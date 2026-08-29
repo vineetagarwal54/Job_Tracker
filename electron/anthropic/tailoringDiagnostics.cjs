@@ -23,9 +23,9 @@ function classifyTailoringFallback(error) {
   } else if (code === "MALFORMED_RESPONSE" || /malformed json|empty json|truncated|parse/.test(signal)) {
     classification = "response parsing failure";
     stage = "response-parsing";
-  } else if (/validation/.test(stage) || stage === "tailoring-validation-application" || /tailoring|candidate|validation|protected structure/.test(signal)) {
-    classification = "tailoring validation/application failure";
-    if (!/validation/.test(stage)) stage = "tailoring-validation-application";
+  } else if (/validation/.test(stage) || /candidate|validation|protected structure/.test(signal)) {
+    classification = "semantic response validation failure";
+    if (!/validation/.test(stage)) stage = "semantic-response-validation";
   }
 
   return {
@@ -39,7 +39,7 @@ function classifyTailoringFallback(error) {
 function logTailoringFallback(logger, diagnostic, error) {
   const write = logger?.error || logger?.warn;
   if (typeof write !== "function") return;
-  write.call(logger, "[JobTrack] Tailoring diff fallback", {
+  write.call(logger, "[JobTrack] Semantic optimizer fallback", {
     stage: diagnostic.stage,
     classification: diagnostic.classification,
     code: diagnostic.code,

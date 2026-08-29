@@ -10,7 +10,7 @@ async function main() {
     load("semanticGoldenFixtures"), load("baseResumes"), load("evidenceCatalog"), load("eligibilityBlockers"),
   ]);
   const bank = require("../../src/generate/content-bank.json");
-  assert(semanticGoldenFixtures.length >= 12, "golden set has at least twelve semantic scenarios");
+  assert(semanticGoldenFixtures.length >= 16, "golden set has at least sixteen semantic optimization scenarios");
   for (const fixture of semanticGoldenFixtures) {
     const base = getCanonicalBaseResume(fixture.baseResumeId);
     const { catalog } = evidenceModule.buildVerifiedEvidenceCatalog(bank, base);

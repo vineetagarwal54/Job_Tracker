@@ -61,7 +61,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
   const generateDir = path.join(rootDir, "src", "generate");
   return async function orchestrate({ job: rawJob, signal, progress }) {
     const generationStartedAt = Date.now();
-    const timings = { analysisMs: null, relevancePlanningMs: null, tailoringApiMs: null, compilePageFitMs: null, finalVerificationMs: null, totalMs: null };
+    const timings = { analysisMs: null, relevancePlanningMs: null, tailoringApiMs: null, semanticApiMs: null, optionalRewriteApiMs: 0, compilePageFitMs: null, finalVerificationMs: null, totalMs: null };
     // Stage tracking (task Part 1): every genuine technical failure carries the
     // exact stage that failed so the UI can show a useful message while keeping
     // the technical detail in advanced diagnostics.
@@ -103,6 +103,8 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
       try {
         generated = await generateSemanticResumeOptimization({ client, apiKey, bank, base: canonicalBase, job, signal, generateDir, progress });
         timings.tailoringApiMs = generated.apiDurationMs ?? (Date.now() - selectionStartedAt);
+        timings.semanticApiMs = timings.tailoringApiMs;
+        timings.optionalRewriteApiMs = generated.optionalRewrite?.apiDurationMs || 0;
       } catch (error) {
         if (isCancellation(error, signal)) throw error;
         const completedDiagnostics = error.optimizerDiagnostics || {};
@@ -112,6 +114,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         selectionFallbackReason = selectionFallbackDiagnostic.message;
         logTailoringFallback(logger, selectionFallbackDiagnostic, error);
         timings.tailoringApiMs = completedDiagnostics.apiDurationMs ?? (Date.now() - selectionStartedAt);
+        timings.semanticApiMs = timings.tailoringApiMs;
       }
       const analyzed = { analysis: generated.analysis, usage: null, model: null };
       const usedAnalysisFallback = false;
@@ -197,7 +200,7 @@ function createOrchestrator({ rootDir, client, keyProvider, getDefaultProfile, c
         job: { company: job.company, title: job.title, resumeOption: job.resumeOption, baseResumeId: job.baseResumeId }, analysis: analyzed.analysis, preliminaryCoverage,
         baseResumeId: canonicalBase.id,
         selection: rendered.finalSelection, requirements: generated.requirements, finalCoverage: finalVerification.coverage,
-        tailoring: { proposedDiff: generated.proposedDiff, acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, requirementIssues: generated.requirementIssues || [], failedRequirementTrace: generated.failedRequirementTrace || [], densityRatio: generated.densityRatio, candidateCount: null, meaningfulGaps: finalVerification.coverage.requirements.filter((item) => !item.covered), unsupportedMissing: finalVerification.coverage.unsupported.map((item) => ({ term: item.text, requirementId: item.id })), beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts, optimizerVersion: 2, requestMetrics: generated.requestMetrics },
+        tailoring: { proposedDiff: null, deterministicPlan: generated.deterministicPlan || null, planningCandidates: generated.planningCandidates || [], acceptedDiff: generated.acceptedDiff, rejected: generated.rejected, requirementIssues: generated.requirementIssues || [], failedRequirementTrace: generated.failedRequirementTrace || [], densityRatio: generated.densityRatio, candidateCount: generated.planningCandidates?.length ?? null, meaningfulGaps: finalVerification.coverage.requirements.filter((item) => !item.covered), unsupportedMissing: finalVerification.coverage.unsupported.map((item) => ({ term: item.text, requirementId: item.id })), beforeCoverage: preliminaryCoverage, afterCoverage: finalVerification.coverage, coverageImprovement, backedOffForFit: pageFit.backedOff, pageFitAttempts: pageFit.attempts, optimizerVersion: 2, requestMetrics: generated.requestMetrics, primaryUsage: generated.primaryUsage || null, optionalRewrite: generated.optionalRewrite || null, modelCalls: generated.modelCalls || 1 },
         verification: finalVerification, texFileName, pdfFileName: compiled.pdfFileName, pageCount,
         atsIntegrity, atsWarning: ATS_WARNING,
         warnings,

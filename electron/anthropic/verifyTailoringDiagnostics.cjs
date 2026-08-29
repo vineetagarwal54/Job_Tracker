@@ -49,7 +49,7 @@ async function main() {
   assert(schemaDiagnostic.stage === "structured-output-schema", "schema failure stage");
 
   assert(classifyTailoringFallback(Object.assign(new Error("bad JSON"), { code: "MALFORMED_RESPONSE" })).classification === "response parsing failure", "parsing failure classification");
-  assert(classifyTailoringFallback(Object.assign(new Error("candidate application failed"), { tailoringStage: "tailoring-validation-application" })).classification === "tailoring validation/application failure", "validation failure classification");
+  assert(classifyTailoringFallback(Object.assign(new Error("candidate application failed"), { tailoringStage: "semantic-response-validation" })).classification === "semantic response validation failure", "validation failure classification");
   assert(classifyTailoringFallback(Object.assign(new Error("network unavailable"), { code: "NETWORK_ERROR" })).classification === "API/request failure", "request failure classification");
 
   const logged = [];

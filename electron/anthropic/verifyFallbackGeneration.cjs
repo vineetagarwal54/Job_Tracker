@@ -26,8 +26,7 @@ const job = { company: "Test Co", title: "Backend Engineer", description: JD };
 
 const validOptimization = (baseResumeId) => ({
   version: 2, baseResumeId, roleFamily: "backend software engineering", seniority: "entry", blockers: [],
-  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Python is rendered in the selected base." }],
-  diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] },
+  requirements: [{ id: "req-python", text: "Python", priority: "must", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: ["skill:python"], candidateEvidenceIds: [], knowledgeSkillIds: [] }],
 });
 
 // Mock client modes are "ok", "throw", or "malformed".
@@ -39,7 +38,7 @@ function makeClient({ selection = "ok" } = {}) {
       calls += 1;
       if (selection === "throw") throw new Error("simulated selection outage");
       if (selection === "malformed") return { text: "{not-json", usage: null, stopReason: "end_turn" };
-      if (selection === "invalid-reference") return { text: JSON.stringify({ ...validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0]), requirements: [{ id: "req-invalid", text: "Grouped language", priority: "must", kind: "technical-skill", currentEvidenceIds: [], candidateEvidenceIds: ["skill:not-real"], knowledgeSkillIds: ["skill:not-real"], reason: "Deliberately invalid post-response reference." }] }), usage: { input_tokens: 321, output_tokens: 45, cache_creation_input_tokens: 200, cache_read_input_tokens: 10 }, stopReason: "end_turn" };
+      if (selection === "invalid-reference") return { text: JSON.stringify({ ...validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0]), requirements: [{ id: "req-invalid", text: "Grouped language", priority: "must", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: [], candidateEvidenceIds: ["skill:not-real"], knowledgeSkillIds: ["skill:not-real"], reason: "Deliberately invalid post-response reference." }] }), usage: { input_tokens: 321, output_tokens: 45, cache_creation_input_tokens: 200, cache_read_input_tokens: 10 }, stopReason: "end_turn" };
       assert(!JSON.stringify(body.output_config.format.schema).includes('"maxItems"'), "normal optimizer uses a provider-compatible structured-output schema");
       return { text: JSON.stringify(validOptimization(body.output_config.format.schema.properties.baseResumeId.enum[0])), usage: { input_tokens: 1000, output_tokens: 100 }, stopReason: "end_turn" };
     },

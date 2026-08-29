@@ -2,6 +2,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const { generateSemanticResumeOptimization, semanticOptimizerSchema, validateRequirements, resolveKnowledgeSkillNames, expandSemanticDiff } = require("./semanticResumeOptimizer.cjs");
 const { SEMANTIC_OPTIMIZER_SYSTEM, SELECTION_SYSTEM } = require("./promptModules.cjs");
+const { rewriteResumeBullet } = require("./rewriteResumeBullet.cjs");
 
 const root = path.resolve(__dirname, "..", "..");
 const generateDir = path.join(root, "src", "generate");
@@ -9,14 +10,14 @@ const load = (name) => import(pathToFileURL(path.join(generateDir, `${name}.js`)
 const bank = require("../../src/generate/content-bank.json");
 const assert = (condition, message) => { if (!condition) throw new Error(`FAIL: ${message}`); };
 
-const requirement = (id, text, { priority = "must", kind = "technical-skill", status = "covered", current = [], candidate = [], knowledgeIds = [] } = {}) => ({
-  id, text, priority, kind, status, currentEvidenceIds: current, candidateEvidenceIds: candidate, knowledgeSkillIds: knowledgeIds,
+const requirement = (id, text, { priority = "must", kind = "technical-skill", evidenceExpectation = ["experience", "responsibility"].includes(kind) ? "accomplishment" : "knowledge", status = "covered", current = [], candidate = [], knowledgeIds = [] } = {}) => ({
+  id, text, priority, kind, evidenceExpectation, status, currentEvidenceIds: current, candidateEvidenceIds: candidate, knowledgeSkillIds: knowledgeIds,
   reason: status === "unsupported" ? "No supplied verified evidence supports this requirement." : "Supplied evidence semantically supports this requirement.",
 });
 
 async function main() {
-  const [{ getCanonicalBaseResume, canonicalBases }, evidenceModule, coverageModule, tailoringModule, skillModule, warningsModule] = await Promise.all([
-    load("baseResumes"), load("evidenceCatalog"), load("semanticRequirementCoverage"), load("tailoringDiff"), load("skillInventory"), load("resumeWarnings"),
+  const [{ getCanonicalBaseResume, canonicalBases }, evidenceModule, coverageModule, tailoringModule, skillModule, warningsModule, plannerModule] = await Promise.all([
+    load("baseResumes"), load("evidenceCatalog"), load("semanticRequirementCoverage"), load("tailoringDiff"), load("skillInventory"), load("resumeWarnings"), load("semanticResumePlanner"),
   ]);
   const canonicalSnapshot = JSON.stringify(canonicalBases);
   const base = getCanonicalBaseResume("swe-cloud");
@@ -30,7 +31,7 @@ async function main() {
   assert(allowedKnowledgeIds.includes("skill:google-cloud-platform-gcp") && !allowedKnowledgeIds.includes("skill:python") && !allowedKnowledgeIds.includes("skill:not-real"), "structured output constrains knowledge references to verified knowledge-only skill IDs");
   assert(!catalog.alternatives.skills.inventory.some((skill) => skill.skill === "Python or JavaScript/TypeScript"), "grouped language wording requires no synthetic inventory skill");
   assert(catalog.base.education.id === "education:umd-meng-software-engineering" && evidenceIndex.get(catalog.base.education.id)?.current, "canonical education is immutable current evidence");
-  assert(!SEMANTIC_OPTIMIZER_SYSTEM.includes("For every selected candidate, return its candidate ID") && SEMANTIC_OPTIMIZER_SYSTEM.includes("Never return a candidate ID"), "V2 prompt uses its schema-specific rewrite contract");
+  assert(!Object.hasOwn(semanticOptimizerSchema(base, catalog).properties, "diff") && SEMANTIC_OPTIMIZER_SYSTEM.includes("do not propose resume mutations"), "primary V2 contract contains evidence mapping but no mutation schema or rewrite contract");
   assert(SELECTION_SYSTEM.includes("For every selected candidate, return its candidate ID"), "legacy compatibility prompt remains unchanged");
 
   const semanticCases = [
@@ -69,6 +70,8 @@ async function main() {
   assert(normalizedGcp.status === "knowledge-only" && !normalizedGcp.currentEvidenceIds.length && !normalizedGcp.candidateEvidenceIds.length, "knowledge-only requirements derive status only from knowledgeSkillIds");
   assert(resolveKnowledgeSkillNames([normalizedGcp], catalog)[0].knowledgeSkillNames[0] === gcpSkill.skill, "validated skill IDs resolve deterministically to display names");
   Object.assign(gcpRequirement, normalizedGcp);
+  const deterministicSkillPlan = plannerModule.planSemanticResumeChanges({ base, catalog, evidenceIndex, requirements: [gcpRequirement] });
+  assert(deterministicSkillPlan.diff.skillChanges.length === 1 && deterministicSkillPlan.diff.skillChanges[0].replacementItem === gcpSkill.skill, "deterministic optimizer selects a verified uncovered knowledge skill without a model-authored diff");
   const skillProposal = { version: 2, baseResumeId: base.id, roleFamily: "cloud", seniority: "entry", requirements: [gcpRequirement], diff: { bulletChanges: [], projectChanges: [], summaryChanges: [], skillChanges: [{ type: "add", skill: gcpSkill.skill, targetGroup: "Cloud and DevOps", baseItem: "", requirementIds: [gcpRequirement.id], justification: "The role requests GCP platform knowledge." }] } };
   const expandedSkill = expandSemanticDiff(skillProposal, catalog, evidenceIndex);
   const skillApplied = tailoringModule.applyTailoringDiff({ bank, base, diff: expandedSkill.diff, semanticRequirements: [gcpRequirement] });
@@ -91,49 +94,71 @@ async function main() {
   const realFailureProposal = {
     version: 2, baseResumeId: base.id, roleFamily: "software engineering intern", seniority: "intern", blockers: [],
     requirements: [
-      { id: "req-cicd", text: "CI/CD experience", priority: "must", kind: "experience", currentEvidenceIds: [], candidateEvidenceIds: ["terrapin-cicd"], knowledgeSkillIds: [], reason: "Alternative verified project evidence." },
-      { id: "req-degree", text: "Currently pursuing or recently completed a bachelor's or master's degree in CS", priority: "must", kind: "qualification", currentEvidenceIds: [catalog.base.education.id], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Canonical education evidence." },
-      { id: "req-dsa", text: "Data structures and algorithms", priority: "must", kind: "qualification", currentEvidenceIds: [], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "No suitable supplied evidence was cited." },
-      { id: "req-graphql", text: "GraphQL familiarity", priority: "preferred", kind: "technical-skill", currentEvidenceIds: ["skill:graphql"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "GraphQL is already rendered." },
-      { id: "req-platform", text: "Kubernetes, with Kafka helpful", priority: "preferred", kind: "technical-skill", currentEvidenceIds: ["skill:kubernetes"], candidateEvidenceIds: [], knowledgeSkillIds: ["skill:kafka"], reason: "Kubernetes is current and Kafka is optional knowledge." },
-      { id: "req-unknown", text: "Unknown platform", priority: "preferred", kind: "technical-skill", currentEvidenceIds: ["evidence:not-real"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Deliberately unknown evidence." },
-      { id: "req-gcp-skill", text: "GCP familiarity", priority: "preferred", kind: "technical-skill", currentEvidenceIds: [], candidateEvidenceIds: [], knowledgeSkillIds: [gcpSkill.id], reason: "Verified knowledge-only skill." },
+      { id: "req-cicd", text: "CI/CD experience", priority: "must", kind: "experience", evidenceExpectation: "accomplishment", currentEvidenceIds: [], candidateEvidenceIds: ["terrapin-cicd"], knowledgeSkillIds: [], reason: "Alternative verified project evidence." },
+      { id: "req-degree", text: "Currently pursuing or recently completed a bachelor's or master's degree in CS", priority: "must", kind: "qualification", evidenceExpectation: "accomplishment", currentEvidenceIds: [catalog.base.education.id], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Canonical education evidence." },
+      { id: "req-dsa", text: "Strong programming fundamentals with solid command of data structures and algorithms", priority: "must", kind: "qualification", evidenceExpectation: "knowledge", currentEvidenceIds: [], candidateEvidenceIds: [], knowledgeSkillIds: ["skill:data-structures", "skill:algorithms", "skill:big-o-analysis"], reason: "Verified CS foundations knowledge." },
+      { id: "req-graphql", text: "GraphQL familiarity", priority: "preferred", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: ["skill:graphql"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "GraphQL is already rendered." },
+      { id: "req-platform", text: "Kubernetes, with Kafka helpful", priority: "preferred", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: ["skill:kubernetes"], candidateEvidenceIds: [], knowledgeSkillIds: ["skill:kafka"], reason: "Kubernetes is current and Kafka is optional knowledge." },
+      { id: "req-unknown", text: "Unknown platform", priority: "preferred", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: ["evidence:not-real"], candidateEvidenceIds: [], knowledgeSkillIds: [], reason: "Deliberately unknown evidence." },
+      { id: "req-gcp-skill", text: "GCP familiarity", priority: "preferred", kind: "technical-skill", evidenceExpectation: "knowledge", currentEvidenceIds: [], candidateEvidenceIds: [], knowledgeSkillIds: [gcpSkill.id], reason: "Verified knowledge-only skill." },
+      { id: "req-design-participation", text: "Participate in technical design discussions, code reviews, and agile development cycles", priority: "must", kind: "qualification", evidenceExpectation: "accomplishment", currentEvidenceIds: [], candidateEvidenceIds: [], knowledgeSkillIds: ["skill:code-reviews", "skill:agile-scrum"], reason: "Participation requires accomplishment evidence." },
     ],
     diff: {
       bulletChanges: [{ type: "swap", baseBulletId: baseBullet.sourceBulletId, replacementBulletId: "bullet:not-real", rewrittenText: "", requirementIds: ["req-cicd"], justification: "Deliberately invalid bullet alongside a valid skill edit." }],
       projectChanges: [], summaryChanges: [],
-      skillChanges: [{ type: "add", skill: gcpSkill.skill, targetGroup: "Cloud and DevOps", baseItem: "", requirementIds: ["req-gcp-skill"], justification: "The posting lists GCP familiarity." }],
+      skillChanges: [
+        { type: "add", skill: "Data Structures", targetGroup: "Architecture and Practices", baseItem: "", requirementIds: ["req-dsa"], justification: "The posting asks for data structures fundamentals." },
+        { type: "add", skill: "Algorithms", targetGroup: "Architecture and Practices", baseItem: "", requirementIds: ["req-dsa"], justification: "The posting asks for algorithms fundamentals." },
+        { type: "add", skill: "Big O Analysis", targetGroup: "Architecture and Practices", baseItem: "", requirementIds: ["req-dsa"], justification: "The posting asks for programming fundamentals." },
+        { type: "add", skill: gcpSkill.skill, targetGroup: "Cloud and DevOps", baseItem: "", requirementIds: ["req-gcp-skill"], justification: "The posting lists GCP familiarity." },
+      ],
     },
   };
   const normalizedFailure = validateRequirements(realFailureProposal, catalog, evidenceIndex);
   const byId = new Map(normalizedFailure.requirements.map((item) => [item.id, item]));
   assert(byId.get("req-cicd").status === "coverable", "candidate-only evidence derives coverable without global failure");
   assert(byId.get("req-degree").status === "covered", "degree requirement is covered by immutable education evidence");
-  assert(byId.get("req-dsa").status === "unsupported", "uncited DSA requirement safely remains unsupported");
+  assert(byId.get("req-dsa").status === "knowledge-only" && byId.get("req-dsa").knowledgeSkillIds.length === 3, "knowledge-oriented qualification retains verified DSA fundamentals evidence");
   assert(byId.get("req-graphql").status === "covered", "already rendered GraphQL skill is current evidence");
   assert(byId.get("req-platform").status === "covered" && byId.get("req-platform").knowledgeSkillIds.includes("skill:kafka"), "current Kubernetes takes precedence over optional Kafka knowledge");
   assert(byId.get("req-unknown").status === "unsupported" && normalizedFailure.issues.some((item) => item.discardedEvidenceId === "evidence:not-real"), "unknown evidence is discarded per requirement");
+  assert(byId.get("req-design-participation").status === "unsupported" && byId.get("req-design-participation").knowledgeSkillIds.length === 0, "participation and code-review accomplishment requirement remains missing with skills-only evidence");
   const normalizedProposal = { ...realFailureProposal, requirements: normalizedFailure.requirements };
   const mixedExpanded = expandSemanticDiff(normalizedProposal, catalog, evidenceIndex);
   const mixedApplied = tailoringModule.applyTailoringDiff({ bank, base, diff: mixedExpanded.diff, semanticRequirements: normalizedFailure.requirements });
-  assert(mixedExpanded.rejected.some((item) => item.type === "bullet") && mixedApplied.acceptedDiff.skillChanges.length === 1, "invalid bullet is rejected while valid knowledge-only skill change applies");
+  assert(mixedExpanded.rejected.some((item) => item.type === "bullet") && mixedApplied.acceptedDiff.skillChanges.length === 4, "invalid bullet is rejected while valid knowledge-only skill changes apply");
+  const deterministicRealFailurePlan = plannerModule.planSemanticResumeChanges({ base, catalog, evidenceIndex, requirements: normalizedFailure.requirements });
+  const locallyMixed = tailoringModule.applyTailoringDiff({ bank, base, semanticRequirements: normalizedFailure.requirements, diff: { ...deterministicRealFailurePlan.diff, bulletChanges: [{ candidateId: "invalid-local-change", type: "swap", entryId: "iiit-hyderabad-software-intern", baseBulletId: baseBullet.sourceBulletId, replacementBulletId: "bullet:not-real", requirementIds: ["req-cicd"], justification: "Deliberately invalid local change." }, ...deterministicRealFailurePlan.diff.bulletChanges] } });
+  assert(locallyMixed.rejected.some((item) => item.type === "bullet") && locallyMixed.acceptedDiff.skillChanges.length > 0, "one invalid deterministic candidate is rejected while an independent valid skill change still applies");
   const educationCoverage = coverageModule.computeSemanticRequirementCoverage(normalizedFailure.requirements, mixedApplied.base, mixedApplied.acceptedDiff);
   assert(educationCoverage.mustHave.covered.some((item) => item.id === "req-degree"), "education evidence survives final rendered coverage");
+  assert(educationCoverage.mustHave.covered.some((item) => item.id === "req-dsa"), "rendered Data Structures, Algorithms, and Big O skills cover the fundamentals qualification");
+  assert(educationCoverage.mustHave.missing.some((item) => item.id === "req-design-participation"), "accomplishment-oriented design and code-review participation remains missing");
+  const aiToolRequirement = requirement("ai-tool-familiarity", "Familiarity with AI coding tools", { priority: "preferred", kind: "qualification", evidenceExpectation: "knowledge", status: "knowledge-only", knowledgeIds: ["skill:claude-code"] });
+  const normalizedAiTool = validateRequirements({ version: 2, baseResumeId: base.id, requirements: [aiToolRequirement] }, catalog, evidenceIndex).requirements[0];
+  assert(coverageModule.computeSemanticRequirementCoverage([normalizedAiTool], base).niceToHave.missing.length === 1, "knowledge-only AI coding tool is missing until rendered in final Skills");
+  const aiToolProposal = { version: 2, baseResumeId: base.id, roleFamily: "software", seniority: "entry", requirements: [normalizedAiTool], diff: { bulletChanges: [], projectChanges: [], summaryChanges: [], skillChanges: [{ type: "add", skill: "Claude Code", targetGroup: "Architecture and Practices", baseItem: "", requirementIds: [normalizedAiTool.id], justification: "The posting prefers familiarity with AI coding tools." }] } };
+  const aiToolExpanded = expandSemanticDiff(aiToolProposal, catalog, evidenceIndex);
+  const aiToolApplied = tailoringModule.applyTailoringDiff({ bank, base, diff: aiToolExpanded.diff, semanticRequirements: [normalizedAiTool] });
+  assert(aiToolApplied.acceptedDiff.skillChanges.length === 1 && coverageModule.computeSemanticRequirementCoverage([normalizedAiTool], aiToolApplied.base, aiToolApplied.acceptedDiff).niceToHave.covered.length === 1, "knowledge-only AI coding tool covers familiarity only after final Skills rendering");
   const flexibleDegreeWarnings = warningsModule.buildResumeWarnings({ job: { description: "Candidates must be currently pursuing or recently completed a bachelor's or master's degree in computer science." }, analysis: { blockers: [] }, coverage: { mustHave: { missing: [] }, niceToHave: { missing: [] } } });
   assert(!flexibleDegreeWarnings.some((item) => item.type === "education-level" && item.severity === "warning"), "bachelor's OR master's wording does not trigger an undergraduate-only warning");
   assert(JSON.stringify(canonicalBases) === canonicalSnapshot, "canonical bases remain byte-for-byte unchanged");
   assert(skillModule.validateSkillInventory(bank).valid, "existing verified skill inventory remains valid");
+  const failedRewrite = await rewriteResumeBullet({ client: { request: async () => { throw Object.assign(new Error("deliberate rewrite outage"), { code: "TEST_REWRITE_FAILURE" }); } }, apiKey: "mock", originalBullet: baseBullet.text, requirementTexts: ["Selenium browser automation"], allowedSupportedTerminology: ["Selenium"] });
+  assert(!failedRewrite.ok && failedRewrite.rewrittenText === baseBullet.text && failedRewrite.diagnostic.stage === "optional-bullet-rewrite", "optional rewrite failure keeps the original bullet and remains locally diagnosed");
 
   const requestRequirements = semanticCases.map((item) => { const { status, ...modelFields } = item.requirement; return modelFields; });
   let calls = 0; let captured;
   const client = { request: async (request) => {
     calls += 1; captured = request;
-    return { text: JSON.stringify({ version: 2, baseResumeId: base.id, roleFamily: "full stack backend", seniority: "mid", blockers: [], requirements: requestRequirements, diff: { bulletChanges: [], projectChanges: [], skillChanges: [], summaryChanges: [] } }), usage: { input_tokens: 15000, output_tokens: 900, cache_creation_input_tokens: 14000 }, stopReason: "end_turn" };
+    return { text: JSON.stringify({ version: 2, baseResumeId: base.id, roleFamily: "full stack backend", seniority: "mid", blockers: [], requirements: requestRequirements }), usage: { input_tokens: 15000, output_tokens: 900, cache_creation_input_tokens: 14000 }, stopReason: "end_turn" };
   } };
   const optimized = await generateSemanticResumeOptimization({ client, apiKey: "mock", bank, base, job: { title: "Software Engineer", description: "Representative composite job description." }, generateDir });
   assert(calls === 1 && captured.stream === true, "optimizer uses one streamed Sonnet request");
   assert(captured.body.thinking.type === "disabled" && captured.body.output_config.effort === "low", "optimizer disables thinking and uses low effort");
   assert(captured.body.system[1].cache_control.type === "ephemeral", "stable evidence catalog is prompt-cache eligible");
+  assert(captured.body.max_tokens === 2600 && !Object.hasOwn(captured.body.output_config.format.schema.properties, "diff"), "primary response headroom is reduced and excludes all model-generated mutations");
   assert(optimized.requestMetrics.serializedRequestBytes < 75000, `serialized request stays below 75 KB (got ${optimized.requestMetrics.serializedRequestBytes})`);
   assert(optimized.requestMetrics.dynamicBytes < 1000, "dynamic JD payload is not duplicated across request objects");
   assert(optimized.acceptedDiff.bulletChanges.length === 0 && optimized.acceptedDiff.skillChanges.length === 0, "already matched evidence permits a zero-change result");
@@ -151,6 +176,9 @@ async function main() {
     catalogBytes: optimized.requestMetrics.catalogBytes,
     dynamicBytes: optimized.requestMetrics.dynamicBytes,
     mockedActualInputTokens: optimized.usage.input_tokens,
+    mockedActualOutputTokens: optimized.usage.output_tokens,
+    primarySchemaHasMutations: Object.hasOwn(captured.body.output_config.format.schema.properties, "diff"),
+    optionalRewriteFailureIsolated: true,
   }, null, 2));
 }
 

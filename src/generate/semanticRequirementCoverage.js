@@ -26,6 +26,7 @@ function item(requirement, covered, survivingEvidenceIds) {
     text: requirement.text,
     priority: requirement.priority,
     kind: requirement.kind,
+    evidenceExpectation: requirement.evidenceExpectation,
     optimizerStatus: requirement.status,
     currentEvidenceIds: [...(requirement.currentEvidenceIds || [])],
     candidateEvidenceIds: [...(requirement.candidateEvidenceIds || [])],
@@ -44,7 +45,7 @@ export function computeSemanticRequirementCoverage(requirements, base, acceptedD
     const supplied = [...(requirement.currentEvidenceIds || []), ...(requirement.candidateEvidenceIds || [])];
     const surviving = supplied.filter((id) => rendered.has(id));
     const renderedKnowledge = (requirement.knowledgeSkillIds || []).filter((id) => rendered.has(id));
-    const knowledgeMayCover = requirement.status === "knowledge-only" && requirement.kind === "technical-skill";
+    const knowledgeMayCover = requirement.status === "knowledge-only" && requirement.evidenceExpectation === "knowledge" && ["technical-skill", "qualification"].includes(requirement.kind);
     const covered = requirement.status === "knowledge-only"
       ? knowledgeMayCover && renderedKnowledge.length > 0
       : requirement.status !== "unsupported" && surviving.length > 0;

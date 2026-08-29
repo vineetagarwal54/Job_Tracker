@@ -96,7 +96,7 @@ export function buildResumeWarnings({
   }
   if (usedSelectionFallback) {
     push(warnings, "selection-fallback", "info",
-      "The semantic optimizer was unavailable, so the selected canonical base was kept unchanged.");
+      "Semantic resume optimization was unavailable, so the selected canonical base was preserved.");
   }
   if (requestedVariant && renderedVariant && requestedVariant !== renderedVariant) {
     push(warnings, "variant-mismatch", "info",

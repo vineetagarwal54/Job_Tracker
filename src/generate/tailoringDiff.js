@@ -104,7 +104,7 @@ function bankIndex(bank) {
   return { experience, projects, bullets, skillItems };
 }
 
-const BASE_SKILL_GROUP_COMPATIBILITY = Object.freeze({
+export const BASE_SKILL_GROUP_COMPATIBILITY = Object.freeze({
   languages: ["languages"],
   backend: ["backend", "distributed-messaging"],
   frontend: ["frontend"],
@@ -123,6 +123,11 @@ const BASE_SKILL_GROUP_COMPATIBILITY = Object.freeze({
   "core concepts": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
   "architecture and practices": ["system-design", "security", "testing", "cs-foundations", "architecture-practices", "distributed-messaging", "observability"],
 });
+
+export function compatibleSkillGroupLabel(base, skillRecord) {
+  const groupIds = new Set(skillRecord?.groupIds || []);
+  return (base.skills || []).find((group) => (BASE_SKILL_GROUP_COMPATIBILITY[group.label.toLowerCase()] || []).some((id) => groupIds.has(id)))?.label || null;
+}
 
 function reject(rejected, type, reason, change) {
   rejected.push({ type, reason, change: clone(change) });
@@ -151,8 +156,8 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
     if (!semanticMode || !Array.isArray(change?.requirementIds) || !change.requirementIds.length || typeof change.justification !== "string" || !change.justification.trim()) return !semanticMode;
     return change.requirementIds.every((id) => semanticById.has(id)) && change.requirementIds.some((id) => {
       const requirement = semanticById.get(id);
-      return (requirement.status === "coverable" && evidenceIds.some((evidenceId) => requirement.candidateEvidenceIds.includes(evidenceId)))
-        || (allowKnowledgeSkill && requirement.status === "knowledge-only" && evidenceIds.some((evidenceId) => requirement.knowledgeSkillIds.includes(evidenceId)));
+      return evidenceIds.some((evidenceId) => requirement.candidateEvidenceIds.includes(evidenceId) || requirement.currentEvidenceIds.includes(evidenceId))
+        || (allowKnowledgeSkill && requirement.evidenceExpectation === "knowledge" && evidenceIds.some((evidenceId) => requirement.knowledgeSkillIds.includes(evidenceId)));
     });
   };
   const candidate = diff && typeof diff === "object" && !Array.isArray(diff) ? diff : {};
