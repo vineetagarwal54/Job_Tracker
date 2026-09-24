@@ -35,6 +35,14 @@ export function buildVerifiedEvidenceCatalog(bank, base) {
   const currentProjectIds = new Set(base.projects.map((project) => project.entryId));
   const currentProjectBulletIds = new Set(base.projects.flatMap((entry) => entry.bullets.map((bullet) => bullet.sourceBulletId)));
   const experienceById = new Map((bank.experience || []).map((entry) => [entry.id, entry]));
+  const sourceBulletById = new Map([...(bank.experience || []), ...(bank.projects || [])]
+    .flatMap((entry) => (entry.bullets || []).map((bullet) => [bullet.id, bullet])));
+  const verifiedBullet = (bullet, extra = {}) => ({
+    id: bullet.sourceBulletId || bullet.id,
+    text: bullet.text,
+    lockedMetrics: [...(sourceBulletById.get(bullet.sourceBulletId || bullet.id)?.lockedMetrics || [])],
+    ...extra,
+  });
   const educationSource = (bank.education || []).find((entry) => entry.id === base.education?.educationId) || {};
   const education = {
     id: educationEvidenceId(base.education.educationId),
@@ -48,25 +56,25 @@ export function buildVerifiedEvidenceCatalog(bank, base) {
   const experience = base.experience.map((entry) => ({
     id: experienceEvidenceId(entry.entryId),
     entryId: entry.entryId,
-    bullets: entry.bullets.map((bullet) => ({ id: bullet.sourceBulletId, text: bullet.text })),
+    bullets: entry.bullets.map((bullet) => verifiedBullet(bullet)),
   }));
   const alternativeExperienceBullets = base.experience.flatMap((entry) => {
     const source = experienceById.get(entry.entryId);
     return (source?.bullets || [])
       .filter((bullet) => !currentExperienceBulletIds.has(bullet.id))
-      .map((bullet) => ({ id: bullet.id, entryId: entry.entryId, text: bullet.text }));
+      .map((bullet) => verifiedBullet(bullet, { entryId: entry.entryId }));
   });
   const projects = base.projects.map((project) => ({
     id: projectEvidenceId(project.entryId),
     projectId: project.entryId,
     title: project.title,
-    bullets: project.bullets.map((bullet) => ({ id: bullet.sourceBulletId, text: bullet.text })),
+    bullets: project.bullets.map((bullet) => verifiedBullet(bullet)),
   }));
   const alternativeProjects = (bank.projects || [])
     .filter((project) => !currentProjectIds.has(project.id))
     .map((project) => ({
       id: projectEvidenceId(project.id), projectId: project.id, title: project.org, role: project.role,
-      bullets: project.bullets.map((bullet) => ({ id: bullet.id, text: bullet.text })),
+      bullets: project.bullets.map((bullet) => verifiedBullet(bullet)),
     }));
   const skills = inventorySkills(bank).map((skill) => ({
     id: skillEvidenceId(skill.name),

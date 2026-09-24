@@ -7,8 +7,8 @@ import { getCanonicalBaseResume } from "./baseResumes.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const bank = JSON.parse(fs.readFileSync(path.join(here, "content-bank.json"), "utf8"));
 const base = getCanonicalBaseResume("swe-cloud");
-const extraction = { keywords: ["sql", "mobile", "credentials", "kubernetes", "django"].map((normalized) => ({ normalized, value: normalized })) };
-const analysis = { mustHaveKeywords: ["sql", "kubernetes", "django"], niceToHaveKeywords: ["mobile", "credentials"], responsibilities: ["improve SQL performance"] };
+const extraction = { keywords: ["sql", "mobile", "credentials", "kubernetes", "django", "Qwen3-Coder-480B"].map((normalized) => ({ normalized, value: normalized })) };
+const analysis = { mustHaveKeywords: ["sql", "kubernetes", "django", "Qwen3-Coder-480B"], niceToHaveKeywords: ["mobile", "credentials"], responsibilities: ["improve SQL performance"] };
 const assert = (condition, message) => { if (!condition) throw new Error(`FAIL: ${message}`); };
 const apply = (diff) => applyTailoringDiff({ bank, base, diff: { version: 1, baseResumeId: base.id, bulletChanges: [], skillChanges: [], ...diff }, extraction, analysis });
 const counts = (resume) => ({ experience: resume.experience.length, projects: resume.projects.length, education: Boolean(resume.education), skills: resume.skills.length, bullets: resume.experience.reduce((sum, entry) => sum + entry.bullets.length, 0) });
@@ -17,15 +17,15 @@ const originalCounts = counts(base);
 const zero = apply(EMPTY_TAILORING_DIFF);
 assert(JSON.stringify(zero.base) === JSON.stringify(base), "zero-change diff preserves the base byte-for-byte");
 
-const swap = apply({ bulletChanges: [{ type: "swap", entryId: "xelpmoc-software-engineer", baseBulletId: "xelpmoc-tourism-backend", replacementBulletId: "xelpmoc-credentials-wallet", justification: "The JD emphasizes credentials." }] });
-assert(swap.acceptedDiff.bulletChanges.length === 1 && swap.base.experience.find((entry) => entry.entryId === "xelpmoc-software-engineer").bullets.some((bullet) => bullet.sourceBulletId === "xelpmoc-credentials-wallet"), "same-experience bullet swap applied");
+const swap = apply({ bulletChanges: [{ type: "swap", entryId: "runara-ml-inference-engineer-intern", baseBulletId: "runara-speculative-decoding", replacementBulletId: "runara-benchmarking", justification: "The JD emphasizes Qwen3-Coder-480B inference." }] });
+assert(swap.acceptedDiff.bulletChanges.length === 1 && swap.base.experience.find((entry) => entry.entryId === "runara-ml-inference-engineer-intern").bullets.some((bullet) => bullet.sourceBulletId === "runara-benchmarking"), "same-experience metric-safe bullet swap applied");
 
 const rewriteText = "Reduced SQL API response time from 75s to under 10s and raised throughput 4x by refactoring SQL joins, indexing high-traffic tables, and adding a Redis caching layer.";
 const rewrite = apply({ bulletChanges: [{ type: "rewrite", entryId: "xelpmoc-software-engineer", baseBulletId: "xelpmoc-sql-redis", rewrittenText: rewriteText, justification: "The JD requires SQL performance work." }] });
 assert(rewrite.acceptedDiff.bulletChanges.length === 1 && rewrite.base.experience.find((entry) => entry.entryId === "xelpmoc-software-engineer").bullets[0].text === rewriteText, "justified light rewrite applied");
 
-const project = apply({ projectSwap: { baseProjectId: "serverless-video-analytics", replacementProjectId: "terrapin-events", justification: "The JD requires Kubernetes." } });
-assert(project.acceptedDiff.projectSwap?.replacementProjectId === "terrapin-events" && project.base.projects.length === base.projects.length, "one-for-one project swap applied");
+const project = apply({ projectSwap: { baseProjectId: "locra", replacementProjectId: "terrapin-events", justification: "The JD requires Kubernetes." } });
+assert(!project.acceptedDiff.projectSwap && project.rejected.some((item) => /protected metric would be lost/.test(item.reason)), "project swap that loses protected metrics is rejected");
 
 const skill = apply({ skillChanges: [{ type: "add", groupLabel: "Backend", replacementItem: "Django", justification: "The JD requires Django." }] });
 assert(skill.acceptedDiff.skillChanges.length === 1 && skill.base.skills.find((group) => group.label === "Backend").items.includes("Django"), "verified skill addition applied");
@@ -56,4 +56,4 @@ for (const result of [zero, swap, rewrite, project, skill, capped, protectedAtte
   assert(result.densityRatio >= 0.85 && result.densityRatio <= 1.15, "every result stays within the density guard");
 }
 
-console.log(JSON.stringify({ zeroChange: true, bulletSwap: true, justifiedRewrite: true, projectSwap: true, skillEdit: true, capsEnforced: true, protectedContentPreserved: true, fabricationRejected: true, actionVerbDuplicationNotWorsened: true }, null, 2));
+console.log(JSON.stringify({ zeroChange: true, bulletSwap: true, justifiedRewrite: true, projectMetricProtection: true, skillEdit: true, capsEnforced: true, protectedContentPreserved: true, fabricationRejected: true, actionVerbDuplicationNotWorsened: true }, null, 2));

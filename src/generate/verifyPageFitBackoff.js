@@ -47,6 +47,22 @@ assert(buildTailoringBackoffQueue(multipleDiff, multiplePlan).map((item) => item
 const multipleFit = await fitTailoredBaseToOnePage({ canonicalBase: canonical, tailoredBase: multipleBase, acceptedDiff: multipleDiff, relevancePlan: multiplePlan, renderAndCompile: compileBy((base) => base.skills[0].items.some((item) => item.endsWith("Value")) ? 2 : 1) });
 assert(multipleFit.backedOff.map((item) => item.candidateId).join(",") === "skill-low,skill-high", "Multiple changes were not backed off by increasing relevance gain");
 
+// Semantic value per page pressure outranks change kind: a low-value summary
+// is removed before a much more valuable bullet when both add one line.
+const semanticValueBase = clone(canonical);
+semanticValueBase.summary = `${canonical.summary} low-value overflow summary content.`;
+semanticValueBase.experience[0].bullets[0].text = `${originalBullet.text} high-value bullet content.`;
+const semanticValueDiff = emptyDiff();
+semanticValueDiff.summaryChange = { candidateId: "summary-low-value", summaryId: "variant:mobile", justification: "summary" };
+semanticValueDiff.bulletChanges = [{ candidateId: "bullet-high-value", type: "rewrite", entryId: canonical.experience[0].entryId, baseBulletId: originalBullet.sourceBulletId, rewrittenText: semanticValueBase.experience[0].bullets[0].text, justification: "bullet" }];
+const semanticValuePlan = plan([
+  { id: "summary-low-value", expectedGain: 25, estimatedPageCost: 1, soleMustCoverageIds: [] },
+  { id: "bullet-high-value", expectedGain: 300, estimatedPageCost: 1, soleMustCoverageIds: ["must-performance"] },
+]);
+assert(buildTailoringBackoffQueue(semanticValueDiff, semanticValuePlan)[0].change.candidateId === "summary-low-value", "Backoff did not prioritize low semantic utility per page pressure");
+const semanticValueFit = await fitTailoredBaseToOnePage({ canonicalBase: canonical, tailoredBase: semanticValueBase, acceptedDiff: semanticValueDiff, relevancePlan: semanticValuePlan, renderAndCompile: compileBy((base) => base.summary === canonical.summary ? 1 : 2) });
+assert(semanticValueFit.backedOff[0]?.candidateId === "summary-low-value" && semanticValueFit.base.experience[0].bullets[0].text.includes("high-value bullet"), "Low-value summary did not back off before the high-value bullet");
+
 // A project swap is reverted one-for-one to the exact canonical project.
 const projectBase = clone(canonical);
 projectBase.projects[0] = { ...clone(projectBase.projects[0]), entryId: "overflow-project", title: "Overflow Project" };
@@ -79,5 +95,5 @@ await rejects(() => Promise.resolve(validateBaseProtections(canonical, missingPr
 // A broken canonical base is an explicit validation error, never a trim request.
 await rejects(() => fitTailoredBaseToOnePage({ canonicalBase: canonical, tailoredBase: clone(canonical), acceptedDiff: emptyDiff(), relevancePlan: plan(), renderAndCompile: compileBy(() => 2) }), "BASE_VALIDATION_FAILED");
 
-for (const result of [immediate, rewriteFit, skillFit, multipleFit, projectFit, allFit]) assert(result.pageCount === 1, "A page-fit scenario did not finish at exactly one page");
-console.log(JSON.stringify({ fitsImmediately: true, rewriteReverted: true, skillReverted: true, lowestValueFirst: true, projectReverted: true, exactBaseFallback: true, structureProtected: true, baseOverflowExplicit: true, finalOnePage: true }, null, 2));
+for (const result of [immediate, rewriteFit, skillFit, multipleFit, semanticValueFit, projectFit, allFit]) assert(result.pageCount === 1, "A page-fit scenario did not finish at exactly one page");
+console.log(JSON.stringify({ fitsImmediately: true, rewriteReverted: true, skillReverted: true, lowestValueFirst: true, semanticValuePerPageFirst: true, projectReverted: true, exactBaseFallback: true, structureProtected: true, baseOverflowExplicit: true, finalOnePage: true }, null, 2));

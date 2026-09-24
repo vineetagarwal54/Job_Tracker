@@ -16,8 +16,6 @@ export const EMPTY_TAILORING_DIFF = Object.freeze({
   skillChanges: [],
 });
 
-const NUMBER_PATTERN = /\b\d+(?:\.\d+)?(?:%|[A-Za-z]+)?\b/g;
-
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -212,13 +210,16 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
       const found = index.bullets.get(change.replacementBulletId);
       if (!found || found.entry.id !== change.entryId || index.projects.has(found.entry.id)) { reject(rejected, "bullet", "Bullet swaps must use a verified bullet from the same experience.", change); continue; }
       if (located.entry.bullets.some((bullet) => bullet.sourceBulletId === change.replacementBulletId)) { reject(rejected, "bullet", "Replacement bullet is already present in the base experience.", change); continue; }
+      const source = index.bullets.get(located.bullet.sourceBulletId)?.bullet;
+      const lostMetric = (source?.lockedMetrics || []).find((metric) => located.bullet.text.includes(metric) && !found.bullet.text.includes(metric));
+      if (lostMetric) { reject(rejected, "bullet", "Rejected because protected metric would be lost.", change); continue; }
       if (!semanticMode && !matchesJd(found.bullet.text, terms)) { reject(rejected, "bullet", "Replacement bullet does not surface a JD term.", change); continue; }
       replacement = { sourceBulletId: found.bullet.id, text: found.bullet.text };
     } else if (change.type === "rewrite") {
       const source = index.bullets.get(change.baseBulletId)?.bullet;
       const text = String(change.rewrittenText || "").trim();
       if (!source || !text) { reject(rejected, "bullet", "Rewrite must target verified evidence and provide text.", change); continue; }
-      const sourceForValidation = { ...source, text: located.bullet.text, lockedMetrics: [...new Set([...(source.lockedMetrics || []).filter((metric) => located.bullet.text.includes(metric)), ...(located.bullet.text.match(NUMBER_PATTERN) || [])])] };
+      const sourceForValidation = { ...source, text: located.bullet.text, lockedMetrics: [...new Set((source.lockedMetrics || []).filter((metric) => located.bullet.text.includes(metric)))] };
       const violation = rewriteViolation(sourceForValidation, text);
       const surfacedKnowledge = inventorySkills(bank).find((skill) => !isHandsOnSkill(bank, skill.name) && !textContainsTerm(located.bullet.text, skill.name) && textContainsTerm(text, skill.name));
       const lengthRatio = text.length / located.bullet.text.length;
@@ -252,6 +253,11 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
       if (slot < 0) reject(rejected, "project", "Project swap must replace a project in the selected base.", change);
       else if (!replacement || tailored.projects.some((project) => project.entryId === replacement.id)) reject(rejected, "project", "Replacement project must be a different verified bank project.", change);
       else if (replacement.bullets.length < tailored.projects[slot].bullets.length) reject(rejected, "project", "Replacement project lacks enough verified bullets to preserve bullet density.", change);
+      else if (tailored.projects[slot].bullets.some((bullet) => {
+        const source = index.bullets.get(bullet.sourceBulletId)?.bullet;
+        const replacementText = `${replacement.org} ${replacement.role} ${replacement.bullets.map((item) => item.text).join(" ")}`;
+        return (source?.lockedMetrics || []).some((metric) => bullet.text.includes(metric) && !replacementText.includes(metric));
+      })) reject(rejected, "project", "Rejected because protected metric would be lost.", change);
       else if (!semanticMode && !matchesJd(`${replacement.org} ${replacement.role} ${replacement.bullets.map((bullet) => bullet.text).join(" ")}`, terms)) reject(rejected, "project", "Replacement project does not surface a JD term.", change);
       else {
         const bulletCount = tailored.projects[slot].bullets.length;
@@ -280,6 +286,7 @@ export function applyTailoringDiff({ bank, base, diff, extraction = null, analys
     const verifiedItem = verified?.item;
     if (!group) { reject(rejected, "skill", "Skill change must target an existing base skill category.", change); continue; }
     if (!verifiedItem) { reject(rejected, "skill", "Skill addition must reference a verified item compatible with the targeted category.", change); continue; }
+    if (change.type === "swap" && isHandsOnSkill(bank, change.baseItem) !== isHandsOnSkill(bank, verifiedItem)) { reject(rejected, "skill", "Skill swap must preserve hands-on versus knowledge classification.", change); continue; }
     if (semanticMode ? !semanticChangeIsValid(change, [skillEvidenceId(verifiedItem)], { allowKnowledgeSkill: true }) : (!justified(change.justification, terms) || !relevanceReasonIsValid(change, relevant))) { reject(rejected, "skill", "Skill change is not justified by verified requirement evidence.", change); continue; }
     if (!semanticMode && !matchesJd(verifiedItem, terms)) { reject(rejected, "skill", "Skill change does not add a JD term.", change); continue; }
     if (tailored.skills.some((candidateGroup) => candidateGroup.items.some((item) => item.toLowerCase() === verifiedItem.toLowerCase()))) { reject(rejected, "skill", "Skill is already present in the base.", change); continue; }

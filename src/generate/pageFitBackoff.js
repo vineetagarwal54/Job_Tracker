@@ -37,18 +37,31 @@ export function validateBaseProtections(canonicalBase, candidate) {
   return { densityRatio, bulletCount: [...candidate.experience, ...candidate.projects].reduce((sum, entry) => sum + entry.bullets.length, 0) };
 }
 
-function gainFor(change, relevancePlan) {
-  return relevancePlan?.candidates?.find((candidate) => candidate.id === change?.candidateId)?.expectedGain ?? 0;
+function planCandidate(change, relevancePlan) {
+  return relevancePlan?.candidates?.find((candidate) => candidate.id === change?.candidateId) || null;
 }
 
 export function buildTailoringBackoffQueue(acceptedDiff, relevancePlan) {
   const actions = [];
-  for (const [index, change] of (acceptedDiff?.bulletChanges || []).entries()) actions.push({ kind: change.type === "rewrite" ? "rewrite" : "bullet", index, change: clone(change), relevanceGain: gainFor(change, relevancePlan) });
-  for (const [index, change] of (acceptedDiff?.skillChanges || []).entries()) actions.push({ kind: "skill", index, change: clone(change), relevanceGain: gainFor(change, relevancePlan) });
-  if (acceptedDiff?.projectSwap) actions.push({ kind: "project", index: 0, change: clone(acceptedDiff.projectSwap), relevanceGain: gainFor(acceptedDiff.projectSwap, relevancePlan) });
-  if (acceptedDiff?.summaryChange) actions.push({ kind: "summary", index: 0, change: clone(acceptedDiff.summaryChange), relevanceGain: gainFor(acceptedDiff.summaryChange, relevancePlan) });
-  const order = { rewrite: 0, skill: 1, bullet: 2, project: 3, summary: 4 };
-  return actions.sort((left, right) => order[left.kind] - order[right.kind] || left.relevanceGain - right.relevanceGain || left.index - right.index);
+  const add = (kind, index, change) => {
+    const planned = planCandidate(change, relevancePlan);
+    const relevanceGain = planned?.expectedGain ?? 0;
+    const estimatedPageCost = Math.max(0.25, Number(planned?.estimatedPageCost || 0));
+    const soleMustCoverageIds = [...(planned?.soleMustCoverageIds || [])];
+    // Sole MUST support is deliberately expensive to remove. Otherwise, the
+    // lowest semantic utility retained per estimated line of pressure goes first.
+    const protectedUtility = relevanceGain + soleMustCoverageIds.length * 10000;
+    actions.push({ kind, index, change: clone(change), relevanceGain, estimatedPageCost, soleMustCoverageIds, retainedUtilityPerPage: protectedUtility / estimatedPageCost });
+  };
+  for (const [index, change] of (acceptedDiff?.bulletChanges || []).entries()) add(change.type === "rewrite" ? "rewrite" : "bullet", index, change);
+  for (const [index, change] of (acceptedDiff?.skillChanges || []).entries()) add("skill", index, change);
+  if (acceptedDiff?.projectSwap) add("project", 0, acceptedDiff.projectSwap);
+  if (acceptedDiff?.summaryChange) add("summary", 0, acceptedDiff.summaryChange);
+  const order = { bullet: 0, project: 1, rewrite: 2, skill: 3, summary: 4 };
+  return actions.sort((left, right) => left.retainedUtilityPerPage - right.retainedUtilityPerPage
+    || order[left.kind] - order[right.kind]
+    || String(left.change.candidateId || "").localeCompare(String(right.change.candidateId || ""))
+    || left.index - right.index);
 }
 
 function revertAction(current, canonicalBase, action) {
@@ -105,7 +118,7 @@ export async function fitTailoredBaseToOnePage({ canonicalBase, tailoredBase, ac
     current = revertAction(current, canonicalBase, action);
     remainingDiff = removeAcceptedAction(remainingDiff, action);
     validateBaseProtections(canonicalBase, current);
-    backedOff.push({ type: action.kind, candidateId: action.change.candidateId || null, requirementIds: [...(action.change.requirementIds || [])], relevanceGain: action.relevanceGain, resolution: "reverted", reason: "page-overflow" });
+    backedOff.push({ type: action.kind, candidateId: action.change.candidateId || null, requirementIds: [...(action.change.requirementIds || [])], relevanceGain: action.relevanceGain, estimatedPageCost: action.estimatedPageCost, soleMustCoverageIds: action.soleMustCoverageIds, retainedUtilityPerPage: action.retainedUtilityPerPage, resolution: "reverted", reason: "page-overflow" });
     result = await compile(`reverted-${action.kind}`);
     if (result.pageCount === 1) return { base: current, acceptedDiff: remainingDiff, backedOff, attempts, pageCount: 1, result, ...validateBaseProtections(canonicalBase, current) };
   }

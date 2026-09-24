@@ -256,22 +256,24 @@ async function generateSemanticResumeOptimization({ client, apiKey, bank, base, 
   applied.rejected = [...plan.rejected, ...applied.rejected];
   let optionalRewrite = { attempted: false, apiDurationMs: 0, usage: null, requestBytes: 0, diagnostic: null };
   const opportunity = plan.rewriteOpportunities?.[0];
-  if (opportunity && applied.acceptedDiff.bulletChanges.length < 3) {
+  if (opportunity && opportunity.estimatedMarginalUtility > 0) {
     optionalRewrite = { attempted: true, ...(await rewriteResumeBullet({ client, apiKey, signal, originalBullet: opportunity.originalBullet, requirementTexts: opportunity.requirementTexts, allowedSupportedTerminology: opportunity.allowedSupportedTerminology })) };
     if (optionalRewrite.ok && optionalRewrite.rewrittenText !== opportunity.originalBullet) {
       const rewriteChange = {
-        candidateId: `deterministic:rewrite:${opportunity.baseBulletId}`, type: "rewrite", entryId: opportunity.entryId,
+        candidateId: opportunity.candidateId, type: "rewrite", entryId: opportunity.entryId,
         baseBulletId: opportunity.baseBulletId, rewrittenText: optionalRewrite.rewrittenText,
         requirementIds: opportunity.requirementIds,
         justification: "Optional light rewrite of verified current accomplishment evidence.",
       };
-      try {
+      if (applied.acceptedDiff.bulletChanges.length >= 3) {
+        applied.rejected.push({ type: "bullet-rewrite", reason: "Optional semantic rewrite was valid but not applied because the bullet-change cap was already reached.", change: rewriteChange });
+      } else try {
         const rewriteApplied = applyTailoringDiff({ bank, base: applied.base, diff: { ...EMPTY_TAILORING_DIFF, baseResumeId: base.id, bulletChanges: [rewriteChange] }, semanticRequirements: proposal.requirements });
         if (rewriteApplied.acceptedDiff.bulletChanges.length) {
           applied.base = rewriteApplied.base;
           applied.acceptedDiff.bulletChanges.push(rewriteChange);
           applied.densityRatio *= rewriteApplied.densityRatio;
-          plan.candidates.push({ id: rewriteChange.candidateId, expectedGain: 28, utility: { utility: 28, requirementIds: rewriteChange.requirementIds } });
+          plan.candidates.push({ id: rewriteChange.candidateId, type: "rewrite", expectedGain: opportunity.estimatedMarginalUtility, estimatedPageCost: opportunity.estimatedPageCost, mustCoverageGained: [], soleMustCoverageIds: [], utility: { marginalUtility: opportunity.estimatedMarginalUtility, changeCost: opportunity.changeCost, estimatedPageCost: opportunity.estimatedPageCost, requirementIds: rewriteChange.requirementIds } });
         }
         applied.rejected.push(...rewriteApplied.rejected);
       } catch (error) {
