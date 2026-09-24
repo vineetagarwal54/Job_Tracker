@@ -6,6 +6,7 @@ import {
 import { globalStyles } from "./styles";
 import { isDeadlineSoon, isDeadlinePast } from "./utils";
 import { InfoBlock, FormField } from "./InfoBlock";
+import GitHubSyncSection from "./GitHubSyncSection";
 
 export default function JobTracker() {
   const [jobs, setJobs] = useState([]);
@@ -339,7 +340,7 @@ export default function JobTracker() {
           </button>
           <button className="btn" onClick={() => setShowSetup(true)}
             style={{ background: "#1a1a2e", color: "#818cf8", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
-            Quick Add Setup
+            Setup & Sync
           </button>
           <button className="btn" onClick={() => { setShowForm(true); setEditId(null); setForm(getEmptyForm()); setActiveTab("details"); }}
             style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>
@@ -849,6 +850,8 @@ export default function JobTracker() {
                 Extracts: company, role, location, source, job link. Job description is copied to your clipboard for pasting into the JD tab.
               </div>
             </div>
+
+            <GitHubSyncSection />
 
             <button className="btn" onClick={() => setShowSetup(false)}
               style={{ width: "100%", marginTop: "20px", background: "#1c1c2e", color: "#94a3b8", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const githubSync = require("./githubSync.cjs");
 
 // ── File-based storage ────────────────────────────────────────
 // Stores all data in %APPDATA%/JobTrack/data.json
@@ -116,7 +117,29 @@ if (!gotLock) {
       const store = readStore();
       store[key] = value;
       writeStore(store);
+      // Local save is done; queue a background GitHub mirror (debounced, never throws).
+      if (key === "jobs_v2") {
+        try { githubSync.requestSync(); } catch {}
+      }
     });
+
+    // ── GitHub sync IPC handlers ──────────────────────────────
+    try {
+      githubSync.init({
+        getJobsJson: () => {
+          const value = readStore().jobs_v2;
+          return typeof value === "string" ? value : null;
+        },
+        notify: (status) => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("github-sync:status", status);
+        },
+      });
+    } catch {}
+    ipcMain.handle("github-sync:get-status", () => githubSync.ipcResult(() => githubSync.getStatus()));
+    ipcMain.handle("github-sync:save-config", (_event, input) => githubSync.ipcResult(() => githubSync.saveConfig(input)));
+    ipcMain.handle("github-sync:remove-token", () => githubSync.ipcResult(() => githubSync.removeToken()));
+    ipcMain.handle("github-sync:test", () => githubSync.ipcResult(() => githubSync.testConnection()));
+    ipcMain.handle("github-sync:sync-now", () => githubSync.ipcResult(() => githubSync.syncNow()));
 
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {
