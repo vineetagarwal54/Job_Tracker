@@ -4,8 +4,9 @@
 
 const crypto = require("crypto");
 
-// Query params that are tracking noise rather than part of a posting's identity.
-const TRACKING_PARAM = /^(utm_|trk|ref|refid|src|source|gclid|fbclid|mc_|_hs|lipi|trackingid|from|origin|gh_src|lever-origin|lever-source|iis|iisn)/i;
+// Allowlist of query params that identify a posting. Everything else (tracking,
+// referral, session, or anything personal like ?email=) is dropped.
+const IDENTITY_PARAM = /^(gh_jid|jk|vjk|currentjobid|jobid|job_id|job|jid|id|reqid|req_id|requisitionid|postingid|posting_id|pid)$/i;
 
 function cleanUrl(link) {
   if (typeof link !== "string" || !link.trim()) return null;
@@ -16,7 +17,7 @@ function cleanUrl(link) {
   u.username = "";
   u.password = "";
   for (const key of [...u.searchParams.keys()]) {
-    if (TRACKING_PARAM.test(key)) u.searchParams.delete(key);
+    if (!IDENTITY_PARAM.test(key)) u.searchParams.delete(key);
   }
   return u;
 }
@@ -58,7 +59,7 @@ function extractRequisitionId(u) {
 }
 
 // Canonical, comparison-friendly URL: lowercase host without "www.", no
-// trailing slash, no fragment, no tracking params, remaining params sorted.
+// trailing slash, no fragment, only identity params, sorted.
 function normalizeJobUrl(link) {
   const u = cleanUrl(link);
   if (!u) return "";
@@ -110,27 +111,35 @@ function dedupeKey({ company, role, location, link }) {
   return `ctl:${normalizeCompany(company)}|${normalizeTitle(role)}|${normalizeLocation(location)}`;
 }
 
+// Primitives only: an object/array in an imported job can't be stringified
+// into the output (e.g. a nested notes array ending up in "company").
 function str(v) {
-  return typeof v === "string" ? v.trim() : v == null ? "" : String(v);
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
 }
 
 function sanitizeJob(job) {
-  const u = cleanUrl(job.link);
+  const company = str(job.company);
+  const role = str(job.role);
+  const location = str(job.location);
+  const link = str(job.link);
+  const u = cleanUrl(link);
   const req = extractRequisitionId(u);
-  // Explicit field-by-field construction: fixed key order, nothing else leaks through.
+  // Explicit allowlist, field by field: fixed key order, nothing else leaks through.
   return {
     id: str(job.id),
-    company: str(job.company),
-    role: str(job.role),
+    company,
+    role,
     jobUrl: u ? u.toString() : "",
     status: str(job.status),
     appliedAt: str(job.date), // JobTrack's "Date Applied" field (YYYY-MM-DD)
-    location: str(job.location),
+    location,
     resumeVariant: str(job.resume),
     source: str(job.source),
-    normalizedUrl: normalizeJobUrl(job.link),
+    normalizedUrl: normalizeJobUrl(link),
     requisitionId: req ? `${req.ats}:${req.id}` : "",
-    dedupeKey: dedupeKey(job),
+    dedupeKey: dedupeKey({ company, role, location, link }),
   };
 }
 

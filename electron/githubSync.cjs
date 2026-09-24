@@ -34,12 +34,12 @@ let lastError = "";
 let timer = null;
 let currentRun = null;
 let rerun = false;
-let verifiedTarget = null;
 
 class SyncError extends Error {
-  constructor(message, status) {
+  constructor(message, status, detail) {
     super(message);
     this.status = status;
+    this.detail = detail || "";
   }
 }
 
@@ -86,6 +86,9 @@ function init(opts) {
 
 // ── Status ────────────────────────────────────────────────────
 const targetKey = () => `${config.owner}/${config.repo}@${config.branch}`;
+// Taken once per operation so a settings change mid-sync can't redirect
+// requests (or the token) to a repository that wasn't checked as private.
+const snapshotTarget = () => ({ owner: config.owner, repo: config.repo, branch: config.branch, token, key: targetKey() });
 const isConfigured = () => Boolean(token && config.owner && config.repo && config.branch);
 const isActive = () => isConfigured() && config.enabled;
 
@@ -93,6 +96,7 @@ function getStatus() {
   let state = phase;
   if (!isConfigured()) state = "not_configured";
   else if (!config.enabled) state = "disabled";
+  else if (state === "synced" && !config.lastSuccessAt) state = "idle"; // nothing uploaded yet (no saved jobs)
   return {
     owner: config.owner,
     repo: config.repo,
@@ -136,10 +140,7 @@ function saveConfig(input) {
   config.repo = repo;
   config.branch = branch;
   config.enabled = Boolean(input.enabled);
-  if (targetKey() !== prevTarget || newToken) {
-    config.lastSynced = null;
-    verifiedTarget = null;
-  }
+  if (targetKey() !== prevTarget || newToken) config.lastSynced = null;
   persistConfig();
 
   lastError = "";
@@ -154,7 +155,6 @@ function removeToken() {
   token = null;
   tokenError = "";
   lastError = "";
-  verifiedTarget = null;
   config.lastSynced = null;
   persistConfig();
   setPhase("idle");
@@ -163,21 +163,23 @@ function removeToken() {
 
 // ── GitHub client ─────────────────────────────────────────────
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-const repoPath = () => `/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`;
+const repoPath = (t) => `/repos/${encodeURIComponent(t.owner)}/${encodeURIComponent(t.repo)}`;
 
 function httpError(status, data, headers) {
   const detail = data && typeof data.message === "string" ? data.message.slice(0, 160) : "";
-  if (status === 401) return new SyncError("GitHub rejected the token (401). Replace the token.", status);
-  if (status === 403 && headers.get("x-ratelimit-remaining") === "0") {
-    return new SyncError("GitHub rate limit reached. Try again later.", status);
+  const err = (msg) => new SyncError(msg, status, detail);
+  if (status === 401) return err("GitHub rejected the token (401). Replace the token.");
+  if (status === 403 && (headers.get("x-ratelimit-remaining") === "0" || /rate limit/i.test(detail))) {
+    return err("GitHub rate limit reached. Try again later.");
   }
-  if (status === 403) return new SyncError("Token lacks permission (403). It needs Contents: Read and write on this repo.", status);
-  if (status === 404) return new SyncError("Not found (404). Check owner, repo, branch, and the token's repository access.", status);
-  if (status >= 300 && status < 400) return new SyncError("Repository was moved or renamed. Update the settings.", status);
-  return new SyncError(`GitHub error ${status}${detail ? `: ${detail}` : ""}`, status);
+  if (status === 403) return err("Token lacks permission (403). It needs Contents: Read and write on this repo.");
+  if (status === 404) return err("Not found (404). Check owner, repo, branch, and the token's repository access.");
+  if (status >= 300 && status < 400) return err("Repository was moved or renamed. Update the settings.");
+  return err(`GitHub error ${status}${detail ? `: ${detail}` : ""}`);
 }
 
-async function gh(method, urlPath, body) {
+// Retries only network errors/timeouts, 5xx and 429 — never 4xx auth/permission errors.
+async function gh(t, method, urlPath, body) {
   for (let attempt = 1; ; attempt++) {
     let res;
     try {
@@ -185,7 +187,7 @@ async function gh(method, urlPath, body) {
         method,
         headers: {
           Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${t.token}`,
           "X-GitHub-Api-Version": "2022-11-28",
           "User-Agent": "JobTrack",
           ...(body ? { "Content-Type": "application/json" } : {}),
@@ -213,19 +215,20 @@ async function gh(method, urlPath, body) {
   }
 }
 
-async function ensurePrivateRepo() {
-  if (verifiedTarget === targetKey()) return;
-  const data = await gh("GET", repoPath());
+// Checked on every sync (not cached) so a repo later made public is refused.
+async function ensurePrivateRepo(t) {
+  const data = await gh(t, "GET", repoPath(t));
   if (typeof data.private !== "boolean") throw new SyncError("Unexpected response from GitHub.");
   if (!data.private) throw new SyncError("Repository is public. Sync only writes to a private repository.");
-  verifiedTarget = targetKey();
 }
 
-// Returns { sha, hash } for the existing remote file, or null if it doesn't exist.
-async function getRemoteFile() {
+// Returns { sha, hash } for the existing remote file, or null if it doesn't
+// exist. The repo was just verified reachable, so a 404 here means the file
+// (or, on first use, the branch) is missing; PUT reports a missing branch.
+async function getRemoteFile(t) {
   let data;
   try {
-    data = await gh("GET", `${repoPath()}/contents/${FILE_PATH}?ref=${encodeURIComponent(config.branch)}`);
+    data = await gh(t, "GET", `${repoPath(t)}/contents/${FILE_PATH}?ref=${encodeURIComponent(t.branch)}`);
   } catch (e) {
     if (e.status === 404) return null;
     throw e;
@@ -241,16 +244,20 @@ async function getRemoteFile() {
   return { sha: data.sha, hash };
 }
 
-async function putRemoteFile(applications, sha) {
+async function putRemoteFile(t, applications, sha) {
   const content = JSON.stringify(buildIndexDocument(applications), null, 2) + "\n";
-  const data = await gh("PUT", `${repoPath()}/contents/${FILE_PATH}`, {
+  const data = await gh(t, "PUT", `${repoPath(t)}/contents/${FILE_PATH}`, {
     message: COMMIT_MESSAGE,
     content: Buffer.from(content, "utf-8").toString("base64"),
-    branch: config.branch,
+    branch: t.branch,
     ...(sha ? { sha } : {}),
   });
   if (!data.content || typeof data.content.sha !== "string") throw new SyncError("Unexpected response from GitHub.");
 }
+
+// SHA conflict: someone else changed the file, or a retried PUT already landed
+// (GitHub answers 409, or 422 "sha wasn't supplied"/"does not match").
+const isShaConflict = (e) => e.status === 409 || (e.status === 422 && /\bsha\b/i.test(e.detail));
 
 async function syncOnce() {
   const raw = getJobsJson();
@@ -260,23 +267,23 @@ async function syncOnce() {
 
   const applications = buildApplications(jobs);
   const hash = hashApplications(applications);
-  const target = targetKey();
-  if (config.lastSynced && config.lastSynced.target === target && config.lastSynced.hash === hash) return;
+  const t = snapshotTarget();
+  if (config.lastSynced && config.lastSynced.target === t.key && config.lastSynced.hash === hash) return;
 
-  await ensurePrivateRepo();
-  // One conflict retry: another writer (or a retried request) moved the file's SHA.
+  await ensurePrivateRepo(t);
+  // One conflict retry: re-read the SHA; skip the write if content already matches.
   for (let attempt = 1; ; attempt++) {
-    const remote = await getRemoteFile();
+    const remote = await getRemoteFile(t);
     if (remote && remote.hash === hash) break;
     try {
-      await putRemoteFile(applications, remote && remote.sha);
+      await putRemoteFile(t, applications, remote && remote.sha);
       break;
     } catch (e) {
-      if (attempt < 2 && (e.status === 409 || e.status === 422)) continue;
+      if (attempt < 2 && isShaConflict(e)) continue;
       throw e;
     }
   }
-  config.lastSynced = { target, hash };
+  config.lastSynced = { target: t.key, hash };
   config.lastSuccessAt = new Date().toISOString();
   persistConfig();
 }
@@ -328,9 +335,9 @@ async function syncNow() {
 
 async function testConnection() {
   if (!isConfigured()) throw new SyncError("Add owner, repository, and token first.");
-  verifiedTarget = null;
-  await ensurePrivateRepo();
-  await gh("GET", `${repoPath()}/branches/${encodeURIComponent(config.branch)}`);
+  const t = snapshotTarget();
+  await ensurePrivateRepo(t);
+  await gh(t, "GET", `${repoPath(t)}/branches/${t.branch.split("/").map(encodeURIComponent).join("/")}`);
   return "Connected. Private repository and branch are reachable.";
 }
 

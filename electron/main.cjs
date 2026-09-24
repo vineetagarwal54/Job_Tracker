@@ -135,11 +135,16 @@ if (!gotLock) {
         },
       });
     } catch {}
-    ipcMain.handle("github-sync:get-status", () => githubSync.ipcResult(() => githubSync.getStatus()));
-    ipcMain.handle("github-sync:save-config", (_event, input) => githubSync.ipcResult(() => githubSync.saveConfig(input)));
-    ipcMain.handle("github-sync:remove-token", () => githubSync.ipcResult(() => githubSync.removeToken()));
-    ipcMain.handle("github-sync:test", () => githubSync.ipcResult(() => githubSync.testConnection()));
-    ipcMain.handle("github-sync:sync-now", () => githubSync.ipcResult(() => githubSync.syncNow()));
+    // Only the app's own main window (top frame) may drive sync settings.
+    const syncHandler = (fn) => (event, ...args) => {
+      const fromApp = mainWindow && event.sender === mainWindow.webContents && event.senderFrame === event.sender.mainFrame;
+      return fromApp ? githubSync.ipcResult(() => fn(...args)) : { ok: false, error: "Not allowed." };
+    };
+    ipcMain.handle("github-sync:get-status", syncHandler(() => githubSync.getStatus()));
+    ipcMain.handle("github-sync:save-config", syncHandler((input) => githubSync.saveConfig(input)));
+    ipcMain.handle("github-sync:remove-token", syncHandler(() => githubSync.removeToken()));
+    ipcMain.handle("github-sync:test", syncHandler(() => githubSync.testConnection()));
+    ipcMain.handle("github-sync:sync-now", syncHandler(() => githubSync.syncNow()));
 
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {
