@@ -288,7 +288,7 @@ export default function JobTracker() {
         />
       )}
 
-      {showSetup && <QuickAddSetup onClose={() => setShowSetup(false)} />}
+      {showSetup && <QuickAddSetup onClose={() => setShowSetup(false)} workspaces={workspaces} workspaceJobCounts={workspaceJobCounts} />}
 
       {deletingWorkspace && (
         <DeleteWorkspaceDialog

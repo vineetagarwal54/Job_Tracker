@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const githubSync = require("./githubSync.cjs");
+
+const APP_DATA_KEY = "app_data_v3";
 
 // ── File-based storage ────────────────────────────────────────
 // Stores all data in the OS-appropriate userData directory:
@@ -139,7 +142,34 @@ if (!gotLock) {
       try { store = readStore(); } catch { store = {}; }
       store[key] = value;
       writeStore(store);
+      // Local save is done; queue a background GitHub mirror (debounced, never throws).
+      if (key === APP_DATA_KEY) {
+        try { githubSync.requestSync(); } catch {}
+      }
     });
+
+    // ── GitHub sync IPC handlers ──────────────────────────────
+    try {
+      githubSync.init({
+        getAppDataJson: () => {
+          const value = readStore()[APP_DATA_KEY];
+          return typeof value === "string" ? value : null;
+        },
+        notify: (status) => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("github-sync:status", status);
+        },
+      });
+    } catch {}
+    // Only the app's own main window (top frame) may drive sync settings.
+    const syncHandler = (fn) => (event, ...args) => {
+      const fromApp = mainWindow && event.sender === mainWindow.webContents && event.senderFrame === event.sender.mainFrame;
+      return fromApp ? githubSync.ipcResult(() => fn(...args)) : { ok: false, error: "Not allowed." };
+    };
+    ipcMain.handle("github-sync:get-status", syncHandler(() => githubSync.getStatus()));
+    ipcMain.handle("github-sync:save-config", syncHandler((input) => githubSync.saveConfig(input)));
+    ipcMain.handle("github-sync:remove-token", syncHandler(() => githubSync.removeToken()));
+    ipcMain.handle("github-sync:test", syncHandler(() => githubSync.testConnection()));
+    ipcMain.handle("github-sync:sync-now", syncHandler(() => githubSync.syncNow()));
 
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {

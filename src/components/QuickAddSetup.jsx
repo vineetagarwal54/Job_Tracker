@@ -1,8 +1,9 @@
 import { getBookmarkletCode } from "../utils/bookmarklet";
+import { GitHubSyncSection } from "./GitHubSyncSection";
 
 const SUPPORTED_PLATFORMS = ["Handshake", "Jobright", "LinkedIn", "Indeed", "Company Career Pages"];
 
-export function QuickAddSetup({ onClose }) {
+export function QuickAddSetup({ onClose, workspaces, workspaceJobCounts }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#0e0e18", border: "1px solid #222233", borderRadius: "14px", width: "560px", maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", padding: "28px" }}>
@@ -67,6 +68,8 @@ export function QuickAddSetup({ onClose }) {
             Extracts: company, role, location, source, job link. Job description is copied to your clipboard for pasting into the JD tab.
           </div>
         </div>
+
+        <GitHubSyncSection workspaces={workspaces} workspaceJobCounts={workspaceJobCounts} />
 
         <button className="btn" onClick={onClose}
           style={{ width: "100%", marginTop: "20px", background: "#1c1c2e", color: "#94a3b8", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>

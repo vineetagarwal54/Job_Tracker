@@ -21,7 +21,7 @@ export function Header({ totalJobs, statusCounts, filterStatus, onFilterStatus, 
           </button>
           <button className="btn" onClick={onOpenSetup}
             style={{ background: "#1a1a2e", color: "#818cf8", padding: "11px 18px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, letterSpacing: "0.02em" }}>
-            Quick Add Setup
+            Setup & Sync
           </button>
           <button className="btn" onClick={onAddJob}
             style={{ background: "#6366f1", color: "#fff", padding: "11px 22px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, letterSpacing: "0.02em" }}>
