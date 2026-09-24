@@ -25,7 +25,7 @@ A desktop app for tracking your job applications — built with React + Electron
 | Build tool | Vite 5 |
 | Styling | Inline styles + global CSS-in-JS (`styles.js`) |
 | Storage | Local JSON file via Electron IPC (`electron/main.cjs`) |
-| Packaging | electron-builder (NSIS installer for Windows, DMG for macOS) |
+| Packaging | electron-builder (Windows `.exe`, macOS `.dmg`, Linux `AppImage`) |
 
 ---
 
@@ -64,8 +64,22 @@ The installer is output to `release/`.
 |---|---|---|
 | Windows | `.exe` (NSIS installer) | Run `electron:build` on a Windows machine |
 | macOS | `.dmg` installer | **Must be built on a Mac** — run `electron:build` on macOS |
+| Linux | `.AppImage` | Run `electron:build` on a Linux machine |
 
-> **Mac users:** You need to clone the repo and run `npm run electron:build` on your Mac to produce the `.dmg`. Cross-compiling from Windows to macOS is not supported by electron-builder.
+> electron-builder does not support cross-compilation (e.g. you can't build a `.dmg` on Windows). Each platform's binary must be built on that platform.
+
+### Automated releases (GitHub Actions)
+
+This repo includes a release workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml) that builds installers for all three platforms in parallel and attaches them to a GitHub Release.
+
+To cut a release:
+
+```bash
+git tag v1.0.1
+git push --tags
+```
+
+The workflow publishes a **draft** release — review the artifacts on the GitHub Releases page and publish when ready. Users can then download the installer for their OS without needing to clone the repo.
 
 ---
 
@@ -108,6 +122,16 @@ JobTrack/
 ## Data & Privacy
 
 All data is stored in a local JSON file on your machine — nothing is sent to any server. You can export a full backup at any time via the **Export** button and restore it with **Import**.
+
+**Where your data lives:**
+
+| Platform | Path |
+|---|---|
+| Windows | `%APPDATA%\JobTrack\data.json` |
+| macOS | `~/Library/Application Support/JobTrack/data.json` |
+| Linux | `~/.config/JobTrack/data.json` |
+
+If the data file ever gets corrupted (e.g. disk full during a write), JobTrack saves a backup copy alongside it (`data.json.corrupted-<timestamp>`) and shows a load-error banner in the app — so you can recover instead of silently losing history.
 
 ---
 

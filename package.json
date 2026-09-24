@@ -1,6 +1,25 @@
 {
   "name": "job-tracker",
   "version": "1.0.0",
+  "description": "A desktop app for tracking job applications — with one-click capture from job boards, deadline alerts, and local-only storage.",
+  "author": "Vineet Agarwal",
+  "license": "MIT",
+  "homepage": "https://github.com/vineet54/JobTrack",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vineet54/JobTrack.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vineet54/JobTrack/issues"
+  },
+  "keywords": [
+    "job-tracker",
+    "job-applications",
+    "electron",
+    "react",
+    "desktop-app",
+    "productivity"
+  ],
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -29,6 +48,10 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Office"
     },
     "directories": {
       "output": "release"
