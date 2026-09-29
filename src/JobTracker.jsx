@@ -18,7 +18,7 @@ const QUICK_ADD_FIELDS = ["company", "role", "location", "salary", "link", "sour
 
 export default function JobTracker() {
   const {
-    jobs, workspaces, activeWorkspaceId,
+    jobs, workspaces, activeWorkspaceId, settings, docs, setTailorDir,
     loading, loadError, toast, setToast,
     addJob, updateJob, deleteJob,
     moveJob, pinJob, moveJobBottom, reorderJobs,
@@ -163,6 +163,23 @@ export default function JobTracker() {
     setSelectMode(false);
   }, [selectedIds, bulkDeleteJobs, setToast]);
 
+  const handleBulkGenerate = useCallback(async (includeCover) => {
+    if (selectedIds.size === 0) return;
+    if (!window.tailor) {
+      setToast({ message: "Resume generation needs the JobTrack desktop app. Restart it fully.", type: "error" });
+      return;
+    }
+    const withJd = jobs.filter(j => selectedIds.has(j.id) && (j.jd || "").trim()).map(j => j.id);
+    const skipped = selectedIds.size - withJd.length;
+    if (withJd.length === 0) {
+      setToast({ message: "None of the selected jobs has a JD. Paste the JD first.", type: "error" });
+      return;
+    }
+    const res = await window.tailor.generate(withJd, includeCover ? ["resume", "cover"] : ["resume"]);
+    if (!res.ok) { setToast({ message: res.error, type: "error" }); return; }
+    setToast({ message: `Queued ${withJd.length} job(s)${skipped > 0 ? ` · skipped ${skipped} without a JD` : ""}.`, type: "success" });
+  }, [selectedIds, jobs, setToast]);
+
   const handleSingleMoveToWorkspace = useCallback((jobId, targetWsId) => {
     moveJobsToWorkspace([jobId], targetWsId);
     const targetName = workspaces.find(w => w.id === targetWsId)?.name ?? "workspace";
@@ -249,6 +266,7 @@ export default function JobTracker() {
           onMove={handleBulkMove}
           onChangeStatus={handleBulkStatus}
           onDelete={handleBulkDelete}
+          onGenerate={handleBulkGenerate}
         />
       )}
 
@@ -262,6 +280,7 @@ export default function JobTracker() {
         selectMode={selectMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
+        docs={docs}
         workspaces={workspaces}
         onEdit={openEditForm}
         onDelete={deleteJob}
@@ -288,7 +307,7 @@ export default function JobTracker() {
         />
       )}
 
-      {showSetup && <QuickAddSetup onClose={() => setShowSetup(false)} workspaces={workspaces} workspaceJobCounts={workspaceJobCounts} />}
+      {showSetup && <QuickAddSetup onClose={() => setShowSetup(false)} workspaces={workspaces} workspaceJobCounts={workspaceJobCounts} tailorDir={settings.tailorDir} onChangeTailorDir={setTailorDir} />}
 
       {deletingWorkspace && (
         <DeleteWorkspaceDialog
@@ -307,8 +326,9 @@ export default function JobTracker() {
 // its placeholder after firing so the same action can be reapplied.
 function SelectionBar({
   selectedCount, totalVisible, workspaces, activeWorkspaceId,
-  onSelectAll, onClear, onExit, onMove, onChangeStatus, onDelete,
+  onSelectAll, onClear, onExit, onMove, onChangeStatus, onDelete, onGenerate,
 }) {
+  const [includeCover, setIncludeCover] = useState(false);
   const targets = workspaces.filter(w => w.id !== activeWorkspaceId);
   const hasSelection = selectedCount > 0;
   const allSelected = selectedCount === totalVisible && totalVisible > 0;
@@ -384,6 +404,26 @@ function SelectionBar({
         }}>
         Delete
       </button>
+
+      <span style={{ width: "1px", height: "20px", background: "#2a2a3e", margin: "0 4px" }} />
+
+      <button className="btn"
+        onClick={() => onGenerate(includeCover)}
+        disabled={!hasSelection}
+        style={{
+          background: "#1a1f3a", color: "#a5b4fc",
+          padding: "7px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
+          border: "1px solid #3b4486",
+          opacity: hasSelection ? 1 : 0.5,
+          cursor: hasSelection ? "pointer" : "not-allowed",
+        }}>
+        Generate resumes
+      </button>
+      <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", whiteSpace: "nowrap" }}>
+        <input type="checkbox" checked={includeCover} onChange={e => setIncludeCover(e.target.checked)}
+          style={{ width: "14px", height: "14px", cursor: "pointer", accentColor: "#6366f1" }} />
+        include cover letter
+      </label>
 
       <span style={{ width: "1px", height: "20px", background: "#2a2a3e", margin: "0 4px" }} />
 

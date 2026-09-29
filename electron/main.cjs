@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const githubSync = require("./githubSync.cjs");
+const tailorRunner = require("./tailorRunner.cjs");
 
 const APP_DATA_KEY = "app_data_v3";
 
@@ -170,6 +171,30 @@ if (!gotLock) {
     ipcMain.handle("github-sync:remove-token", syncHandler(() => githubSync.removeToken()));
     ipcMain.handle("github-sync:test", syncHandler(() => githubSync.testConnection()));
     ipcMain.handle("github-sync:sync-now", syncHandler(() => githubSync.syncNow()));
+
+    // ── Resume tailor IPC handlers ────────────────────────────
+    // The renderer sends only job ids and a doc type; the runner reads
+    // everything else from the saved app data.
+    tailorRunner.init({
+      getAppData: () => {
+        const value = readStore()[APP_DATA_KEY];
+        return typeof value === "string" ? JSON.parse(value) : null;
+      },
+      notify: (status) => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("tailor:status", status);
+      },
+    });
+    const fromApp = (event) => mainWindow && event.sender === mainWindow.webContents && event.senderFrame === event.sender.mainFrame;
+    const tailorHandler = (fn) => (event, ...args) =>
+      fromApp(event) ? tailorRunner.ipcResult(() => fn(...args)) : { ok: false, error: "Not allowed." };
+    ipcMain.handle("tailor:generate", tailorHandler((jobIds, docTypes) => tailorRunner.generate(jobIds, docTypes)));
+    ipcMain.handle("tailor:cancel", tailorHandler((jobId) => tailorRunner.cancel(jobId)));
+    ipcMain.handle("tailor:open", tailorHandler((jobId, docType) => tailorRunner.openFile(jobId, docType)));
+    ipcMain.handle("tailor:show", tailorHandler((jobId, docType) => tailorRunner.showInFolder(jobId, docType)));
+    ipcMain.handle("tailor:get-state", tailorHandler(() => tailorRunner.getState()));
+    ipcMain.on("tailor:start-drag", (event, jobId, docType) => {
+      if (fromApp(event)) tailorRunner.startDrag(event.sender, jobId, docType).catch(() => {});
+    });
 
     // Once the renderer signals it's ready, flush any pending deep link
     ipcMain.on("renderer-ready", () => {

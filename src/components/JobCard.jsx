@@ -1,11 +1,12 @@
-import { STATUS_CONFIG, PRIORITY_CONFIG } from "../constants";
+import { STATUS_CONFIG, PRIORITY_CONFIG, DOC_STATUS_CONFIG } from "../constants";
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 
-export function JobCard({ job, canDrag, isFirst, isLast, selectMode, isSelected, onToggleSelect, onToggleExpand, onEdit, onDelete, onMoveUp, onMoveDown }) {
+export function JobCard({ job, doc, canDrag, isFirst, isLast, selectMode, isSelected, onToggleSelect, onToggleExpand, onEdit, onDelete, onMoveUp, onMoveDown }) {
   const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG["Applied"];
   const pc = PRIORITY_CONFIG[job.priority] || PRIORITY_CONFIG["Medium"];
   const deadlineSoon = isDeadlineSoon(job.deadline);
   const deadlinePast = isDeadlinePast(job.deadline);
+  const dc = doc && DOC_STATUS_CONFIG[doc.docStatus];
 
   const stopClick = (e, fn) => { e.stopPropagation(); fn(); };
 
@@ -57,6 +58,9 @@ export function JobCard({ job, canDrag, isFirst, isLast, selectMode, isSelected,
       )}
       <span className="tag" style={{ background: "#1a1a2e", color: "#818cf8", fontSize: "11px" }}>{job.resume}</span>
       <span className="tag" style={{ background: sc.bg, color: sc.color, fontSize: "11px" }}>{job.status}</span>
+      {dc && (
+        <span className="tag" style={{ background: dc.bg, color: dc.color, fontSize: "11px" }} title={doc.message || "Generated documents"}>{dc.label}</span>
+      )}
 
       <div style={{ flexShrink: 0, textAlign: "right", minWidth: "90px" }}>
         {job.deadline ? (

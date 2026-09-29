@@ -1,4 +1,16 @@
-export const RESUME_VERSIONS = ["Mobile", "AI/ML", "General/Full-stack", "Frontend", "Academic", "Custom"];
+export const RESUME_VERSIONS = ["Auto", "Mobile", "AI/ML", "General/Full-stack", "FDE", "Frontend", "Academic", "Custom"];
+
+// Resume versions backed by a resume-tailor master (masters/<key>.tex/.pdf).
+// Only these pass a master to /tailor; "Auto" lets Claude pick. Keep in sync
+// with MASTER_KEY in electron/tailorRunner.cjs.
+export const RESUME_MASTER_KEY = { "AI/ML": "ai", "General/Full-stack": "swe", "Mobile": "mobile", "FDE": "fde" };
+
+export const DOC_STATUS_CONFIG = {
+  queued:     { label: "Queued",     color: "#94a3b8", bg: "#1e293b" },
+  generating: { label: "Generating", color: "#a5b4fc", bg: "#1a1f3a" },
+  ready:      { label: "Ready",      color: "#4ade80", bg: "#0f2e1a" },
+  failed:     { label: "Failed",     color: "#f87171", bg: "#2d1010" },
+};
 export const WORK_TYPES = ["Remote", "Hybrid", "Onsite"];
 export const SOURCES = ["LinkedIn", "Indeed", "Company Site", "Referral", "Handshake", "Other"];
 export const PRIORITIES = ["High", "Medium", "Low"];
@@ -24,7 +36,7 @@ export const STATUSES = Object.keys(STATUS_CONFIG);
 
 export const getEmptyForm = () => ({
   company: "", role: "", date: new Date().toISOString().split("T")[0], deadline: "",
-  resume: "General/Full-stack", status: "Applied",
+  resume: "Auto", status: "Applied",
   link: "", notes: "", jd: "",
   salary: "", location: "", workType: "Remote",
   source: "LinkedIn", priority: "Medium",

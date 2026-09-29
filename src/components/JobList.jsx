@@ -13,6 +13,7 @@ export function JobList({
   selectMode,
   selectedIds,
   onToggleSelect,
+  docs = {},      // generated-document results by job id (from the tailor runner)
   workspaces,
   onEdit,
   onDelete,
@@ -96,6 +97,7 @@ export function JobList({
             }}>
             <JobCard
               job={job}
+              doc={docs[job.id]}
               canDrag={dragEnabled}
               isFirst={idx === 0}
               isLast={idx === filtered.length - 1}
@@ -111,6 +113,7 @@ export function JobList({
             {isExpanded && !selectMode && (
               <JobDetails
                 job={job}
+                doc={docs[job.id]}
                 canReorder={canReorder}
                 isFirstOverall={overallIdx === 0}
                 isLastOverall={overallIdx === jobs.length - 1}
