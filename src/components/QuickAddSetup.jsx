@@ -3,7 +3,7 @@ import { GitHubSyncSection } from "./GitHubSyncSection";
 
 const SUPPORTED_PLATFORMS = ["Handshake", "Jobright", "LinkedIn", "Indeed", "Company Career Pages"];
 
-export function QuickAddSetup({ onClose, workspaces, workspaceJobCounts }) {
+export function QuickAddSetup({ onClose, workspaces, workspaceJobCounts, tailorDir, onChangeTailorDir }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#0e0e18", border: "1px solid #222233", borderRadius: "14px", width: "560px", maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", padding: "28px" }}>
@@ -70,6 +70,18 @@ export function QuickAddSetup({ onClose, workspaces, workspaceJobCounts }) {
         </div>
 
         <GitHubSyncSection workspaces={workspaces} workspaceJobCounts={workspaceJobCounts} />
+
+        <div style={{ background: "#111119", border: "1px solid #1a1a2e", borderRadius: "10px", padding: "16px 20px", marginTop: "20px" }}>
+          <div style={{ fontSize: "12px", color: "#5a6070", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "10px" }}>
+            RESUME TAILOR FOLDER
+          </div>
+          <input className="form-input" defaultValue={tailorDir || ""}
+            placeholder="Desktop\resume-tailor (default)"
+            onBlur={e => { if (e.target.value.trim() !== (tailorDir || "")) onChangeTailorDir(e.target.value); }} />
+          <div style={{ fontSize: "12px", color: "#5a6070", marginTop: "8px", lineHeight: "1.6" }}>
+            Full path to your resume-tailor folder. Leave empty to use resume-tailor on your Desktop.
+          </div>
+        </div>
 
         <button className="btn" onClick={onClose}
           style={{ width: "100%", marginTop: "20px", background: "#1c1c2e", color: "#94a3b8", padding: "12px", borderRadius: "8px", fontSize: "14px", fontWeight: 600 }}>

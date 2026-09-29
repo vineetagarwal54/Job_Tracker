@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG } from "../constants";
+import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG, DOC_STATUS_CONFIG, RESUME_MASTER_KEY } from "../constants";
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 import { cleanJobDescription } from "../utils/jobDescriptionCleaner";
 import { InfoBlock } from "./InfoBlock";
 
 export function JobDetails({
   job,
+  doc,
   canReorder,
   isFirstOverall,
   isLastOverall,
@@ -40,6 +41,7 @@ export function JobDetails({
           Job Description {job.jd ? "" : "(empty)"}
         </button>
         <button className={`tab-btn ${activeTab === "status" ? "active" : ""}`} onClick={() => setActiveTab("status")}>Status</button>
+        <button className={`tab-btn ${activeTab === "docs" ? "active" : ""}`} onClick={() => setActiveTab("docs")}>Documents</button>
       </div>
 
       <div style={{ padding: "18px 26px 22px" }}>
@@ -82,6 +84,8 @@ export function JobDetails({
             <div style={{ fontSize: "14px", color: "#5a6070" }}>No job description saved. Click Edit to paste it in.</div>
           )
         )}
+
+        {activeTab === "docs" && <DocumentsTab job={job} doc={doc} />}
 
         {activeTab === "status" && (
           <div>
@@ -168,6 +172,113 @@ export function JobDetails({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+const docBtn = (color, enabled = true) => ({
+  background: "#1a1a2e", color: enabled ? color : "#3d4350", padding: "7px 14px", borderRadius: "6px",
+  fontSize: "12px", fontWeight: 600, cursor: enabled ? "pointer" : "not-allowed",
+});
+
+// Generate / open the tailored resume and cover letter. window.tailor only
+// takes job ids and doc types; the main process resolves every path.
+function DocumentsTab({ job, doc }) {
+  const [error, setError] = useState("");
+  const api = window.tailor;
+  const status = doc?.docStatus;
+  const busy = status === "queued" || status === "generating";
+  const hasJd = Boolean((job.jd || "").trim());
+  const canGenerate = Boolean(api) && hasJd && !busy;
+  const dc = status && DOC_STATUS_CONFIG[status];
+  const baseKey = RESUME_MASTER_KEY[job.resume];
+
+  const call = async (fn) => {
+    setError("");
+    if (!api) { setError("Resume generation needs the JobTrack desktop app. Restart it fully."); return; }
+    try {
+      const res = await fn();
+      if (!res.ok) setError(res.error);
+    } catch {
+      setError("Resume generation isn't available. Restart JobTrack.");
+    }
+  };
+
+  const generateLabel = (text) => (hasJd ? text : "Paste the JD first");
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+        <button className="btn" disabled={!canGenerate} title={hasJd ? "" : "Paste the JD first"}
+          onClick={() => call(() => api.generate([job.id], ["resume"]))}
+          style={docBtn("#a5b4fc", canGenerate)}>
+          {generateLabel("Generate resume")}
+        </button>
+        <button className="btn" disabled={!canGenerate} title={hasJd ? "" : "Paste the JD first"}
+          onClick={() => call(() => api.generate([job.id], ["cover"]))}
+          style={docBtn("#a5b4fc", canGenerate)}>
+          {generateLabel("Generate cover letter")}
+        </button>
+        {busy && (
+          <button className="btn" onClick={() => call(() => api.cancel(job.id))} style={docBtn("#f87171")}>Cancel</button>
+        )}
+        {dc && (
+          <span className="tag" style={{ background: dc.bg, color: dc.color, fontSize: "11px" }}>{dc.label}</span>
+        )}
+      </div>
+
+      {status === "failed" && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", padding: "10px 14px", background: "#2d1010", borderRadius: "8px" }}>
+          <span style={{ fontSize: "13px", color: "#f87171", flex: 1 }}>{doc.message || "Generation failed."}</span>
+          {doc.lastRunLog && (
+            <button className="btn" onClick={() => call(() => api.openFile(job.id, "log"))} style={docBtn("#f87171")}>Show log</button>
+          )}
+        </div>
+      )}
+
+      {doc?.resumePath && <DocRow label="RESUME" type="resume" path={doc.resumePath} job={job} call={call} />}
+      {doc?.coverPath && <DocRow label="COVER LETTER" type="cover" path={doc.coverPath} job={job} call={call} />}
+
+      {!doc?.resumePath && baseKey && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+          <span style={{ fontSize: "13px", color: "#5a6070" }}>No tailored resume yet.</span>
+          <button className="btn" onClick={() => call(() => api.openFile(job.id, "base"))} style={docBtn("#94a3b8")}>
+            Open base resume ({job.resume})
+          </button>
+        </div>
+      )}
+
+      {error && <div style={{ fontSize: "13px", color: "#f87171", marginTop: "8px" }}>{error}</div>}
+    </div>
+  );
+}
+
+function DocRow({ label, type, path, job, call }) {
+  const name = path.split(/[\\/]/).pop();
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      <div style={{ fontSize: "11px", color: "#5a6070", letterSpacing: "0.06em", marginBottom: "6px", fontWeight: 600 }}>{label}</div>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+        <div draggable
+          onDragStart={e => {
+            // Hand the drag to the OS (webContents.startDrag) and keep it from
+            // triggering the job list's row reordering.
+            e.preventDefault();
+            e.stopPropagation();
+            window.tailor.startDrag(job.id, type);
+          }}
+          title="Drag into an upload field or a folder"
+          style={{
+            display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", borderRadius: "6px",
+            background: "#12121c", border: "1px solid #222233", color: "#e2e8f0", fontSize: "13px",
+            cursor: "grab", userSelect: "none", maxWidth: "360px",
+          }}>
+          <span style={{ color: "#a5b4fc", fontWeight: 700, fontSize: "11px" }}>{name.split(".").pop().toUpperCase()}</span>
+          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+        </div>
+        <button className="btn" onClick={() => call(() => window.tailor.openFile(job.id, type))} style={docBtn("#818cf8")}>Open</button>
+        <button className="btn" onClick={() => call(() => window.tailor.showInFolder(job.id, type))} style={docBtn("#94a3b8")}>Show in folder</button>
       </div>
     </div>
   );

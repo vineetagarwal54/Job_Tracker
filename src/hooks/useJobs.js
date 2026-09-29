@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { sampleJobs } from "../constants";
 import { loadAppData, persistAppData, downloadJobsAsJson, pickJobsFile } from "../utils/storageHelpers";
 
@@ -9,12 +9,29 @@ const DEFAULT_WORKSPACE_NAME = "Internships";
 // atomically. Job-ordering operations (move/pin/reorder) are workspace-aware
 // so reordering inside one workspace can't perturb another's order.
 export function useJobs() {
-  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [] });
+  const [appData, setAppData] = useState({ workspaces: [], activeWorkspaceId: null, jobs: [], settings: { tailorDir: "" } });
+  // Latest appData, so a save never spreads over a stale closure copy.
+  const appDataRef = useRef(appData);
+  appDataRef.current = appData;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { workspaces, activeWorkspaceId, jobs } = appData;
+  const { workspaces, activeWorkspaceId, jobs, settings } = appData;
+
+  // Generated-document results per job id, owned by the main-process tailor
+  // runner. Kept out of appData so they're never written to the app-data blob.
+  const [docs, setDocs] = useState({});
+
+  useEffect(() => {
+    const api = window.tailor;
+    if (!api) return;
+    const off = api.onStatus(({ jobId, ...result }) => setDocs(prev => ({ ...prev, [jobId]: result })));
+    api.getState().then(res => {
+      if (res.ok) setDocs(prev => ({ ...res.result.results, ...prev }));
+    }).catch(() => {});
+    return off;
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +46,7 @@ export function useJobs() {
             workspaces: [ws],
             activeWorkspaceId: ws.id,
             jobs: sampleJobs.map(j => ({ ...j, workspaceId: ws.id })),
+            settings: { tailorDir: "" },
           });
         }
       } catch (err) {
@@ -44,7 +62,8 @@ export function useJobs() {
       setToast({ message: "Can't save: unresolved load error. Restart the app or check your data folder.", type: "error" });
       return;
     }
-    const next = { ...appData, ...updates };
+    const next = { ...appDataRef.current, ...updates };
+    appDataRef.current = next;
     setAppData(next);
     try {
       await persistAppData(next);
@@ -52,7 +71,7 @@ export function useJobs() {
       console.error("Failed to save:", err);
       setToast({ message: "Failed to save changes. Try exporting a backup.", type: "error" });
     }
-  }, [appData, loadError]);
+  }, [loadError]);
 
   // Job CRUD -----------------------------------------------------------------
 
@@ -180,6 +199,10 @@ export function useJobs() {
     save({ workspaces: updated });
   }, [workspaces, save]);
 
+  const setTailorDir = useCallback((dir) => {
+    save({ settings: { ...settings, tailorDir: (dir || "").trim() } });
+  }, [settings, save]);
+
   // Import / export -----------------------------------------------------------
 
   const exportJobs = useCallback(() => {
@@ -227,7 +250,7 @@ export function useJobs() {
   }, [jobs, workspaces, activeWorkspaceId, save]);
 
   return {
-    jobs, workspaces, activeWorkspaceId,
+    jobs, workspaces, activeWorkspaceId, settings, docs, setTailorDir,
     loading, loadError,
     toast, setToast,
     addJob, updateJob, deleteJob,

@@ -3,12 +3,17 @@ const APP_DATA_KEY = "app_data_v3";
 
 const DEFAULT_WORKSPACE_NAME = "Internships";
 
-// Returns { workspaces, activeWorkspaceId, jobs } — null if no saved data exists.
+// Fills in fields added after the blob was first saved.
+function normalizeAppData(data) {
+  return { ...data, settings: { tailorDir: "", ...(data.settings || {}) } };
+}
+
+// Returns { workspaces, activeWorkspaceId, jobs, settings } — null if no saved data exists.
 // On first run with legacy data, transparently migrates old jobs into a default
 // "Internships" workspace so no data is lost.
 export async function loadAppData() {
   const result = await window.storage.get(APP_DATA_KEY);
-  if (result) return JSON.parse(result.value);
+  if (result) return normalizeAppData(JSON.parse(result.value));
 
   // Migration path: legacy jobs_v2 (Electron storage)
   const legacyResult = await window.storage.get(LEGACY_KEY);
@@ -29,11 +34,11 @@ export async function loadAppData() {
 
 async function migrateLegacyJobs(oldJobs) {
   const ws = { id: Date.now(), name: DEFAULT_WORKSPACE_NAME };
-  const migrated = {
+  const migrated = normalizeAppData({
     workspaces: [ws],
     activeWorkspaceId: ws.id,
     jobs: (oldJobs || []).map(j => ({ ...j, workspaceId: ws.id })),
-  };
+  });
   await window.storage.set(APP_DATA_KEY, JSON.stringify(migrated));
   return migrated;
 }

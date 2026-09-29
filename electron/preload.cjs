@@ -30,3 +30,19 @@ contextBridge.exposeInMainWorld("githubSync", {
     return () => ipcRenderer.removeListener("github-sync:status", listener);
   },
 });
+
+// Resume tailor — takes only job ids and a doc type ("resume" | "cover" |
+// "base" | "log"); paths and commands are resolved in the main process.
+contextBridge.exposeInMainWorld("tailor", {
+  generate: (jobIds, docTypes) => ipcRenderer.invoke("tailor:generate", jobIds, docTypes),
+  cancel: (jobId) => ipcRenderer.invoke("tailor:cancel", jobId),
+  openFile: (jobId, docType) => ipcRenderer.invoke("tailor:open", jobId, docType),
+  showInFolder: (jobId, docType) => ipcRenderer.invoke("tailor:show", jobId, docType),
+  startDrag: (jobId, docType) => ipcRenderer.send("tailor:start-drag", jobId, docType),
+  getState: () => ipcRenderer.invoke("tailor:get-state"),
+  onStatus: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on("tailor:status", listener);
+    return () => ipcRenderer.removeListener("tailor:status", listener);
+  },
+});
