@@ -86,6 +86,16 @@ function tailorDir() {
   return typeof saved === "string" && saved.trim() ? saved.trim() : path.join(app.getPath("desktop"), "resume-tailor");
 }
 
+// Matches `claude --help`'s accepted --effort values. No settings UI for this yet;
+// set settings.tailorEffort by hand if a level other than the default is wanted.
+const TAILOR_EFFORT_VALUES = new Set(["low", "medium", "high", "xhigh", "max"]);
+
+function tailorEffortOf() {
+  const { settings } = appData();
+  const saved = settings && settings.tailorEffort;
+  return typeof saved === "string" && TAILOR_EFFORT_VALUES.has(saved) ? saved : "low";
+}
+
 function checkTailorDir(dir) {
   const ok = path.isAbsolute(dir)
     && fs.existsSync(path.join(dir, "CLAUDE.md"))
@@ -302,13 +312,25 @@ function processNext() {
     fs.mkdirSync(folderAbs, { recursive: true });
     const inboxRel = writeInbox(dir, job, entry);
     const master = entry.docType === "resume" ? MASTER_KEY[job.resume] : null;
+    // Seed the resume tex and jd.md here with plain fs, not Claude's Write tool:
+    // Write costs 40-50s on the ~10KB master tex, and this runs before claude is
+    // even spawned.
+    let texRel = null;
+    if (master) {
+      const masterTex = fs.readFileSync(path.join(dir, "masters", `${master}.tex`), "utf-8");
+      fs.writeFileSync(path.join(folderAbs, "Vineet_Agarwal_Resume.tex"), `% master: ${master}\n${masterTex}`, "utf-8");
+      fs.writeFileSync(path.join(folderAbs, "jd.md"), `${String(job.jd || "").trim()}\n`, "utf-8");
+      texRel = `${entry.folder}/Vineet_Agarwal_Resume.tex`;
+    }
     const prompt = entry.docType === "resume"
-      ? `/tailor ${inboxRel}${master ? ` ${master}` : ""}`
+      ? (master ? `/tailor JD=${inboxRel} TEX=${texRel} MASTER=${master}` : `/tailor ${inboxRel}`)
       : `/cover ${inboxRel}`;
-    // prompt only contains a validated job id and a fixed master key, so it is
-    // safe inside double quotes. cwd (which has a space in it) is passed as an
-    // option, never through the shell.
-    const command = `claude -p "${prompt}"`;
+    // prompt only contains a validated job id, derived relative paths, and a
+    // fixed master key, so it is safe inside double quotes. cwd (which has a
+    // space in it) is passed as an option, never through the shell.
+    const command = entry.docType === "resume"
+      ? `claude -p "${prompt}" --effort ${tailorEffortOf()}`
+      : `claude -p "${prompt}"`;
 
     log = fs.createWriteStream(logPath, { flags: "a" });
     log.on("error", () => {});
