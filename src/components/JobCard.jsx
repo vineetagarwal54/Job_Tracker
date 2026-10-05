@@ -59,7 +59,12 @@ export function JobCard({ job, doc, canDrag, isFirst, isLast, selectMode, isSele
       <span className="tag" style={{ background: "#1a1a2e", color: "#818cf8", fontSize: "11px" }}>{job.resume}</span>
       <span className="tag" style={{ background: sc.bg, color: sc.color, fontSize: "11px" }}>{job.status}</span>
       {dc && (
-        <span className="tag" style={{ background: dc.bg, color: dc.color, fontSize: "11px" }} title={doc.message || "Generated documents"}>{dc.label}</span>
+        <span className="tag" style={{ background: dc.bg, color: dc.color, fontSize: "11px" }}
+          title={doc.missingKeywords?.length ? `Missing: ${doc.missingKeywords.slice(0, 3).join(", ")}` : (doc.message || "Generated documents")}>
+          {dc.label}
+          {doc.docStatus === "ready" && doc.durationMs != null ? ` in ${(doc.durationMs / 1000).toFixed(1)}s (${doc.numTurns} turns)` : ""}
+          {doc.docStatus === "ready" && doc.keywordsTotal != null ? ` · ${doc.keywordsCovered}/${doc.keywordsTotal} kw` : ""}
+        </span>
       )}
 
       <div style={{ flexShrink: 0, textAlign: "right", minWidth: "90px" }}>

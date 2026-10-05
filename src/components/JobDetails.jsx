@@ -3,6 +3,7 @@ import { STATUSES, PRIORITIES, STATUS_CONFIG, PRIORITY_CONFIG, DOC_STATUS_CONFIG
 import { isDeadlineSoon, isDeadlinePast } from "../utils/deadline";
 import { cleanJobDescription } from "../utils/jobDescriptionCleaner";
 import { InfoBlock } from "./InfoBlock";
+import { SaveToBankModal } from "./SaveToBankModal";
 
 export function JobDetails({
   job,
@@ -186,6 +187,7 @@ const docBtn = (color, enabled = true) => ({
 // takes job ids and doc types; the main process resolves every path.
 function DocumentsTab({ job, doc }) {
   const [error, setError] = useState("");
+  const [showSaveToBank, setShowSaveToBank] = useState(false);
   const api = window.tailor;
   const status = doc?.docStatus;
   const busy = status === "queued" || status === "generating";
@@ -226,7 +228,29 @@ function DocumentsTab({ job, doc }) {
         {dc && (
           <span className="tag" style={{ background: dc.bg, color: dc.color, fontSize: "11px" }}>{dc.label}</span>
         )}
+        {status === "ready" && doc.durationMs != null && (
+          <span style={{ fontSize: "11px", color: "#5a6070" }}>Ready in {(doc.durationMs / 1000).toFixed(1)}s ({doc.numTurns} turns)</span>
+        )}
       </div>
+
+      {status === "ready" && doc.fitLevel && (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginBottom: "14px", fontSize: "12px", color: "#5a6070" }}>
+          <span>Fit: {doc.fitLevel}</span>
+          {doc.keywordsTotal != null && (
+            <span>· Keywords: {doc.keywordsCovered}/{doc.keywordsTotal}{doc.missingKeywords?.length ? ` (missing: ${doc.missingKeywords.slice(0, 3).join(", ")})` : ""}</span>
+          )}
+          <span>· New wording: {doc.newWording?.length || 0}</span>
+          {doc.newWording?.length > 0 && (
+            <button className="btn" onClick={() => setShowSaveToBank(true)} style={docBtn("#a5b4fc")}>
+              Save to bank ({doc.newWording.length})
+            </button>
+          )}
+        </div>
+      )}
+
+      {showSaveToBank && (
+        <SaveToBankModal job={job} doc={doc} onClose={() => setShowSaveToBank(false)} />
+      )}
 
       {status === "failed" && (
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", padding: "10px 14px", background: "#2d1010", borderRadius: "8px" }}>

@@ -192,6 +192,7 @@ if (!gotLock) {
     ipcMain.handle("tailor:open", tailorHandler((jobId, docType) => tailorRunner.openFile(jobId, docType)));
     ipcMain.handle("tailor:show", tailorHandler((jobId, docType) => tailorRunner.showInFolder(jobId, docType)));
     ipcMain.handle("tailor:get-state", tailorHandler(() => tailorRunner.getState()));
+    ipcMain.handle("tailor:save-to-bank", tailorHandler((jobId, selections) => tailorRunner.saveToBank(jobId, selections)));
     ipcMain.on("tailor:start-drag", (event, jobId, docType) => {
       if (fromApp(event)) tailorRunner.startDrag(event.sender, jobId, docType).catch(() => {});
     });

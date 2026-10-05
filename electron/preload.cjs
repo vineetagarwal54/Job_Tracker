@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld("tailor", {
   showInFolder: (jobId, docType) => ipcRenderer.invoke("tailor:show", jobId, docType),
   startDrag: (jobId, docType) => ipcRenderer.send("tailor:start-drag", jobId, docType),
   getState: () => ipcRenderer.invoke("tailor:get-state"),
+  saveToBank: (jobId, selections) => ipcRenderer.invoke("tailor:save-to-bank", jobId, selections),
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on("tailor:status", listener);
