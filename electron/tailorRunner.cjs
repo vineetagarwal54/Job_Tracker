@@ -76,7 +76,7 @@ let notify = () => {};
 let queue = [];       // [{ jobId, docType, folder, startedAt?, timedOutOnce? }]
 let active = {};      // runKey(jobId, docType) -> { entry, child, killReason, timer } for runs in progress, up to tailorConcurrencyOf()
 let outcomes = {};    // jobId -> { failed, cancelled, message } for the current batch
-// jobId -> { docStatus, resumePath, coverPath, lastRunLog, message, folder,
+// jobId -> { docStatus, resumePath, coverPath, lastRunLog (resume), coverRunLog, message, folder,
 // durationMs, numTurns, fitLevel, keywordsCovered, keywordsTotal, missingKeywords, newWording }.
 // The runner is the only writer; the renderer reads it via getState/events.
 let results = {};
@@ -304,7 +304,8 @@ function settle(jobId, fields) {
   const hasDoc = Boolean(fields.resumePath || fields.coverPath || prev.resumePath || prev.coverPath);
   let docStatus = outcome.failed ? "failed" : "ready";
   if (outcome.cancelled && !outcome.failed) docStatus = hasDoc ? "ready" : null;
-  const message = outcome.failed ? (outcome.message || "") : (fields.message || "");
+  // Only the resume run reports a message; a cover run settling last keeps it.
+  const message = outcome.failed ? (outcome.message || "") : (fields.message ?? prev.message ?? "");
   update(jobId, { ...fields, docStatus, message });
 }
 
@@ -313,6 +314,7 @@ const publicResult = (r) => ({
   resumePath: r.resumePath || "",
   coverPath: r.coverPath || "",
   lastRunLog: r.lastRunLog || "",
+  coverRunLog: r.coverRunLog || "",
   message: r.message || "",
   durationMs: r.durationMs ?? null,
   numTurns: r.numTurns ?? null,
@@ -353,7 +355,8 @@ function generate(jobIds, docTypes) {
       const dupe = [...activeEntries, ...queue].some((e) => e && String(e.jobId) === jobId && e.docType === docType);
       if (!dupe) { queue.push({ jobId, docType, folder }); queued++; }
     }
-    update(jobId, { folder, message: "" });
+    // A cover-only batch keeps the resume run's report.
+    update(jobId, types.includes("resume") ? { folder, message: "" } : { folder });
   }
   processNext();
   return { queued };
@@ -464,14 +467,16 @@ function startAttempt(entry) {
   }
 
   const folderAbs = path.join(dir, ...entry.folder.split("/"));
-  const logPath = path.join(folderAbs, "run.log");
+  const logName = `run-${entry.docType}.log`;
+  const logPath = path.join(folderAbs, logName);
   const pathField = entry.docType === "resume" ? "resumePath" : "coverPath";
+  const logField = entry.docType === "resume" ? "lastRunLog" : "coverRunLog";
 
   // Interrupted by an app restart (or this is a post-timeout retry): if the
   // prior attempt actually produced its file, keep it instead of redoing work.
   if (entry.startedAt) {
     const done = findOutput(folderAbs, entry.docType, entry.startedAt);
-    if (done) return finish(entry, { [pathField]: done, lastRunLog: logPath });
+    if (done) return finish(entry, { [pathField]: done, [logField]: logPath });
   }
 
   entry.startedAt = Date.now();
@@ -502,6 +507,14 @@ function startAttempt(entry) {
       texRel = !resumePending && fs.existsSync(tailoredTex)
         ? `${entry.folder}/Vineet_Agarwal_Resume.tex`
         : `masters/${master}.tex`;
+      // /cover reuses earlier output it finds (e.g. from a cancelled run)
+      // instead of writing fresh, so clear it first.
+      for (const name of fs.readdirSync(folderAbs)) {
+        if (name === "cover_content.json" || name.startsWith("Vineet_Agarwal_Cover_Letter_")) {
+          fs.rmSync(path.join(folderAbs, name), { force: true });
+        }
+      }
+      if (results[jobId] && results[jobId].coverPath) update(jobId, { coverPath: "" });
     }
     const prompt = entry.docType === "resume"
       ? `/tailor JD=${inboxRel} TEX=${texRel} MASTER=${master}`
@@ -524,7 +537,7 @@ function startAttempt(entry) {
     active[key].child = spawn(command, { cwd: dir, shell: true, windowsHide: true, env, stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     if (log) log.end();
-    return fail(entry, "Could not start claude. Is Claude Code installed?", { lastRunLog: logPath });
+    return fail(entry, "Could not start claude. Is Claude Code installed?", { [logField]: logPath });
   }
 
   const child = active[key].child;
@@ -556,7 +569,7 @@ function startAttempt(entry) {
     clearTimeout(timer);
     const reason = active[key] && active[key].killReason;
     log.end(`\n=== exit ${err ? err.message : code}${reason ? ` (${reason})` : ""} ===\n`);
-    const fields = { lastRunLog: logPath };
+    const fields = { [logField]: logPath };
     if (reason === "cancel") return finish(entry, fields);
     if (reason === "timeout") {
       if (!entry.timedOutOnce) {
@@ -567,13 +580,16 @@ function startAttempt(entry) {
         processNext();
         return;
       }
-      return fail(entry, "Timed out twice (after one retry). See run.log.", fields);
+      return fail(entry, `Timed out twice (after one retry). See ${logName}.`, fields);
     }
     const output = findOutput(folderAbs, entry.docType, entry.startedAt);
     if (!output) {
       const what = entry.docType === "resume" ? "resume PDF" : "cover letter";
-      return fail(entry, err ? "Could not start claude. Is Claude Code installed?" : `No ${what} was produced. See run.log.`, fields);
+      return fail(entry, err ? "Could not start claude. Is Claude Code installed?" : `No ${what} was produced. See ${logName}.`, fields);
     }
+    // The report, its parsed fit data and the run stats shown beside them all
+    // come from the resume run only; a cover run never overwrites them.
+    if (entry.docType !== "resume") return finish(entry, { ...fields, [pathField]: output });
     const parsed = runInfo.report ? parseReport(runInfo.report) : null;
     finish(entry, {
       ...fields,
@@ -715,13 +731,15 @@ function resolveFile(rawId, docType) {
     return file;
   }
 
-  const field = { resume: "resumePath", cover: "coverPath", log: "lastRunLog" }[docType];
+  const field = { resume: "resumePath", cover: "coverPath", log: "lastRunLog", coverLog: "coverRunLog" }[docType];
   if (!field) throw new TailorError("Invalid document type.");
   const r = results[jobId] || {};
   const file = typeof r[field] === "string" && r[field] ? real(r[field]) : null;
   const apps = real(path.join(dir, "applications"));
   if (!file || !apps || !isInside(apps, file)) throw new TailorError("File not found.");
-  const ok = docType === "log" ? path.basename(file) === "run.log" : /\.(pdf|docx)$/i.test(file);
+  const isLog = docType === "log" || docType === "coverLog";
+  // run.log is the pre-split shared log, still referenced by older results.
+  const ok = isLog ? /^run(-resume|-cover)?\.log$/.test(path.basename(file)) : /\.(pdf|docx)$/i.test(file);
   if (!ok) throw new TailorError("File not found.");
   return file;
 }
@@ -738,7 +756,7 @@ function showInFolder(jobId, docType) {
 async function startDrag(sender, jobId, docType) {
   let file;
   try { file = resolveFile(jobId, docType); } catch { return; }
-  if (docType === "log") return;
+  if (docType === "log" || docType === "coverLog") return;
   let icon;
   try { icon = await app.getFileIcon(file); } catch {}
   if (!icon || icon.isEmpty()) icon = nativeImage.createFromDataURL(FALLBACK_ICON);

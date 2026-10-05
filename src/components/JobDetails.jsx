@@ -256,7 +256,10 @@ function DocumentsTab({ job, doc }) {
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", padding: "10px 14px", background: "#2d1010", borderRadius: "8px" }}>
           <span style={{ fontSize: "13px", color: "#f87171", flex: 1 }}>{doc.message || "Generation failed."}</span>
           {doc.lastRunLog && (
-            <button className="btn" onClick={() => call(() => api.openFile(job.id, "log"))} style={docBtn("#f87171")}>Show log</button>
+            <button className="btn" onClick={() => call(() => api.openFile(job.id, "log"))} style={docBtn("#f87171")}>Resume log</button>
+          )}
+          {doc.coverRunLog && (
+            <button className="btn" onClick={() => call(() => api.openFile(job.id, "coverLog"))} style={docBtn("#f87171")}>Cover log</button>
           )}
         </div>
       )}
