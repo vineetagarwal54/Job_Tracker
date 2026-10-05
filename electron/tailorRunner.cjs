@@ -26,9 +26,10 @@ const MASTER_KEY = { "AI/ML": "ai", "General/Full-stack": "swe", "Mobile": "mobi
 // TODO: masters/mobile.tex still uses the old pre-sync template (unlike
 // ai/swe/fde). Until it's updated, a mobile-flavored title routes to swe,
 // not mobile -- see the "mobile.tex not ready" branch in resolveMaster below.
+// fde is checked before ai so "Forward Deployed Engineer, AI" resolves to fde.
 const TITLE_KEYWORDS = [
-  ["ai", ["ai", "ml", "machine learning", "llm", "genai", "generative", "inference", "applied scientist"]],
   ["fde", ["forward deployed", "solutions engineer", "customer engineer", "deployment engineer", "implementation engineer"]],
+  ["ai", ["ai", "ml", "machine learning", "llm", "genai", "generative", "inference", "applied scientist"]],
   ["mobile", ["mobile", "ios", "android", "react native"]],
 ];
 
@@ -73,7 +74,7 @@ let getAppData = () => null;
 let notify = () => {};
 
 let queue = [];       // [{ jobId, docType, folder, startedAt?, timedOutOnce? }]
-let active = {};      // jobId -> { entry, child, killReason, timer } for jobs currently running, up to tailorConcurrencyOf()
+let active = {};      // runKey(jobId, docType) -> { entry, child, killReason, timer } for runs in progress, up to tailorConcurrencyOf()
 let outcomes = {};    // jobId -> { failed, cancelled, message } for the current batch
 // jobId -> { docStatus, resumePath, coverPath, lastRunLog, message, folder,
 // durationMs, numTurns, fitLevel, keywordsCovered, keywordsTotal, missingKeywords, newWording }.
@@ -81,6 +82,11 @@ let outcomes = {};    // jobId -> { failed, cancelled, message } for the current
 let results = {};
 
 class TailorError extends Error {}
+
+// One job's resume and cover run independently (possibly at the same time), so
+// every per-run structure is keyed by job *and* doc type.
+const runKey = (jobId, docType) => `${jobId}:${docType}`;
+const activeKeysOf = (jobId) => Object.keys(active).filter((k) => String(active[k].entry.jobId) === jobId);
 
 // ── Persistence ───────────────────────────────────────────────
 const queuePath = () => path.join(app.getPath("userData"), "tailor-queue.json");
@@ -156,7 +162,7 @@ function tailorConcurrencyOf() {
 function tailorTimeoutMsOf() {
   const { settings } = appData();
   const n = settings && Number(settings.tailorTimeoutMin);
-  const minutes = Number.isFinite(n) && n > 0 && n <= 60 ? n : 6;
+  const minutes = Number.isFinite(n) && n > 0 && n <= 60 ? n : 8;
   return minutes * 60 * 1000;
 }
 
@@ -274,7 +280,7 @@ function folderFor(jobId, job, dir) {
 
 // ── Status ────────────────────────────────────────────────────
 function statusOf(jobId) {
-  if (active[jobId]) return "generating";
+  if (activeKeysOf(jobId).length > 0) return "generating";
   if (queue.some((e) => String(e.jobId) === jobId)) return "queued";
   return null;
 }
@@ -336,8 +342,12 @@ function generate(jobIds, docTypes) {
     const jobId = checkId(rawId);
     const job = findJob(jobId);
     if (!job || !String(job.jd || "").trim()) continue;
-    if (!statusOf(jobId)) outcomes[jobId] = {};
     const folder = folderFor(jobId, job, dir);
+    if (!statusOf(jobId)) {
+      outcomes[jobId] = {};
+      // Written once per batch, never while one of this job's runs may be reading them.
+      writeJobFiles(dir, job, jobId, folder);
+    }
     for (const docType of types) {
       const activeEntries = Object.values(active).map((a) => a.entry);
       const dupe = [...activeEntries, ...queue].some((e) => e && String(e.jobId) === jobId && e.docType === docType);
@@ -355,16 +365,17 @@ function cancel(rawId) {
   const before = queue.length;
   queue = queue.filter((e) => String(e.jobId) !== jobId);
   outcomes[jobId] = { ...(outcomes[jobId] || {}), cancelled: true };
-  if (active[jobId]) {
-    killChild(jobId, "cancel"); // settles when the process exits
+  const running = activeKeysOf(jobId);
+  if (running.length > 0) {
+    for (const key of running) killChild(key, "cancel"); // settles when the last process exits
   } else if (queue.length !== before) {
     settle(jobId, {});
   }
   return getState();
 }
 
-function killChild(jobId, reason) {
-  const a = active[jobId];
+function killChild(key, reason) {
+  const a = active[key];
   if (!a || !a.child) return;
   a.killReason = reason;
   if (process.platform === "win32") {
@@ -392,29 +403,33 @@ function findOutput(folderAbs, docType, since) {
   return newest(".pdf") || newest(".docx") || null;
 }
 
-function writeInbox(dir, job, entry, master) {
-  const inbox = path.join(dir, "inbox");
-  fs.mkdirSync(inbox, { recursive: true });
-  const file = path.join(inbox, `${entry.jobId}.md`);
+const inboxRelOf = (jobId) => `inbox/${jobId}.md`;
+
+// Writes the shared inputs both doc types read: inbox/<jobId>.md and the
+// folder's jd.md.
+function writeJobFiles(dir, job, jobId, folder) {
+  fs.mkdirSync(path.join(dir, "inbox"), { recursive: true });
+  const folderAbs = path.join(dir, ...folder.split("/"));
+  fs.mkdirSync(folderAbs, { recursive: true });
+  fs.writeFileSync(path.join(folderAbs, "jd.md"), `${String(job.jd || "").trim()}\n`, "utf-8");
   const text = [
     `Company: ${job.company || ""}`,
     `Role: ${job.role || ""}`,
     `Link: ${job.link || ""}`,
-    `Output folder: ${entry.folder}`,
-    ...(master ? [`Master: ${master}`] : []),
+    `Output folder: ${folder}`,
+    `Master: ${resolveMaster(job.resume, job.role).key}`,
     "",
     "## Job description",
     "",
     String(job.jd || "").trim(),
     "",
   ].join("\n");
-  fs.writeFileSync(file, text, "utf-8");
-  return `inbox/${entry.jobId}.md`;
+  fs.writeFileSync(path.join(dir, ...inboxRelOf(jobId).split("/")), text, "utf-8");
 }
 
 function finish(entry, fields) {
   const jobId = String(entry.jobId);
-  delete active[jobId];
+  delete active[runKey(jobId, entry.docType)];
   persistQueue();
   settle(jobId, fields);
   processNext();
@@ -435,7 +450,8 @@ function processNext() {
 
 function startAttempt(entry) {
   const jobId = String(entry.jobId);
-  active[jobId] = { entry };
+  const key = runKey(jobId, entry.docType);
+  active[key] = { entry };
 
   let dir, job;
   try {
@@ -463,29 +479,33 @@ function startAttempt(entry) {
 
   let log;
   try {
-    const resolved = entry.docType === "resume" ? resolveMaster(job.resume, job.role) : null;
-    const master = resolved && resolved.key;
-    fs.mkdirSync(folderAbs, { recursive: true });
-    const inboxRel = writeInbox(dir, job, entry, master);
-    // Seed the resume tex and jd.md here with plain fs, not Claude's Write tool:
-    // Write costs 40-50s on the ~10KB master tex, and this runs before claude is
-    // even spawned.
-    let texRel = null;
-    if (master) {
+    const resolved = resolveMaster(job.resume, job.role);
+    const master = resolved.key;
+    const inboxRel = inboxRelOf(jobId);
+    // Normally written by generate(); only missing if deleted since (e.g. across a restart).
+    if (!fs.existsSync(path.join(dir, ...inboxRel.split("/")))) writeJobFiles(dir, job, jobId, entry.folder);
+    const tailoredTex = path.join(folderAbs, "Vineet_Agarwal_Resume.tex");
+    let texRel;
+    if (entry.docType === "resume") {
+      // Seed the resume tex here with plain fs, not Claude's Write tool: Write
+      // costs 40-50s on the ~10KB master tex, and this runs before claude is
+      // even spawned.
       const masterTex = fs.readFileSync(path.join(dir, "masters", `${master}.tex`), "utf-8");
-      fs.writeFileSync(path.join(folderAbs, "Vineet_Agarwal_Resume.tex"), `% master: ${master}\n${masterTex}`, "utf-8");
-      fs.writeFileSync(path.join(folderAbs, "jd.md"), `${String(job.jd || "").trim()}\n`, "utf-8");
+      fs.writeFileSync(tailoredTex, `% master: ${master}\n${masterTex}`, "utf-8");
       texRel = `${entry.folder}/Vineet_Agarwal_Resume.tex`;
-    } else if (entry.docType === "cover") {
-      // Cover doesn't need a master or its own tex -- just jd.md (cheap, idempotent),
-      // plus the existing tailored resume's path for consistency, if one exists yet.
-      fs.writeFileSync(path.join(folderAbs, "jd.md"), `${String(job.jd || "").trim()}\n`, "utf-8");
-      const existingTex = path.join(folderAbs, "Vineet_Agarwal_Resume.tex");
-      texRel = fs.existsSync(existingTex) ? `${entry.folder}/Vineet_Agarwal_Resume.tex` : null;
+    } else {
+      // Cover runs alongside its resume, so while that resume run is pending the
+      // folder's tex is still an untailored (or half-tailored) seed: use the
+      // master instead. Otherwise prefer the finished tailored resume.
+      const resumePending = Boolean(active[runKey(jobId, "resume")])
+        || queue.some((e) => String(e.jobId) === jobId && e.docType === "resume");
+      texRel = !resumePending && fs.existsSync(tailoredTex)
+        ? `${entry.folder}/Vineet_Agarwal_Resume.tex`
+        : `masters/${master}.tex`;
     }
     const prompt = entry.docType === "resume"
       ? `/tailor JD=${inboxRel} TEX=${texRel} MASTER=${master}`
-      : `/cover JD=${inboxRel}${texRel ? ` TEX=${texRel}` : ""}`;
+      : `/cover JD=${inboxRel} TEX=${texRel}`;
     // prompt only contains a validated job id, derived relative paths, and a
     // fixed master key, so it is safe inside double quotes. cwd (which has a
     // space in it) is passed as an option, never through the shell.
@@ -495,19 +515,19 @@ function startAttempt(entry) {
     log = fs.createWriteStream(logPath, { flags: "a" });
     log.on("error", () => {});
     log.write(`\n=== ${entry.docType} ${new Date().toISOString()} ===\n$ ${command}\n`);
-    if (resolved) log.write(`resume: "${job.resume || ""}" -> master: ${resolved.key} (${resolved.how})\n`);
+    log.write(`resume: "${job.resume || ""}" -> master: ${resolved.key} (${resolved.how})\n`);
     if (entry.timedOutOnce) log.write("retry after timeout\n");
 
     const env = { ...process.env };
     delete env.ANTHROPIC_API_KEY; // resume-tailor runs on the Claude subscription
     // claude.cmd can only be launched through a shell on Windows.
-    active[jobId].child = spawn(command, { cwd: dir, shell: true, windowsHide: true, env, stdio: ["ignore", "pipe", "pipe"] });
+    active[key].child = spawn(command, { cwd: dir, shell: true, windowsHide: true, env, stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     if (log) log.end();
     return fail(entry, "Could not start claude. Is Claude Code installed?", { lastRunLog: logPath });
   }
 
-  const child = active[jobId].child;
+  const child = active[key].child;
   const runInfo = { report: "", durationMs: null, numTurns: null };
   let stdoutBuf = "";
   child.stdout.on("data", (chunk) => {
@@ -526,22 +546,22 @@ function startAttempt(entry) {
     }
   });
   child.stderr.on("data", (d) => log.write(d));
-  const timer = setTimeout(() => killChild(jobId, "timeout"), tailorTimeoutMsOf());
-  active[jobId].timer = timer;
+  const timer = setTimeout(() => killChild(key, "timeout"), tailorTimeoutMsOf());
+  active[key].timer = timer;
 
   let done = false;
   const onExit = (code, err) => {
     if (done) return;
     done = true;
     clearTimeout(timer);
-    const reason = active[jobId] && active[jobId].killReason;
+    const reason = active[key] && active[key].killReason;
     log.end(`\n=== exit ${err ? err.message : code}${reason ? ` (${reason})` : ""} ===\n`);
     const fields = { lastRunLog: logPath };
     if (reason === "cancel") return finish(entry, fields);
     if (reason === "timeout") {
       if (!entry.timedOutOnce) {
         entry.timedOutOnce = true;
-        delete active[jobId];
+        delete active[key];
         queue.unshift(entry);
         update(jobId);
         processNext();
@@ -689,8 +709,7 @@ function resolveFile(rawId, docType) {
   const real = (p) => { try { return fs.realpathSync(p); } catch { return null; } };
 
   if (docType === "base") {
-    const key = MASTER_KEY[job.resume];
-    if (!key) throw new TailorError("No base resume for this version.");
+    const { key } = resolveMaster(job.resume, job.role);
     const file = real(path.join(dir, "masters", `${key}.pdf`));
     if (!file) throw new TailorError("Base resume PDF is missing.");
     return file;
